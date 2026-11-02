@@ -3,13 +3,24 @@
 P11 distributes none of the components below. They are installed separately, pinned by commit or SHA-256, and used under their own licences. "Flags" records restrictions such as non-commercial use. Versions, commits, licences and URLs are verified at the source before they are entered.
 
 ## Engine components
-To be filled by Phase 03.
+Installed by `scripts/engine_setup.sh` into `~/.local/share/p11/engine/` (never vendored), pinned in `engine/engine.lock.toml` and hash-locked in `engine/requirements.lock.txt` (full set: 103 packages). Licences read from the installed package metadata and the GitHub API on 2026-11-02 15:45 CST (Phase 03).
 
 | Name | Version / commit | Licence | URL | Flags |
 |---|---|---|---|---|
+| ComfyUI | v0.43.0, `426f5eea52a7ece1dd599fff4cb6cd1f352ddd24` | GPL-3.0 | https://github.com/Comfy-Org/ComfyUI | copyleft; separate process, reached over HTTP only |
+| comfyui-frontend-package | 1.57.4 | GPL-3.0 | https://github.com/Comfy-Org/ComfyUI_frontend | installed by ComfyUI's requirements; its UI is never exposed (S2) |
+| comfyui-embedded-docs | 0.5.15 | GPL-3.0 | https://pypi.org/project/comfyui-embedded-docs/ | as above |
+| comfyui-workflow-templates | 0.11.97 | MIT | https://pypi.org/project/comfyui-workflow-templates/ | none |
+| comfy-aimdo | 0.6.0 | GPL-3.0 | https://pypi.org/project/comfy-aimdo/ | dynamic VRAM allocator |
+| comfy-kitchen | 0.2.40 | Apache-2.0 | https://pypi.org/project/comfy-kitchen/ | none |
+| PyTorch (`torch`) | 2.14.1+cu130 | BSD-3-Clause style (Apache-2.0, BSD-2/3 components per its metadata) | https://pytorch.org/ | from `download.pytorch.org/whl/cu130` |
+| torchvision | 0.29.1+cu130 | BSD-3-Clause | https://github.com/pytorch/vision | none |
+| NVIDIA CUDA 13.0 runtime wheels (cuBLAS, cuDNN 9.24, …) | as locked | NVIDIA proprietary (redistributable) | https://pypi.org/user/nvidia/ | pulled in by torch; proprietary |
+| transformers, safetensors, kornia, torchsde | 5.22.1, 0.8.0, 0.9.0, 0.2.6 | Apache-2.0 | https://pypi.org/ | none |
+| spandrel | 0.4.2 | MIT | https://github.com/chaiNNer-org/spandrel | loads upscaler architectures |
 
 ## Custom nodes
-To be filled by Phase 03 (adding a node needs an ADR).
+None as of Phase 03 (2026-11-02 15:45 CST): the bake-off used core nodes only. Adding a node needs an ADR (S3).
 
 | Name | Version / commit | Licence | URL | Flags |
 |---|---|---|---|---|
