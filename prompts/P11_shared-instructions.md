@@ -8,7 +8,7 @@ Read this file in full before starting any phase. Each phase prompt assumes it.
 1. Read `CLAUDE.md`, `P11_IMPLEMENTATION_PLAN.md` (including the Phase Log and Owner questions) and the spec sections named in your phase prompt. Always read the Amendments.
 2. Confirm that every phase listed under "Depends on" is `✅ Complete`. If one is not, stop and tell Nick.
 3. Read the Phase Log entries of the dependency phases; they may record deviations that change what you build.
-4. If an owner question this phase needs is still open, ask Nick before doing the affected work. (Hands-off mode: block-with-question, §1b.)
+4. **Owner pre-authorizations first:** spec §11.6 (H1–H15) records Nick's answers for the hands-off run; where it covers a case, follow it instead of asking or blocking. If an owner question this phase needs is still open, ask Nick before doing the affected work. (Hands-off mode: block-with-question, §1b.)
 5. **Claim the phase on `main`** by following §1a. This is the first file change of every phase session. Do not start the Tasks until the claim is verified.
 6. If the prompt is ambiguous or contradicts the spec, prefer the spec's Amendments. If it is still unclear, ask Nick before guessing on anything user-visible or hard to reverse. (Hands-off mode: block-with-question, §1b.)
 

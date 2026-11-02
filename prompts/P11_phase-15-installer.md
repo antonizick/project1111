@@ -1,6 +1,6 @@
 # P11 Phase 15: Installer, updates & Omarchy integration
 
-**Model:** Sonnet 5.5 (`/model claude-sonnet-5-5`) · **Depends on:** 07 · **Branch:** `phase-15-installer` · **Worktree:** `../project1111-phase-15` · **Gate:** review
+**Model:** Sonnet 5.5 (`/model claude-sonnet-5-5`) · **Depends on:** 07 · **Branch:** `phase-15-installer` · **Worktree:** `../project1111-phase-15` · **Gate:** auto
 
 ## Read first
 `CLAUDE.md` (Risk rule), `prompts/P11_shared-instructions.md`, spec §7, §11.2 R1, R4, R8, R15, R16, §11.3 S1, S3, S7, S9. Phase Log entries for 03, 06 and 07. `engine/engine.lock.toml`, `scripts/engine_setup.sh`. ADR-0012. The OSMods README at `/home/nick/Documents/04 Resources/OSMods/README.md` (read it before changing anything on the host).
@@ -13,8 +13,8 @@ A new user on Omarchy or Arch with an NVIDIA GPU goes from `git clone` to an ope
 2. **One-liner (optional):** document `curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/v<ver>/install.sh | bash -s -- …` only for a **tag**, and have `install.sh` refuse to run from a pipe unless it verifies it was fetched from a tag (or recommend the clone path). Don't publish anything; the URL works once the repo is public (Phase 17).
 3. **`p11 update`:** fetch tags, show the changelog diff, check out the latest tag (or `--to <tag>`), re-run the idempotent steps (deps, engine lock changes, new manifest entries), migrate config/templates (Phase 04 migrations), keep user data. Refuses with local modifications to the checkout.
 4. **`uninstall.sh` / `p11 uninstall`:** removes the app, engine and desktop entry; asks separately about models (size shown), templates/config and outputs (default: keep outputs and templates). Never touches pacman packages it did not install without asking; prints what it leaves.
-5. **Omarchy integration (R16):** a `.desktop` entry (`~/.local/share/applications/p11.desktop`) running `p11 start && p11 open`, an icon (simple original SVG), and an app-mode window like Omarchy web apps; check Hyprland behaviour (window class/title so users can add rules). If Nick wants a keybinding or a waybar/quickshell indicator, ask first and document it as an OS modification.
-6. **Clean-install test:** a container test (`tests/install/`) using an Arch Linux base image with `--gpus all` (nvidia-container-toolkit is on the laptop) that runs `install.sh --yes --models none` and then `p11 doctor` and a FakeEngine smoke test; plus a full run on the laptop under a throw-away `HOME` (e.g. `HOME=$(mktemp -d)`) with `--models default`, measuring **time-to-first-image after the download** (R4).
+5. **Omarchy integration (R16):** a `.desktop` entry (`~/.local/share/applications/p11.desktop`) running `p11 start && p11 open`, an icon (simple original SVG), and an app-mode window like Omarchy web apps; check Hyprland behaviour (window class/title so users can add rules). Pre-approved by spec H11 (load the `omarchy` skill first): a Hyprland launch keybinding in Nick's user config (check existing bindings, pick an unused combination); a P11 status indicator only through a supported user-level extension of the Omarchy shell (never edit or shadow `/usr/share/omarchy/`; if there is none, skip it and log a follow-up).
+6. **Clean-install test:** a container test (`tests/install/`) using an Arch Linux base image with `--gpus all` (nvidia-container-toolkit is on the laptop) that runs `install.sh --yes --models none` and then `p11 doctor` and a FakeEngine smoke test; plus a full run on the laptop under a throw-away `HOME` (e.g. `HOME=$(mktemp -d)`) with `--models default`, measuring **time-to-first-image after the download** (R4); reuse the already-downloaded models instead of downloading again (H1), and set the power profile per H8. Then do the real install under Nick's HOME (H11d), reusing the models. Add a "for the owner's review" bullet to the Phase Log entry (H10).
 7. **Docs:** `docs/P11_USER-GUIDE.md` install/update/uninstall, troubleshooting (driver missing, OOM, port in use, Wayland/browser quirks), laptop thermal and power notes (plugged in, performance profile).
 8. **OSMods:** the desktop entry and any other host change on Nick's machine get a write-up in `/home/nick/Documents/04 Resources/OSMods/` and the README (at-a-glance row, section, "Where things live", "Last updated"), including undo steps.
 
@@ -22,7 +22,7 @@ A new user on Omarchy or Arch with an NVIDIA GPU goes from `git clone` to an ope
 AUR package (follow-up), Flatpak, non-NVIDIA GPUs, non-Arch distros (documented as unsupported).
 
 ## Tests
-ShellCheck in CI; `install.sh --dry-run` output snapshot; bats or pytest-driven tests of the script's detection functions with fake `os-release`/`nvidia-smi`; idempotency (two runs, second prints "nothing to do"); container clean-install test (local, marked `slow`); uninstall leaves outputs when told to.
+ShellCheck in CI and locally (installed at user level, H4); `install.sh --dry-run` output snapshot; bats or pytest-driven tests of the script's detection functions with fake `os-release`/`nvidia-smi`; idempotency (two runs, second prints "nothing to do"); container clean-install test (local, marked `slow`); uninstall leaves outputs when told to.
 
 ## Acceptance criteria
 - In the container: `install.sh --yes --models none` succeeds and `p11 doctor` passes the non-GPU checks (GPU checks pass with `--gpus all`).

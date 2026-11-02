@@ -3,7 +3,7 @@
 **Model:** Opus 5.5 (`/model claude-opus-5-5`) · **Depends on:** 12 · **Branch:** `phase-13-video-faceswap` · **Worktree:** `../project1111-phase-13` · **Gate:** auto
 
 ## Read first
-`CLAUDE.md` (Content boundary), `prompts/P11_shared-instructions.md`, spec §4 (Video Face-swap), §11.2 R13, R14, R24, §11.3 S5, S6, S8. Phase Log entries for 05, 07 and 12. ADR-0005, ADR-0011. **Owner question 5** (thermal thresholds; proposed default pause 87 °C / resume 80 °C, adjusted to Phase 03's measured throttle point). If it is still open, ask before fixing the defaults.
+`CLAUDE.md` (Content boundary), `prompts/P11_shared-instructions.md`, spec §4 (Video Face-swap), §11.2 R13, R14, R24, §11.3 S5, S6, S8. Phase Log entries for 05, 07 and 12. ADR-0005, ADR-0011. **Spec §11.6** (decided 2026-11-02 14:57 CST): H9 pause 87 °C / resume 80 °C, each adjustable by up to ±5 °C from Phase 03's measured throttle point with an ADR; H7 test material; H8 power profile during measurements.
 
 ## Goal
 Short joke clips need no scripting. You upload a clip and a face photo, press **Swap**, and get back an MP4 with the original audio. Along the way the job shows clear progress and an ETA, pauses when the laptop runs hot, can be cancelled, and resumes after a crash. It runs on the same face-swap engine and the same NSFW guard as Phase 12.
@@ -15,7 +15,7 @@ Short joke clips need no scripting. You upload a clip and a face photo, press **
 4. **Thermal guard (R14):** the Phase 05 `ThermalGuard` pauses between batches above the threshold and resumes below it; the UI shows "Cooling down (86 °C)". Also respect the GPU lock (one GPU job at a time).
 5. **Temporal quality:** reduce flicker with simple measures that are measurable: consistent face selection, optional temporal smoothing of the swapped face region (e.g. blending with the previous frame's result where motion is low). Keep it optional and record the effect.
 6. **Video view:** upload clip (validated), choose face photo (or "my face" from Phase 12), choose target face on a thumbnail, quality preset (Fast / Good), trim, Swap; progress (frames done/total, ETA, temperature, paused state), Cancel, Resume for interrupted jobs, result player and Download. Output goes to the R7 layout as `.mp4` with a sidecar.
-7. **Laptop measurement:** a 30 s 1080p 30 fps clip (owner-supplied, outside the repo, owner question 4) at Fast and Good: total time, per-frame time, peak temperature, pauses; `docs/P11_BENCHMARKS.md`.
+7. **Laptop measurement:** a 30 s 1080p 30 fps synthetic clip, plus Nick's clip from `~/Pictures/P11-test/` if present (H7, outside the repo; power per H8) at Fast and Good: total time, per-frame time, peak temperature, pauses; `docs/P11_BENCHMARKS.md`.
 
 ## Out of scope
 Lip-sync, full-body replacement, live webcam, audio changes.

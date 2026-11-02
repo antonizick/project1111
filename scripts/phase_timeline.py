@@ -797,6 +797,14 @@ def _text_w(s: str, size: float) -> float:
     return len(s) * size * 0.54
 
 
+def _fit(s: str, width: float, size: float) -> str:
+    """`s`, shortened with an ellipsis to fit `width`; empty if too little of it would remain."""
+    if _text_w(s, size) <= width:
+        return s
+    n = int(width / (size * 0.54)) - 1
+    return s[:n].rstrip() + "…" if n >= 6 else ""
+
+
 def _x(s: str) -> str:
     return _xml_escape(s, {'"': "&quot;"})
 
@@ -1088,7 +1096,7 @@ def _planning_lane(add: Add, axis: Axis, tl: Timeline, y: int) -> None:
     )
     items = [it for it in tl.planning if it.start and it.end]
     last_end = -1e9
-    for it in items:
+    for i, it in enumerate(items):
         assert it.start is not None and it.end is not None
         x0 = axis.x(it.start.moment.at)
         x1 = axis.x(it.end.moment.at)
@@ -1121,13 +1129,17 @@ def _planning_lane(add: Add, axis: Axis, tl: Timeline, y: int) -> None:
         add("</g>")
         if it.label == "preflight":
             continue  # the diamond and the legend say it; the table has the time
-        lx = min(x0, W - RIGHT - _text_w(it.label, 11))
+        # name the session, not just "plan": as much of its title as fits before the next item
+        later = [
+            axis.x(o.start.moment.at) for o in items[i + 1 :] if o.start and o.label != "preflight"
+        ]
+        limit = (min(later) if later else W - RIGHT) - 6
+        name = it.title if it.label.startswith(("plan", "+")) else f"{it.label} {it.title}"
+        text = _fit(name, limit - x0, 11) or it.label
+        lx = min(x0, W - RIGHT - _text_w(text, 11))
         if lx > last_end + 6:
-            add(
-                f'<text class="t2" x="{_num(lx)}" y="{_num(ly)}" '
-                f'font-size="11">{_x(it.label)}</text>'
-            )
-            last_end = lx + _text_w(it.label, 11)
+            add(f'<text class="t2" x="{_num(lx)}" y="{_num(ly)}" font-size="11">{_x(text)}</text>')
+            last_end = lx + _text_w(text, 11)
 
 
 def _phase_row(

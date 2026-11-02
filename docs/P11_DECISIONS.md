@@ -118,3 +118,19 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 **Options considered.** No coordination; serialize phases; advisory lock.
 **Decision.** `flock` on `~/.cache/p11/gpu.lock` around GPU tests, benchmarks and the Studio's engine jobs (spec R24); a waiting session reports who holds it.
 **Consequences.** GPU tests may wait; CPU-only tests and FakeEngine tests never take the lock.
+
+## ADR-0015: Hands-off pre-authorizations for the PHX run
+**Recorded.** 2026-11-02 14:57 CST (preflight after Phase 00)
+**Status.** Accepted
+**Context.** Nick will build P11 with PhaseHypervisor (`phx run`), unattended. Several prompts said "ask Nick" or "block-with-question" (download budget, model hosts, licences, the bake-off rating, an engine switch, face test material, thermal limits, host changes, QA misses), and the machine lacked dev tools (shellcheck, gitleaks, bats, semgrep) and was in the power-saver profile. Each of these would stop the run.
+**Options considered.** Leave the questions in the phases (frequent stops); answer them all up front (preflight).
+**Decision.** Nick answered them up front; spec §11.6 H1–H15 records each answer and replaces the matching "ask" in the prompts. Highlights: budget 100 GB bake-off / 30 GB default set; login-free Hugging Face only; restrictive model licences allowed for personal use and flagged; dev tools user-level without sudo; Phase 03 picks the default models itself; the agent **may switch engines** if ComfyUI clearly fails a hard requirement and the fallback passes (amends ADR-0002's "stop and ask"); synthetic face test material plus Nick's own if present; power profile switched to performance only during GPU benchmarks and restored; thermal 87/80 °C tunable ±5 °C; Gate `auto` everywhere except 17; Phase 15 host changes (desktop entry, keybinding, indicator through a supported user extension only, real install) pre-approved with OSMods write-ups; Phase 16 defers non-security misses for review.
+**Consequences.** The run should stop only at Phase 17 (release "go?"), on a real failure, or on something outside §11.6. Nick reviews the 03, 08, 15 and 16 results at the Phase 17 pause instead of after each phase, so a disliked model pick or UI is corrected later with `/phase-add` rather than before dependent phases build on it.
+
+## ADR-0016: v1.0.0 is a private release
+**Recorded.** 2026-11-02 14:57 CST (preflight after Phase 00)
+**Status.** Accepted (amends ADR-0003)
+**Context.** ADR-0003 planned "private now, public at release". In the preflight Nick chose a narrower v1.0.0.
+**Options considered.** Public repo plus release; private release; tag only.
+**Decision.** Phase 17 tags `v1.0.0` and, after Nick's in-the-moment "go", publishes a GitHub release on the **private** repo. The repo stays private; going public is a later decision (a `/phase-add` phase with its own confirmation).
+**Consequences.** The pinned-tag install one-liner (R15) does not work for others until the repo is public; the README documents clone + `./install.sh` for people with access. MIT licence and publication-readiness work (Phase 16) stay, so going public later is cheap.

@@ -1,6 +1,6 @@
 # P11 Phase 08: Generate view, gallery & app shell
 
-**Model:** Opus 5.5 (`/model claude-opus-5-5`) · **Depends on:** 07 · **Branch:** `phase-08-generate-ui` · **Worktree:** `../project1111-phase-08` · **Gate:** review
+**Model:** Opus 5.5 (`/model claude-opus-5-5`) · **Depends on:** 07 · **Branch:** `phase-08-generate-ui` · **Worktree:** `../project1111-phase-08` · **Gate:** auto
 
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §1 (success criteria), §4 (Generation, Quality), §6, §11.2 R3, R5, R7, R14, R17, R18, R22, §11.3 S1, S2, Appendix B. Phase Log entries for 04 and 07. `docs/P11_BENCHMARKS.md` (timings for progress estimates).
@@ -29,7 +29,7 @@ Vitest component tests (form state → recipe JSON, preset switching, advanced d
 - On the laptop with the real engine: a 1920×1080 photoreal image generates from Simple mode with prompt + Ctrl+Enter; the status bar shows live VRAM and temperature; the result appears in the gallery.
 - Playwright action counts recorded in the Phase Log; the daily path is within Appendix B.
 - No network requests other than to `127.0.0.1:<port>` (checked in Playwright).
-- `make check` green. Nick reviews the UI (Gate: review); capture 2–3 screenshots under `docs/images/` from FakeEngine images only (no personal content).
+- `make check` green. Add a "for the owner's review" bullet to the Phase Log entry (Nick reviews the UI at the Phase 17 pause, spec H10); capture 2–3 screenshots under `docs/images/` from FakeEngine images only (no personal content).
 
 ## Phase-specific docs
 `docs/P11_USER-GUIDE.md` (Generate, Gallery, shortcuts), `docs/P11_ARCHITECTURE.md` (frontend structure, state, events), README screenshot, CHANGELOG. Then the standard close-out checklist.
