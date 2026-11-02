@@ -1,0 +1,9 @@
+Project_1111 (P11)
+Copyright (c) 2026 Nick Antonizick
+Licensed under the MIT License (see LICENSE).
+
+P11 does not distribute third-party engine components, custom nodes or model
+weights. The installer fetches them separately, pinned by commit or SHA-256,
+and each is used under its own licence. Some model licences restrict
+commercial use; THIRD_PARTY_NOTICES.md lists every component with its licence
+and flags.

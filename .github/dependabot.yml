@@ -1,0 +1,8 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # pip/uv (directory /) and npm (directory /frontend) are added in Phase 02,
+  # once pyproject.toml and frontend/package.json exist.

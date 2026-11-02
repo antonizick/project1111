@@ -1,3 +1,64 @@
-# Phase 00: vault source notes stay out of git (ADR-0004). Phase 01 extends this file.
+# Phase 00: vault source notes stay out of git (ADR-0004).
 /Plan Draft.md
 /Brainstorming Project 1111.md
+
+# Weights and model files (never committed; manifest only)
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.gguf
+*.onnx
+/models/*
+!/models/manifest.toml
+
+# Outputs, inputs, scratch, video
+/outputs/
+/inputs/
+/scratch/
+*.mp4
+*.mov
+*.webm
+
+# Engine checkouts (pinned by engine/engine.lock.toml, installed separately)
+/engine/ComfyUI/
+/engine/venv/
+/engine/.venv/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+playwright-report/
+test-results/
+
+# Built frontend served by the package
+/src/p11/web/
+
+# Caches and local tools
+.cache/
+.tools/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
