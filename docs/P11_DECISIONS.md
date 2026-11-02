@@ -11,7 +11,7 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0005 | 2026-11-02 13:16 CST | Unfiltered generation; NSFW guard kept on face-swap | Accepted | 00 |
 | ADR-0006 | 2026-11-02 13:16 CST | Curated model set as a hash-pinned manifest | Accepted | 00 |
 | ADR-0007 | 2026-11-02 13:16 CST | Templates are versioned P11 recipes compiled to engine graphs | Accepted | 00 |
-| ADR-0008 | 2026-11-02 13:16 CST | uv-managed CPython, separate from host Python 3.14 | Proposed (verify 02/03) | 00 |
+| ADR-0008 | 2026-11-02 13:16 CST | uv-managed CPython, separate from host Python 3.14 | Accepted for P11 (Phase 02, 2026-11-02 15:14 CST); engine side Proposed (verify 03) | 00, 02 |
 | ADR-0009 | 2026-11-02 13:16 CST | Turing defaults: fp16, SDPA, fp16-safe SDXL VAE, sm_75-capable torch | Proposed (verify 03) | 00 |
 | ADR-0010 | 2026-11-02 13:16 CST | Wallpaper presets = native bucket + upscale | Proposed (verify 03/14) | 00 |
 | ADR-0011 | 2026-11-02 13:16 CST | Face-swap engine: ReActor node vs FaceFusion | Proposed (decide 12) | 00 |
@@ -77,6 +77,8 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 **Options considered.** System Python; pyenv; uv-managed interpreters; conda.
 **Decision (Proposed).** uv-managed CPython 3.12 for P11 (Phase 02) and a separate uv environment for the engine with the version its pins support (Phase 03).
 **Consequences.** No system Python changes. Phase 03 marks this Accepted or supersedes it.
+
+**Update (2026-11-02 15:14 CST, Phase 02).** P11 side **Accepted**: `.python-version` is 3.12, `requires-python = ">=3.12,<3.13"`, `uv run python` reports 3.12.15, and nothing was installed into the host Python 3.14. The engine's own environment is still for Phase 03 to verify.
 
 ## ADR-0009: Turing defaults: fp16, SDPA, fp16-safe SDXL VAE, sm_75-capable torch
 **Recorded.** 2026-11-02 13:16 CST (Phase 00)
