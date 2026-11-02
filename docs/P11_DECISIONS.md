@@ -18,6 +18,7 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0012 | 2026-11-02 13:16 CST | Installer: clone + `./install.sh`, no driver installs | Accepted | 00 |
 | ADR-0013 | 2026-11-02 13:16 CST | Local-only security posture | Accepted | 00 |
 | ADR-0014 | 2026-11-02 13:16 CST | Advisory GPU lock across sessions and parallel phases | Accepted | 00 |
+| ADR-0017 | 2026-11-02 15:08 CST | gitleaks runs as a local pre-commit hook from a user-level pinned binary | Accepted | 01 |
 
 ---
 
@@ -134,3 +135,11 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 **Options considered.** Public repo plus release; private release; tag only.
 **Decision.** Phase 17 tags `v1.0.0` and, after Nick's in-the-moment "go", publishes a GitHub release on the **private** repo. The repo stays private; going public is a later decision (a `/phase-add` phase with its own confirmation).
 **Consequences.** The pinned-tag install one-liner (R15) does not work for others until the repo is public; the README documents clone + `./install.sh` for people with access. MIT licence and publication-readiness work (Phase 16) stay, so going public later is cheap.
+
+## ADR-0017: gitleaks as a local pre-commit hook from a pinned user-level binary
+**Recorded.** 2026-11-02 15:08 CST (Phase 01)
+**Status.** Accepted
+**Context.** Phase 01 asks for a gitleaks pre-commit hook with a pinned rev, and spec H4 forbids sudo/pacman. The upstream `gitleaks` pre-commit hook builds from source and needs a Go toolchain on every contributor's machine.
+**Options considered.** Upstream hook repo (`rev` pin, needs Go); `language: system` hook calling a pinned binary; gitleaks-action only in CI.
+**Decision.** `.pre-commit-config.yaml` uses a `language: system` hook calling `gitleaks` 8.30.1 from `PATH`, installed at user level from the release tarball after checking its SHA-256 against the release checksums. CI installs the same version with its SHA-256 checked in the workflow and scans full history. The basic hooks use `pre-commit-hooks` v6.0.0 (tag verified at its repo 2026-11-02 15:08 CST).
+**Consequences.** Contributors must install gitleaks themselves (documented in CONTRIBUTING); version drift between machines is possible but CI is the backstop. Dependabot does not track the binary; bump it by hand with its new SHA-256.

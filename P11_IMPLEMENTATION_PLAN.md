@@ -1,7 +1,7 @@
 # P11: Project_1111 Implementation Plan
 
 **Spec:** [`docs/P11_SPECIFICATION.md`](docs/P11_SPECIFICATION.md). **Decisions:** [`docs/P11_DECISIONS.md`](docs/P11_DECISIONS.md). **Agent rules:** [`CLAUDE.md`](CLAUDE.md). **Shared phase instructions:** [`prompts/P11_shared-instructions.md`](prompts/P11_shared-instructions.md)
-**Last updated:** 2026-11-02 13:25 CST (Phase 00, planning)
+**Last updated:** 2026-11-02 15:08 CST (Phase 01)
 
 > ⚠️ **Mandatory:** every agent that works on this project keeps this file accurate. **Before doing any other work, set your phase to `🔄 In progress` and commit that change to `main`** (claim protocol: `prompts/P11_shared-instructions.md` §1a). Other agents read this table from `main`. At the end, set it to `✅ Complete` or `⛔ Blocked` and add a Phase Log entry. See `CLAUDE.md`.
 
@@ -34,7 +34,7 @@ Each phase is claimed by a `chore(plan): start phase NN` commit on `main` and ru
 | Phase | Phase Name | Phase Purpose | AI Model to Use | Depends on | Status | Prompt to Initiate This Phase | Gate |
 |---|---|---|---|---|---|---|---|
 | 00 | Planning & spec refinement | Review source docs, resolve decisions, write the spec, plan and prompts | Opus 5.5 (`claude-opus-5-5`) | none | ✅ Complete | n/a (planning session) | owner |
-| 01 | Repository foundation & governance | MIT licence, README, SECURITY, CONTRIBUTING, CoC, CHANGELOG, notices, ignore files (weights, outputs, source notes), .github/, gitleaks pre-commit, docs skeleton, private GitHub repo | Sonnet 5.5 (`claude-sonnet-5-5`) | 00 | 🔄 In progress | [`prompts/P11_phase-01-repo-foundation.md`](prompts/P11_phase-01-repo-foundation.md) | auto |
+| 01 | Repository foundation & governance | MIT licence, README, SECURITY, CONTRIBUTING, CoC, CHANGELOG, notices, ignore files (weights, outputs, source notes), .github/, gitleaks pre-commit, docs skeleton, private GitHub repo | Sonnet 5.5 (`claude-sonnet-5-5`) | 00 | ✅ Complete | [`prompts/P11_phase-01-repo-foundation.md`](prompts/P11_phase-01-repo-foundation.md) | auto |
 | 02 | Python + React scaffold, toolchain & CI | uv + CPython 3.12, `p11` package and Typer CLI skeleton, FastAPI `/healthz`, Vite React-TS skeleton built into the package, config & XDG paths, GPU lock helper, Makefile, lint/type/test/audit gates, CI | Sonnet 5.5 (`claude-sonnet-5-5`) | 01 | ⬜ Not started | [`prompts/P11_phase-02-scaffold.md`](prompts/P11_phase-02-scaffold.md) | auto |
 | 03 | Hardware bake-off & engine baseline | Pinned headless ComfyUI in its own uv env, sm_75 torch verification, benchmark harness, measure candidate models/presets/VRAM modes/thermals on the laptop, owner-rated contact sheet; confirm ADR-0002/0008/0009/0010, pick the default model set | Opus 5.5 (`claude-opus-5-5`) | 02 | ⬜ Not started | [`prompts/P11_phase-03-bakeoff.md`](prompts/P11_phase-03-bakeoff.md) | auto |
 | 04 | Recipe core, compiler & output layout | Recipe schema + versions/migrations, input slots, seed strategies, presets, pure recipe→ComfyUI graph compiler (generate, upscale chains), output paths, sidecar/PNG metadata, SQLite gallery index | Opus 5.5 (`claude-opus-5-5`) | 02 | ⬜ Not started | [`prompts/P11_phase-04-recipe-core.md`](prompts/P11_phase-04-recipe-core.md) | auto |
@@ -185,3 +185,13 @@ Newest entries at the bottom. Format: `### YYYY-MM-DD HH:MM TZ: Phase NN: <title
 - Preflight for an unattended `phx run`: owner questions 1–5 decided and 7–16 added and decided; spec §11.5 updated and §11.6 H1–H15 added (amendments v1.2); ADR-0015 (pre-authorizations), ADR-0016 (v1.0.0 private release, amends ADR-0003); Gates 03, 08, 15, 16 → `auto`; prompts 01–03, 06, 08, 09, 12, 13, 15–17 and the shared instructions follow §11.6 instead of asking.
 - Checked: `antonizick/project1111` is free, `gh` logged in, Docker with the NVIDIA runtime and the `docker` group, git `user.name` set; shellcheck, gitleaks, bats, semgrep missing (H4); power profile was `power-saver` on AC (H8).
 - Expected stops in the run: Phase 17's release "go?", real failures, and anything outside §11.6.
+
+### 2026-11-02 15:08 CST: Phase 01: Repository foundation & governance (✅ Complete)
+- **Timeline:** started 2026-11-02 15:05 CST (claim commit 9f87dd5) · finished 2026-11-02 15:08 CST · merged 2026-11-02 15:08 CST
+- **Model:** ran as claude-sonnet-5-5 (auto mode; plan lists Sonnet 5.5)
+- Built: `LICENSE` (MIT, Nick Antonizick, 2026; text from choosealicense.com), `NOTICE`, `README.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1 fetched from the official repo; contact = GitHub private advisory / @antonizick, no email), `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md` skeleton, `.gitignore`, `.dockerignore`, `.editorconfig`, `.pre-commit-config.yaml`, `.github/` (CI with a gitleaks job, bug/feature templates, PR template, Dependabot for github-actions), `docs/P11_ARCHITECTURE.md`, `docs/P11_USER-GUIDE.md` outline, `docs/images/.gitkeep`.
+- Tools (user level, no sudo): gitleaks 8.30.1 in `~/.local/bin` (SHA-256 verified), pre-commit via `uvx`; hook installed. Pinned: `pre-commit-hooks` v6.0.0, `actions/checkout` v7.0.1 at `3d3c42e5…` (all verified via `gh api` on 2026-11-02 15:08 CST). OSMods write-up: `P11 Dev Tools (gitleaks).md`.
+- GitHub: private repo `https://github.com/antonizick/project1111` created (name was free), `main` pushed. Owner question 2 was already marked Decided.
+- Deviations: gitleaks hook is a `language: system` local hook rather than the upstream hook repo with a rev pin (no Go needed; ADR-0017). The CI job installs the pinned gitleaks binary instead of using `gitleaks-action`.
+- Tests: `pre-commit run --all-files` passes; `git check-ignore -v` reports both source notes, `x.safetensors` and `outputs/a.png` ignored; a 6 MB test file was refused by `check-added-large-files`; `git ls-files` has no weight/media/source-note files. CI result: see below.
+- Follow-ups: Phase 02 adds Python/frontend CI jobs, Dependabot pip/npm, and fills CONTRIBUTING setup commands.
