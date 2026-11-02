@@ -1,0 +1,40 @@
+# Pinned engine for P11 (spec S3, ADR-0002, ADR-0008, ADR-0009).
+# Read by scripts/engine_setup.sh (and later install.sh / p11.engine). Bump only with a reviewed diff.
+# Verified at the source by Phase 03 on 2026-11-02 15:21 CST (gh api repos/Comfy-Org/ComfyUI, download.pytorch.org).
+
+[comfyui]
+repo = "https://github.com/Comfy-Org/ComfyUI.git"
+tag = "v0.43.0"
+commit = "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24"
+licence = "GPL-3.0"
+
+[python]
+# uv-managed CPython for the engine venv; never the host Python (R1, ADR-0008).
+version = "3.12"
+
+[torch]
+# Turing sm_75 is supported by the CUDA 13.0 wheels (ADR-0009). torch 2.15.0 was < 2 weeks old at pin time.
+index_url = "https://download.pytorch.org/whl/cu130"
+torch = "2.14.1+cu130"
+torchvision = "0.29.1+cu130"
+cuda = "13.0"
+
+[requirements]
+# Full hash-locked dependency set (uv pip compile --generate-hashes); regenerate with
+# `scripts/engine_setup.sh --relock`.
+lock_file = "engine/requirements.lock.txt"
+
+[launch]
+# Flags checked against comfy/cli_args.py at the pinned commit (S1).
+listen = "127.0.0.1"
+port = 8188
+flags = [
+  "--disable-auto-launch",
+  "--offline",
+  "--disable-product-tips",
+  "--disable-all-custom-nodes",
+  "--preview-method", "none",
+]
+
+[custom_nodes]
+# None. Adding one needs an ADR and a pinned SHA (S3).
