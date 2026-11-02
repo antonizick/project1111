@@ -1,0 +1,34 @@
+# P11 Phase 12: Face-swap, pose & reference control
+
+**Model:** Opus 5.5 (`/model claude-opus-5-5`) · **Depends on:** 08 · **Branch:** `phase-12-face-pose` · **Worktree:** `../project1111-phase-12` · **Gate:** auto
+
+## Read first
+`CLAUDE.md` (Content boundary), `prompts/P11_shared-instructions.md`, spec §4 (Face-swap and Body-Pose Control, Quality), §11.1 A5, §11.2 R6, R10, R11, R24, §11.3 S3, S4, S5, S6, S8. Phase Log entries for 04–08. ADR-0005, ADR-0007, ADR-0011. **Owner question 4** (test material; proposed default: Nick's own photo and clip at `~/Pictures/P11-test/`, outside the repo; automated tests use synthetic/public-domain faces only). If it is still open, ask before any manual quality testing with real faces.
+
+## Goal
+Faces, poses and reference styles are one-click tools in Generate and Inpaint. **Face-swap** puts the face from a photo onto a generated image. **Apply Pose** makes a generation follow a pose from an image or the built-in editor. **Reference** keeps a style or character consistent through IP-Adapter. Face restoration polishes results. The face-swap path carries the non-negotiable NSFW target guard (S5).
+
+## Tasks
+1. **Face-swap engine decision (ADR-0011):** evaluate the ReActor ComfyUI node and FaceFusion (headless CLI) at their current releases: quality on avatar and photoreal targets, speed and VRAM on the laptop, maintenance, licences of code and weights (InsightFace swapper weights are non-commercial: flag in the manifest and require acknowledgement, R11), safetensors/ONNX formats (S4), and NSFW detection support. Pin the choice (commit SHA, model hashes); record the ADR. A custom node needs an ADR with a source review summary (S3).
+2. **NSFW target guard (S5, ADR-0005):** before any face-swap (image or, in Phase 13, per video), run an NSFW classifier on the target image (the engine's built-in detector if it has one, else a pinned open-licence classifier run by P11) and refuse sexual/nude targets with a neutral message. The guard runs server-side in the job runner for **every** face-swap step, whatever the source (UI, API, template, video), and has no setting, flag, env var or API parameter that disables it. Document the threshold and the classifier's licence. Tests use synthetic, non-explicit fixtures plus the classifier's own documented test approach. Never add explicit test images to the repo.
+3. **Face-swap step** (`recipe/steps/face_swap.py`): source face (slot `face_image`), target face selection when several faces are detected (auto: largest; UI lets you click one), optional face restore (GFPGAN/CodeFormer class, chosen by measured quality and licence) with strength, blend; works on generated images and uploaded photos.
+4. **Pose** (`recipe/steps/pose.py`): ControlNet OpenPose (or equivalent for the default base model, from Phase 03/06 measurements) with strength and start/end; pose source: upload a photo (extract the skeleton with the preprocessor) or **pose editor**: a simple 2D skeleton editor (drag joints, mirror, a few stock poses: standing, sitting, waving, arms crossed, headshot) in `frontend/src/features/pose-editor/`. "Apply Pose" from Generate. Add Depth and Canny ControlNets as Advanced options if they fit in VRAM (measure).
+5. **Reference (IP-Adapter):** style reference and character/face-consistency reference for the base model, with strength; the face-ID variant only if licence and VRAM allow (measure). Exposed in Generate as "Use reference image".
+6. **UI:** Face & Pose view plus inline actions on the result panel: **Swap face** (choose photo → apply), **Apply pose**, **Use as reference**, **Restore faces**. A one-line consent notice in the face-swap panel ("Use faces of people who agreed"). Remembered "my face" slot per template.
+7. **Manifest:** all new models (swapper, detector, restorer, classifier, ControlNets, IP-Adapters) with verified URL, hash, size, licence and flags; installed as part of `full` or a `face` set, not silently.
+8. **Laptop measurements:** timings and VRAM for each tool, and the combination generate + pose + swap + restore at 1920×1080 without OOM (unload models between steps if needed); `docs/P11_BENCHMARKS.md`.
+
+## Out of scope
+Video (13), training custom LoRAs of faces (out of v1), any feature that disables or weakens the guard.
+
+## Tests
+Guard tests: the face-swap step refuses when the classifier stub returns NSFW, from UI route, API, template run and direct job submission; no config disables it (grep test over settings and routes). Face selection geometry, compiler golden files for pose/reference/swap, pose editor unit tests (joint model, mirror, serialisation to the ControlNet input format), FakeEngine e2e for each action, `gpu` tests with synthetic faces (detect → swap → restore produces a face in the target box).
+
+## Acceptance criteria
+- On the laptop with owner-supplied material (owner question 4, kept outside the repo): face-swap onto a generated avatar and a photoreal image looks convincing at 100 %; Apply Pose follows a stock pose; Reference keeps a style across 4 seeds.
+- The guard refuses NSFW targets from every entry point; there is no switch to turn it off.
+- Licences of every face model recorded with non-commercial flags; acknowledgement required on install.
+- `make check` and `make gpu-test` green.
+
+## Phase-specific docs
+`docs/P11_USER-GUIDE.md` (Face & Pose, consent notice), SECURITY and `docs/P11_ARCHITECTURE.md` (guard design), `docs/P11_BENCHMARKS.md`, THIRD_PARTY_NOTICES, ADR-0011 Accepted + ADRs for restorer, classifier, ControlNet/IP-Adapter picks, owner question 4 status, CHANGELOG. Then the standard close-out checklist.

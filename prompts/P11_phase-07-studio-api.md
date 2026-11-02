@@ -1,0 +1,34 @@
+# P11 Phase 07: Studio API, jobs & CLI lifecycle
+
+**Model:** Opus 5.5 (`/model claude-opus-5-5`) · **Depends on:** 05, 06 · **Branch:** `phase-07-studio-api` · **Worktree:** `../project1111-phase-07` · **Gate:** auto
+
+## Read first
+`CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §2, §6, §11.2 R5, R6, R7, R14, R16, R18, R24, §11.3 S1, S2, S6, S8, S9. Phase Log entries for 04, 05 and 06. ADR-0007, ADR-0013, ADR-0014.
+
+## Goal
+P11 Studio is a complete local service. A hardened JSON API on 127.0.0.1 accepts recipes and uploads, runs them as jobs on the engine (one GPU job at a time) and streams progress. It also serves the gallery and templates. The CLI manages the service's life: `serve`, `start`, `stop`, `status`, `open` and `doctor`. Everything works with `--fake` (FakeEngine) for the UI phases and in CI.
+
+## Tasks
+1. **App factory and middleware** (`api/app.py`, `api/security.py`): Host-header allowlist (`127.0.0.1:<port>`, `localhost:<port>`), Origin check on every state-changing request, a per-launch session token (random, written `0600` to the runtime dir, given to the browser on `p11 open` via a one-time URL fragment and then held in memory/sessionStorage; never in logs), strict CSP (`default-src 'self'`; `img-src 'self' blob: data:`; no remote origins), `X-Content-Type-Options`, `Referrer-Policy: no-referrer`, request size caps (S1, S2).
+2. **Uploads** (`api/routes/uploads.py`, `media/validate.py`): images (decode with Pillow, pixel cap, convert to PNG, strip EXIF incl. GPS) and videos (ffprobe: container/codec allowlist, duration and resolution caps from R13); stored under `~/.local/share/p11/inputs/` with generated names (`0700`, S6, S8). Returns an opaque input ID.
+3. **Jobs** (`jobs/queue.py`, `jobs/runner.py`): an asyncio queue with one GPU worker (holding the GPU lock via the engine supervisor). A job is a recipe + bindings. The runner compiles each step (Phase 04), feeds step outputs into the next step, saves outputs and metadata (R7), indexes them, and emits events. States: `queued | running | paused | cancelled | failed | done`; cancel and interrupt; jobs persisted in SQLite so a restart shows interrupted jobs; a `ThermalGuard` hook for long jobs (used by 13).
+4. **Routes** (`api/routes/`): `POST /api/jobs` (recipe + bindings), `GET /api/jobs/{id}`, `POST /api/jobs/{id}/cancel`, `GET /api/events` (server-sent events or websocket: job progress, previews, GPU samples ≤ 1 Hz), `GET /api/gallery` (paged, search, filter by template/date/favourite), `GET /api/images/{id}` and `/thumb`, `POST /api/images/{id}/favourite`, `POST /api/images/{id}/export` (with optional metadata strip), `GET /api/images/{id}/recipe`, templates CRUD (store from 04), `GET /api/presets`, `GET /api/models` (registry from 06), `GET /api/system` (engine health, GPU, disk). Pydantic request/response models, OpenAPI available only on localhost.
+5. **Errors:** map engine/job errors to plain-English problem responses with a `hint` (R5 OOM message, missing model → "run `p11 models install default`").
+6. **CLI lifecycle** (`cli.py`): `p11 serve [--fake] [--port]` (foreground), `p11 start` (background, pid/state file, log file), `p11 stop`, `p11 status` (studio, engine, GPU, queue), `p11 open` (opens an app-mode browser window, R16: detect the browser Omarchy uses for web apps, fall back to `xdg-open`; pass the token in the URL fragment), `p11 doctor` (driver/GPU present, torch check from 03, engine pinned version, models check from 06, ports free, disk space, data-dir permissions) with fix hints.
+7. **Logging:** structured logs to `~/.cache/p11/logs/studio.log` (rotated); prompts, tokens and file contents redacted at INFO (S6, S9); `--debug` raises verbosity but still redacts the token.
+8. **Fake mode for the UI phases:** `p11 serve --fake` seeds a demo gallery with FakeEngine images so Phases 08+ can develop without the GPU.
+
+## Out of scope
+The UI (08+); feature step compilers (10–13); installer (15).
+
+## Tests
+Middleware (bad Host, foreign Origin, missing/wrong token → 4xx; CSP header present), upload validation (oversized, wrong type disguised by extension, EXIF stripped, path traversal names), job runner with FakeEngine (multi-step chaining, cancel mid-step, OOM retry message, restart marks interrupted jobs), SSE stream ordering, gallery paging/search, CLI start/stop/status with a fake engine, doctor problem reporting. One `gpu` integration test: `POST /api/jobs` with the default wallpaper preset through ComfyEngine produces an indexed image.
+
+## Acceptance criteria
+- `p11 start && p11 open` opens the placeholder UI with a working session; `curl` without the token or with a foreign `Origin` is refused; nothing listens on non-loopback addresses.
+- A wallpaper job via the API on the laptop completes, appears in `GET /api/gallery`, and its PNG round-trips its recipe.
+- `p11 doctor` is green on the laptop and gives actionable hints when a model file is renamed away.
+- `make check` and `make gpu-test` green.
+
+## Phase-specific docs
+`docs/P11_ARCHITECTURE.md` (API, job model, events, security middleware), SECURITY (local threat notes), `docs/P11_USER-GUIDE.md` (CLI commands), ADRs (SSE vs websocket, token handling), CHANGELOG. Then the standard close-out checklist.
