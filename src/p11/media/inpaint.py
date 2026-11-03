@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageChops, ImageFilter
 
+from p11.media.validate import MAX_PIXELS
 from p11.recipe.compile import MaskPrep
 
 Box = tuple[int, int, int, int]
@@ -91,6 +92,9 @@ def work_size(
 
 def _open(data: bytes, mode: str) -> Image.Image:
     with Image.open(io.BytesIO(data)) as img:
+        # Inline masks come from templates, which may be imported: cap before decoding (S8).
+        if img.width * img.height > MAX_PIXELS:
+            raise MaskError("The mask or image is too large to use (over 40 megapixels).")
         img.load()
         if mode == "L" and img.mode in ("RGBA", "LA"):
             # A mask with transparency: painted where it is opaque and bright.

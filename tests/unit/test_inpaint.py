@@ -300,6 +300,12 @@ def test_empty_mask_is_refused() -> None:
     mi.check_mask(mask_png((64, 64), (1, 1, 2, 2)))
 
 
+def test_huge_masks_are_refused_before_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mi, "MAX_PIXELS", 100)
+    with pytest.raises(mi.MaskError, match="too large"):
+        mi.check_mask(mask_png((20, 20), (1, 1, 5, 5)))
+
+
 def test_compact_mask_is_small_and_greyscale() -> None:
     data = mi.compact_mask(mask_png((2560, 1440), (100, 100, 900, 700)))
     img = Image.open(io.BytesIO(data))
