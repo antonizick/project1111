@@ -14,6 +14,7 @@ from p11 import __version__
 from p11.api.studio import gpu_json
 from p11.models.registry import ModelManager
 from p11.recipe.presets import ASPECTS, STYLES, AspectPreset, StylePreset
+from p11.recipe.registry import SamplerDefaults, UnknownModelError
 
 from .deps import StudioDep
 
@@ -47,10 +48,30 @@ def _statuses(root: Path) -> list[dict[str, object]]:
     return [s.as_json() for s in ModelManager(root).statuses()]
 
 
+def _defaults(d: SamplerDefaults | None) -> dict[str, object] | None:
+    return None if d is None else asdict(d)
+
+
 @router.get("/models")
 async def models(studio: StudioDep) -> list[dict[str, object]]:
-    """The same objects as ``p11 models list --json`` (Phase 06)."""
-    return await asyncio.to_thread(_statuses, studio.settings.models_root)
+    """The objects of ``p11 models list --json`` (Phase 06), plus what the generate form needs.
+
+    ``usable`` says whether a job may name the model now (the Studio's registry resolves it);
+    ``family``, ``defaults`` (sampler, scheduler, steps, CFG, clip skip, hires steps) and ``vae``
+    come from the registry, so the Advanced drawer starts from the manifest's defaults.
+    """
+    statuses = await asyncio.to_thread(_statuses, studio.settings.models_root)
+    registry = await asyncio.to_thread(studio.registry)
+    for s in statuses:
+        try:
+            info = registry.get(str(s["id"]))
+        except UnknownModelError:
+            s.update(usable=False, family=None, defaults=None, vae=None)
+        else:
+            s.update(
+                usable=True, family=info.family, defaults=_defaults(info.defaults), vae=info.vae
+            )
+    return statuses
 
 
 def _disk(path: Path) -> dict[str, object]:

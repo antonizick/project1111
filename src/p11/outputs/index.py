@@ -149,7 +149,9 @@ class GalleryIndex:
             )
 
     def delete(self, image_id: int) -> None:
+        """Drop the entry; images made from it keep their files but lose the parent link."""
         with self.db:
+            self.db.execute("UPDATE images SET parent_id = NULL WHERE parent_id = ?", (image_id,))
             self.db.execute("DELETE FROM images WHERE id = ?", (image_id,))
 
     def children(self, image_id: int) -> list[ImageEntry]:
@@ -165,6 +167,7 @@ class GalleryIndex:
         favourites: bool,
         since: str | None,
         until: str | None,
+        model: str | None = None,
     ) -> tuple[str, list[object]]:
         where: list[str] = []
         args: list[object] = []
@@ -175,6 +178,9 @@ class GalleryIndex:
         if template is not None:
             where.append("template = ?")
             args.append(template)
+        if model is not None:
+            where.append("model = ?")
+            args.append(model)
         if favourites:
             where.append("favourite = 1")
         if since is not None:
@@ -193,6 +199,7 @@ class GalleryIndex:
         favourites: bool = False,
         since: str | None = None,
         until: str | None = None,
+        model: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[ImageEntry]:
@@ -200,7 +207,7 @@ class GalleryIndex:
 
         ``since``/``until`` are ISO timestamps compared with ``created_at`` (``until`` exclusive).
         """
-        where, args = self._filters(text, template, favourites, since, until)
+        where, args = self._filters(text, template, favourites, since, until, model)
         sql = f"SELECT * FROM images{where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
         args += [max(0, min(limit, 1000)), max(0, offset)]
         return [_entry(r) for r in self.db.execute(sql, args)]
@@ -213,10 +220,21 @@ class GalleryIndex:
         favourites: bool = False,
         since: str | None = None,
         until: str | None = None,
+        model: str | None = None,
     ) -> int:
         """How many images ``search`` would page through with the same filters."""
-        where, args = self._filters(text, template, favourites, since, until)
+        where, args = self._filters(text, template, favourites, since, until, model)
         return int(self.db.execute(f"SELECT COUNT(*) FROM images{where}", args).fetchone()[0])
+
+    def facets(self) -> dict[str, list[str]]:
+        """The distinct templates and models in the index (gallery filter menus)."""
+        out: dict[str, list[str]] = {}
+        for col in ("template", "model"):
+            rows = self.db.execute(
+                f"SELECT DISTINCT {col} FROM images WHERE {col} IS NOT NULL ORDER BY {col}"
+            )
+            out[col + "s"] = [r[0] for r in rows]
+        return out
 
     def count(self) -> int:
         return int(self.db.execute("SELECT COUNT(*) FROM images").fetchone()[0])
