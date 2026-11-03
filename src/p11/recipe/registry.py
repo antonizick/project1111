@@ -1,9 +1,10 @@
 """What the compiler needs to know about a model: its engine file name, family and defaults.
 
-``ModelRegistry`` is a protocol so the compiler stays pure. Phase 06 implements it from
-``models/manifest.toml``; until then ``PROVISIONAL_DEFAULT_SET`` carries the ADR-0018 picks
-(file names, hashes and sampler defaults measured in Phase 03), so presets and golden graphs are
-real.
+``ModelRegistry`` is a protocol so the compiler stays pure. The app's registry is
+``p11.models.registry.ManagerRegistry`` over ``models/manifest.toml`` and the models on disk
+(Phase 06). ``PROVISIONAL_DEFAULT_SET`` is a pure in-memory copy of the manifest's default and
+full sets for compiler tests and golden graphs; ``tests/unit/test_models_registry.py`` asserts
+that it equals the manifest, so the two cannot drift.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ ModelKind = Literal[
     "ipadapter",
     "facerestore",
     "faceswap",
+    "facedetect",
     "segmentation",
     "embedding",
 ]
@@ -80,7 +82,7 @@ class StaticRegistry:
         return manifest_id in self._models
 
 
-# ADR-0018 (Phase 03, 2026-11-02 17:56 CST). Phase 06 re-verifies these at the source.
+# ADR-0018 (Phase 03), re-verified at the source by Phase 06 (models/manifest.toml).
 PROVISIONAL_DEFAULT_SET = StaticRegistry(
     [
         ModelInfo(

@@ -1,0 +1,108 @@
+# P11 curated model manifest (spec R9, A6, ADR-0006, ADR-0018). No weights live in git.
+#
+# Every entry is pinned: the URL names the Hugging Face commit, and the file's size and SHA-256
+# must match after download or the file is deleted. `sets`: `default` is what
+# `p11 models install default` fetches (≤ 30 GB, H1); `full` adds the measured alternatives;
+# `optional` entries are only installed by ID. Licence flags drive the acknowledgement prompt
+# and the "commercial use" column everywhere (H3). Schema: src/p11/models/manifest.py.
+#
+# Verification (R10): for each entry the repo revision, file size, LFS SHA-256 and licence tag were
+# read from the Hugging Face API (`/api/models/<repo>` and `/api/models/<repo>/tree/main`) and the
+# SHA-256 was recomputed with `sha256sum` over the downloaded file; licence URLs were fetched.
+# Phases 10–12 add their own entries with the same schema.
+
+schema_version = 1
+
+# Checked 2026-11-02 19:42 CST: revision f4454158, 6938065512 bytes, SHA-256 matches HF LFS and
+# the local file; card licence `openrail++`.
+[[model]]
+id = "realvisxl5-lightning"
+name = "RealVisXL V5.0 Lightning (fp16)"
+kind = "checkpoint"
+base = "sdxl"
+sets = ["default"]
+source = "SG161222/RealVisXL_V5.0_Lightning @ f4454158cedaab9f0688c199561d6c92525f3a85"
+notes = "Default photoreal and avatar model (ADR-0018): ~18 s per wallpaper on the RTX 2070 Mobile."
+files = [
+  { url = "https://huggingface.co/SG161222/RealVisXL_V5.0_Lightning/resolve/f4454158cedaab9f0688c199561d6c92525f3a85/RealVisXL_V5.0_Lightning_fp16.safetensors", filename = "RealVisXL_V5.0_Lightning_fp16.safetensors", sha256 = "fabcadd9330dcc4f9702063428d40b9d4d07168d8acefc819b8d1d9db466b3ec", size = 6938065512 },
+]
+licence = { name = "CreativeML Open RAIL++-M", url = "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md", commercial_use = true, flags = ["use-restrictions"] }
+defaults = { sampler = "dpmpp_sde", scheduler = "karras", steps = 5, cfg = 1.5, clip_skip = 1, hires_steps = 3, vae = "sdxl-vae-fp16-fix" }
+
+# Checked 2026-11-02 19:42 CST: revision cf419233, 7105348188 bytes, SHA-256 matches HF LFS and
+# the local file; card licence `creativeml-openrail-m`.
+[[model]]
+id = "juggernautxl9"
+name = "Juggernaut XL v9 (RunDiffusionPhoto v2)"
+kind = "checkpoint"
+base = "sdxl"
+sets = ["default"]
+source = "RunDiffusion/Juggernaut-XL-v9 @ cf419233522daa0b9ea36c3aff98fa2cab1fb0fb"
+notes = "Quality model (ADR-0018): full-step, ~41 s per wallpaper. Uses its baked VAE."
+files = [
+  { url = "https://huggingface.co/RunDiffusion/Juggernaut-XL-v9/resolve/cf419233522daa0b9ea36c3aff98fa2cab1fb0fb/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors", filename = "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors", sha256 = "c9e3e68f89b8e38689e1097d4be4573cf308de4e3fd044c64ca697bdb4aa8bca", size = 7105348188 },
+]
+licence = { name = "CreativeML OpenRAIL-M", url = "https://huggingface.co/spaces/CompVis/stable-diffusion-license", commercial_use = true, flags = ["use-restrictions"] }
+defaults = { sampler = "dpmpp_2m", scheduler = "karras", steps = 30, cfg = 4.5, clip_skip = 1, hires_steps = 15 }
+
+# Checked 2026-11-02 19:42 CST: revision 207b116d, 334641162 bytes, SHA-256 matches HF LFS and
+# the local file; card licence `mit`.
+[[model]]
+id = "sdxl-vae-fp16-fix"
+name = "SDXL VAE fp16 fix"
+kind = "vae"
+base = "sdxl"
+sets = ["default"]
+source = "madebyollin/sdxl-vae-fp16-fix @ 207b116dae70ace3637169f1ddd2434b91b3a8cd"
+notes = "SDXL VAE that decodes in fp16 without NaNs on Turing (ADR-0009)."
+files = [
+  { url = "https://huggingface.co/madebyollin/sdxl-vae-fp16-fix/resolve/207b116dae70ace3637169f1ddd2434b91b3a8cd/sdxl_vae.safetensors", filename = "sdxl_vae.safetensors", sha256 = "235745af8d86bf4a4c1b5b4f529868b37019a10f7c0b2e79ad0abca3a22bc6e1", size = 334641162 },
+]
+licence = { name = "MIT", url = "https://opensource.org/license/mit", commercial_use = true }
+
+# Checked 2026-11-02 19:42 CST: revision 49d5da19, 29590440 bytes, SHA-256 matches HF LFS and
+# the local file; card licence `cc-by-4.0`.
+[[model]]
+id = "4x-nomos-webphoto-realplksr"
+name = "4xNomosWebPhoto RealPLKSR"
+kind = "upscale"
+base = "any"
+scale = 4
+sets = ["default"]
+source = "Phips/4xNomosWebPhoto_RealPLKSR @ 49d5da19489e645e870eb076ea84815471f27ef4"
+notes = "Wallpaper upscale chain (ADR-0010). CC-BY-4.0: credit the author when sharing outputs."
+files = [
+  { url = "https://huggingface.co/Phips/4xNomosWebPhoto_RealPLKSR/resolve/49d5da19489e645e870eb076ea84815471f27ef4/4xNomosWebPhoto_RealPLKSR.safetensors", filename = "4xNomosWebPhoto_RealPLKSR.safetensors", sha256 = "9be0228f98156a100d6636d99b373ed2785b999723f9adc4cca504329ab157f2", size = 29590440 },
+]
+licence = { name = "CC-BY-4.0", url = "https://creativecommons.org/licenses/by/4.0/", commercial_use = true, flags = ["attribution"] }
+
+# Checked 2026-11-02 19:42 CST: revision 9a857a69, 2132625894 bytes, SHA-256 matches HF LFS and
+# the local file; card licence `creativeml-openrail-m`.
+[[model]]
+id = "realisticvision6"
+name = "Realistic Vision V6.0 B1 (noVAE, fp16)"
+kind = "checkpoint"
+base = "sd15"
+sets = ["full"]
+source = "SG161222/Realistic_Vision_V6.0_B1_noVAE @ 9a857a696b9aabbf509073e0aa55ec8200b6ef7d"
+notes = "SD 1.5 low-VRAM option (5.5 GB peak, ADR-0018)."
+files = [
+  { url = "https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE/resolve/9a857a696b9aabbf509073e0aa55ec8200b6ef7d/Realistic_Vision_V6.0_NV_B1_fp16.safetensors", filename = "Realistic_Vision_V6.0_NV_B1_fp16.safetensors", sha256 = "c48bfd159cd7a6507b128685e963c398fa72399cefafaf603781df50ce836cc7", size = 2132625894 },
+]
+licence = { name = "CreativeML OpenRAIL-M", url = "https://huggingface.co/spaces/CompVis/stable-diffusion-license", commercial_use = true, flags = ["use-restrictions"] }
+defaults = { sampler = "dpmpp_sde", scheduler = "karras", steps = 25, cfg = 5.0, clip_skip = 1, hires_steps = 12, vae = "vae-ft-mse-840000" }
+
+# Checked 2026-11-02 19:42 CST: revision 629b3ad3, 334641190 bytes, SHA-256 matches HF LFS and
+# the local file; card licence `mit`.
+[[model]]
+id = "vae-ft-mse-840000"
+name = "SD 1.5 VAE ft-MSE 840000 (EMA, pruned)"
+kind = "vae"
+base = "sd15"
+sets = ["full"]
+source = "stabilityai/sd-vae-ft-mse-original @ 629b3ad3030ce36e15e70c5db7d91df0d60c627f"
+notes = "VAE for the noVAE SD 1.5 checkpoint."
+files = [
+  { url = "https://huggingface.co/stabilityai/sd-vae-ft-mse-original/resolve/629b3ad3030ce36e15e70c5db7d91df0d60c627f/vae-ft-mse-840000-ema-pruned.safetensors", filename = "vae-ft-mse-840000-ema-pruned.safetensors", sha256 = "735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75", size = 334641190 },
+]
+licence = { name = "MIT", url = "https://opensource.org/license/mit", commercial_use = true }
