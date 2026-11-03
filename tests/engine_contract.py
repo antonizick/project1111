@@ -43,10 +43,16 @@ class Harness:
     engine: Engine
     #: Kill the engine process abruptly (the supervisor should restart it once).
     kill: Callable[[], Awaitable[None]]
-    #: Latent edge (pixels) that runs out of memory in the default VRAM mode.
+    #: Latent edge (pixels) that runs out of memory in the fake's default VRAM mode.
     oom_edge: int = 2560
     #: ``True`` if the OOM graph must recover in low-VRAM mode, ``None`` if either outcome is OK.
     oom_recovers: bool | None = True
+    #: Put the engine under memory pressure before the OOM check (the real engine: a VRAM hog,
+    #: because ComfyUI slows down rather than failing on oversized latents) and relieve it.
+    pressure: Callable[[], Awaitable[None]] | None = None
+    relieve: Callable[[], None] | None = None
+    #: Relieve the pressure when the retry starts (recovers) or only afterwards (lasting).
+    relieve_on_retry: bool = True
     interrupt_limit: float = 2.0
     ready_timeout: float = 30.0
     extra: dict[str, Any] = field(default_factory=dict)
@@ -133,15 +139,6 @@ def png_size(data: bytes) -> tuple[int, int]:
         return img.size
 
 
-async def wait_ready(h: Harness) -> None:
-    deadline = time.monotonic() + h.ready_timeout
-    while time.monotonic() < deadline:
-        if (await h.engine.health()).ready:
-            return
-        await asyncio.sleep(0.2)
-    pytest.fail(f"engine not ready after {h.ready_timeout}s: {await h.engine.health()}")
-
-
 # ---------------------------------------------------------------------------------------------
 # Checks.
 
@@ -222,10 +219,20 @@ async def check_free_memory(h: Harness) -> None:
 
 
 async def check_oom_recovery(h: Harness) -> None:
-    oversized = resized(generate_graph("1:1-1024", seed=5), h.oom_edge)
+    if h.pressure is not None:
+        await h.pressure()
+        graph: Any = generate_graph("1:1-1024", seed=5)
+    else:
+        graph = resized(generate_graph("1:1-1024", seed=5), h.oom_edge)
     rec = Recorder()
+
+    def on_event(ev: EngineEvent) -> None:
+        rec(ev)
+        if isinstance(ev, Retrying) and h.relieve is not None and h.relieve_on_retry:
+            h.relieve()
+
     try:
-        result = await run_with_oom_retry(h.engine, oversized, on_event=rec, timeout=900)
+        result = await run_with_oom_retry(h.engine, graph, on_event=on_event, timeout=900)
     except EngineOOM as exc:
         assert h.oom_recovers is not True, "expected the low-VRAM retry to succeed"
         assert str(exc) == OOM_MESSAGE
@@ -234,6 +241,9 @@ async def check_oom_recovery(h: Harness) -> None:
         assert h.oom_recovers is not False, "expected the retry to fail too"
         assert result.retried and result.vram_mode == "lowvram"
         assert rec.of(Retrying)
+    finally:
+        if h.relieve is not None:
+            h.relieve()
     assert h.engine.vram_mode == "lowvram"
     # The engine recovers: a normal image works afterwards, then back to the default mode.
     result = await h.engine.run(generate_graph("1:1-1024", seed=6))
@@ -245,9 +255,10 @@ async def check_oom_recovery(h: Harness) -> None:
 async def check_crash_restart(h: Harness) -> None:
     before = (await h.engine.health()).restarts
     await h.kill()
-    await wait_ready(h)
-    health = await h.engine.health()
-    assert health.restarts == before + 1
+    deadline = time.monotonic() + h.ready_timeout
+    while (health := await h.engine.health()).restarts != before + 1 or not health.ready:
+        assert time.monotonic() < deadline, f"no restart after the crash: {health}"
+        await asyncio.sleep(0.2)
     result = await h.engine.run(generate_graph("1:1-1024", seed=8))
     assert len(result.images) == 1
 

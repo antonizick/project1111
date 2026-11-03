@@ -140,6 +140,18 @@ Same combination at 1920×1080, back to back for 10 min directly after the stabi
 
 The GPU is **power-limited, not thermally limited**: 90 % of samples report the software power cap (`0x4`), the rest an unnamed bit `0x400` or none; no thermal slowdown bit was set. Temperature plateaus at 78–79 °C. Owner question 5's default (pause at 87 °C, resume at 80 °C, H9) is never reached in single-image work; Phase 13 should re-check under the video job, which loads the GPU differently. Raw: `runs/thermal-realvisxl5_lightning-1793664377.json`.
 
+## Engine adapter overhead (Phase 05)
+Measured 2026-11-02 19:10–19:25 CST on the laptop (AC, `performance` profile, restored to `power-saver` afterwards; GPU lock held), `16:9-1920x1080` photoreal with RealVisXL V5.0 Lightning and the `model` chain, the same wall-clock definition as above (queue → engine reports success). Script: `scripts/bench/adapter.py`; raw JSON `~/.cache/p11/bench/adapter/20261102-191004.json`.
+
+| Run order | Phase 03 bench client (median of 10) | `ComfyEngine` (median) | Overhead |
+|---|---|---|---|
+| bench client first, then 20 back-to-back adapter runs | 16.03 s | 16.59 s (n = 20, 16.36–17.14 s) | +3.5 % |
+| adapter first (10 runs), then bench client | 16.67 s | 16.55 s (n = 10) | −0.7 % |
+
+The difference follows the run order (the second block runs on a warmer GPU), so the adapter adds no measurable overhead; the worst case is inside the < 5 % target. Fetching the PNG through `/view` adds 0.01 s. 20/20 runs succeeded; peak VRAM 7.72 GB total (including the desktop), max 77 °C (NVML at 1 Hz, 369 samples). Engine start to ready: 5.6 s; first (cold) image 22.4 s. Interrupt during sampling: 0.52 s (3 of 3) from `interrupt()` to `EngineInterrupted` (limit 2 s). Warm times are ~2 s faster than Phase 03's 18.3 s: the Phase 03 figure was measured during the full bake-off, Phase 05 on a fresh session.
+
+**Forced OOM.** Oversized latents do not fail on this card at v0.43.0 (3072² and 4096² exceeded a 240 s timeout; batch 8 at 1024² finished in 93 s), so the gpu tests force a real OOM with a helper process that leaves 600 MiB of VRAM free: `VAEDecode` raises a CUDA OOM, the retry in `--lowvram` succeeds when the pressure is relieved and otherwise ends in the plain-English error (ADR-0020).
+
 ## Network (S1)
 `ss -ltnp` during the runs: ComfyUI listened only on `127.0.0.1:8188`. A watcher (`candidates/netwatch.sh`) recorded every socket of the engine process with a non-loopback peer once per second from 15:39 to 18:08 CST, across all stages: **none**.
 

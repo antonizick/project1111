@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §1 (success criteria), §4 (Generation, Quality), §6, §11.2 R3, R5, R7, R14, R17, R18, R22, §11.3 S1, S2, Appendix B. Phase Log entries for 04 and 07. `docs/P11_BENCHMARKS.md` (timings for progress estimates).
 
+**Phase 05 results (2026-11-02 19:28 CST):** progress events carry `node` and `title` (`base` / `hires` for the samplers, from the compiler's `_meta`), so the bar can show "Generating" vs "Refining"; a `Retrying` event precedes the low-VRAM OOM retry (show "Out of memory, retrying in low-memory mode"). Previews are off (`--preview-method none`). The status bar's VRAM/thermal numbers come from `GpuSample` (`vram_used_mib`, `vram_total_mib`, `temp_c`, `power_w`, `throttle_reasons`) at ≤ 1 Hz. Interrupt stops a run in ~0.5 s on the laptop.
+
 ## Goal
 The daily path feels push-button. You open P11, type a prompt, pick a style and an aspect preset, press Generate, watch progress, and get a result with its follow-up actions one click away. Results land in a fast gallery with compare and export. The app shell, status bar and keyboard map that the later feature views plug into are defined here.
 

@@ -7,6 +7,8 @@
 
 **Phase 04 results (2026-11-02 18:27 CST):** `Pose` and `Reference` are **modifier** steps in schema v1: they must directly follow a `generate` step (or another modifier) and are folded into that step's graph. Register them with `register_modifier("pose", fn)`, `fn(step, ctx, g, cond: Conditioning) → Conditioning` (`model, clip, vae, positive, negative, family`), e.g. to apply a ControlNet to `positive`/`negative` or an IP-Adapter to `model`. `FaceSwap` is a graph step (`register_step("face_swap", fn)`) with `face_slot, image_slot, source_face_index, target_face_index, swapper_model, restore, restore_model, restore_visibility`; there is deliberately no guard field (S5), and `tests/unit/test_recipe_model.py` checks that none appears.
 
+**Phase 05 results (2026-11-02 19:28 CST):** a custom node (ReActor etc.) must also be added to `p11.engine.fake.KNOWN_NODES` and the FakeEngine taught its output size if it changes it (`_size` in `fake.py`); `ControlNetLoader` and `ControlNetApplyAdvanced` are already known. The S5 guard runs before the graph reaches `Engine.run`.
+
 ## Goal
 Faces, poses and reference styles are one-click tools in Generate and Inpaint. **Face-swap** puts the face from a photo onto a generated image. **Apply Pose** makes a generation follow a pose from an image or the built-in editor. **Reference** keeps a style or character consistent through IP-Adapter. Face restoration polishes results. The face-swap path carries the non-negotiable NSFW target guard (S5).
 

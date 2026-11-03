@@ -38,6 +38,7 @@ Direct runtime dependencies as locked in Phase 02 (versions and licences read fr
 | httpx | 0.28.1 | BSD-3-Clause | https://pypi.org/project/httpx/ | none |
 | websockets | 17.4 | BSD-3-Clause | https://pypi.org/project/websockets/ | none |
 | pillow | 13.0.0 | MIT-CMU (HPND-style) | https://pypi.org/project/pillow/ | none |
+| nvidia-ml-py (`pynvml` module) | 13.615.71 | BSD-3-Clause | https://pypi.org/project/nvidia-ml-py/ | NVIDIA's NVML binding; loads the driver's `libnvidia-ml` at run time (Phase 05, ADR-0020) |
 | react, react-dom | 19.3.1 | MIT | https://www.npmjs.com/package/react | none |
 | vite | 8.3.5 | MIT | https://www.npmjs.com/package/vite | none |
 

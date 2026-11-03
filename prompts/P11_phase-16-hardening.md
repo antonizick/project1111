@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, the whole spec (especially §1 success criteria, §10 acceptance criteria, §11 all amendments, Appendix B). Every Phase Log entry and its follow-ups. `docs/P11_DECISIONS.md` (all `Proposed` ADRs must end Accepted or Superseded), `docs/P11_BENCHMARKS.md`, THIRD_PARTY_NOTICES.
 
+**Phase 05 results (2026-11-02 19:28 CST):** the OOM soak can force a real OOM with `tests/gpu/vram_hog.py` (oversized latents do not OOM at v0.43.0, ADR-0020). `tests/gpu/test_engine_contract_gpu.py::test_engine_listens_on_loopback_only_and_stays_offline` checks the listening socket and scans the engine log for non-loopback URLs; the engine environment sets `HF_HUB_OFFLINE`, `HF_HUB_DISABLE_TELEMETRY`, `TRANSFORMERS_OFFLINE`, `DO_NOT_TRACK`.
+
 ## Goal
 Prove that P11 is safe, stable and as effortless as the spec promises, using measurements on the laptop, and fix what falls short. Every security control S1–S10 is verified, every success criterion is measured, licences are audited for publication, and every open follow-up is closed or deferred under spec H12 (non-security items recorded with measurements and listed for Nick's review at Phase 17; high/critical security findings fixed or the phase blocks).
 

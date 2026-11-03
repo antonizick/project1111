@@ -22,7 +22,7 @@ make check      # lint + typecheck + tests (no GPU) + audit + gitleaks
 | `make audit` | `pip-audit` on the locked dependencies, `npm audit --omit=dev` |
 | `make check` | lint, typecheck, test, audit, secrets (what CI and PHX run) |
 
-Run the app: `uv run p11 serve` (builds first with `make build`), then open <http://127.0.0.1:8111/>. For frontend work use `cd frontend && npm run dev` (proxies `/healthz` to the service).
+Run the app: `uv run p11 serve` (`--fake` uses the FakeEngine, no GPU needed; builds first with `make build`), then open <http://127.0.0.1:8111/>. For frontend work use `cd frontend && npm run dev` (proxies `/healthz` to the service).
 
 The git hook set uses pre-commit:
 ```bash

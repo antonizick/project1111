@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md` (Risk rule), `prompts/P11_shared-instructions.md`, spec §7, §11.2 R1, R4, R8, R15, R16, §11.3 S1, S3, S7, S9. Phase Log entries for 03, 06 and 07. `engine/engine.lock.toml`, `scripts/engine_setup.sh`. ADR-0012. The OSMods README at `/home/nick/Documents/04 Resources/OSMods/README.md` (read it before changing anything on the host).
 
+**Phase 05 results (2026-11-02 19:28 CST):** `p11.engine.lockfile.find_lock_file()` reads `$P11_ENGINE_LOCK`, else the repo's `engine/engine.lock.toml`, else `~/.local/share/p11/engine/engine.lock.toml`: an install that does not run from the repo checkout must copy the lock file there. The engine writes `~/.cache/p11/logs/engine.log` and `~/.cache/p11/engine.pid`; `uninstall.sh` should remove `~/.cache/p11/engine/` (scratch). Runtime dependency added: nvidia-ml-py (BSD-3-Clause).
+
 ## Goal
 A new user on Omarchy or Arch with an NVIDIA GPU goes from `git clone` to an open P11 window with one script, and nothing about the system changes without their say-so. Updates and uninstall are just as simple. P11 shows up as a desktop app on Omarchy. Features from later phases (10–14) plug into the installer through the model sets and engine lock, so this phase can run beside 08–14 and Phase 16 re-checks the finished set.
 

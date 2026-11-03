@@ -34,8 +34,9 @@ User data follows XDG paths (config, data, cache, state); the exact layout is fi
 | `src/p11/paths.py` | XDG config/data/cache/pictures with `P11_*_DIR` overrides; `ensure_private_dir()` makes `0700` dirs | real |
 | `src/p11/config.py` | `Settings` from `~/.config/p11/config.toml` and `P11_*` env; host must be `127.0.0.1` (S1) | real |
 | `src/p11/gpulock.py` | `gpu_lock(timeout, holder)`: `flock` on `~/.cache/p11/gpu.lock`, holder info (pid, name, start) readable by waiters (R24) | real |
-| `src/p11/api/app.py` | `create_app()`: `GET /healthz`, serves `src/p11/web/` at `/` when built | real (middleware arrives in Phase 07) |
-| `src/p11/{engine,gpu,models,jobs,media}/` | empty packages with docstrings naming the owning phase | skeleton |
+| `src/p11/api/app.py` | `create_app(engine=…)`: `GET /healthz`, serves `src/p11/web/` at `/` when built, keeps the engine on `app.state.engine` | real (middleware arrives in Phase 07) |
+| `src/p11/{engine,gpu}/` | engine adapter and GPU telemetry (Phase 05, below) | real |
+| `src/p11/{models,jobs,media}/` | empty packages with docstrings naming the owning phase | skeleton |
 | `src/p11/{recipe,outputs,templates}/` | recipe core (Phase 04, below) | real |
 | `frontend/` | Vite + React + TS (strict); `vite build` writes to `src/p11/web/` (git-ignored) | placeholder page |
 
@@ -47,7 +48,7 @@ User data follows XDG paths (config, data, cache, state); the exact layout is fi
 | `engine/extra_model_paths.yaml.tmpl` | template for `~/.local/share/p11/engine/extra_model_paths.yaml` (models live in `~/.local/share/p11/models/<kind>/`, R8) |
 | `scripts/engine_setup.sh` | idempotent install/verify: clone at the pin, uv venv (CPython 3.12), `uv pip sync --require-hashes`, model folders, sm_75 torch check; `--dry-run`, `--relock`, `--no-check` |
 | `~/.local/share/p11/engine/{ComfyUI,venv}` | the installed engine (never in the repo) |
-| `scripts/bench/` | bake-off harness (talks to ComfyUI directly; Phase 05 replaces this with `p11.engine`); results in `docs/P11_BENCHMARKS.md`, raw JSON in `~/.cache/p11/bench/runs/` |
+| `scripts/bench/` | bake-off harness (talks to ComfyUI directly, kept so the bake-off is reproducible; product code uses `p11.engine`); `adapter.py` is Phase 05's adapter benchmark; results in `docs/P11_BENCHMARKS.md`, raw JSON in `~/.cache/p11/bench/` |
 
 Engine defaults (ADR-0009, ADR-0010, ADR-0018): fp16 UNet/text encoders, SDPA attention, fp32 VAE decode (tiled at wallpaper size), ComfyUI's dynamic VRAM by default with `--disable-dynamic-vram --lowvram` as the OOM retry; wallpapers are generated at the native bucket and upscaled with a model upscaler.
 
@@ -76,6 +77,33 @@ recipe + bindings + registry + seed ──compile──► [EngineGraph …] ─
 ```
 
 **Gallery schema (v1).** `images(id, path UNIQUE relative to the outputs root, created_at, recipe_id, template, seed, model, width, height, favourite, parent_id → images.id ON DELETE SET NULL, prompt)`; `images_fts(prompt)` external-content FTS5 kept in sync by triggers. The index is a cache; `reindex` rebuilds it.
+
+## Engine adapter and telemetry (Phase 05)
+Everything that talks to the engine takes a `p11.engine.Engine`; only `p11.engine` imports the ComfyUI client. ADR-0020.
+
+| Path | Role |
+|---|---|
+| `engine/base.py` | `Engine` protocol (`start`, `stop`, `restart(vram_mode)`, `health`, `upload(image, kind)`, `run(graph, on_event, timeout)`, `interrupt`, `free_memory(unload_models)`, `system_stats`, `vram_mode`); events `Queued`, `Executing`, `Progress(step, total, node, title)`, `Preview`, `Executed(node, outputs)`, `ErrorEvent`, `Retrying`; values `EngineFileRef`, `OutputImage`, `RunResult`, `SystemStats`, `EngineHealth`; errors `EngineUnavailable`, `EngineOOM`, `EngineValidation(node, detail)`, `EngineExecutionError`, `EngineInterrupted`, `EngineCrashed`, `EngineTimeout`; `bind_inputs(graph, {placeholder: ref})` |
+| `engine/comfy.py` | `ComfyEngine(EngineConfig)`: every ComfyUI endpoint and message shape (read from v0.43.0 `426f5ee`), version + loopback check at start, per-run websocket with a client-chosen `prompt_id`, outputs fetched via `/history` + `/view` and deleted from the engine scratch dir; `EngineConfig.default(settings)` builds the command from `engine.lock.toml` |
+| `engine/process.py` | `ProcessSupervisor(ProcessSpec, ready)`: GPU lock for the process lifetime, pid file + port check, own session + `PR_SET_PDEATHSIG`, log rotation, readiness poll, one restart after a crash, SIGTERM → SIGKILL stop |
+| `engine/recovery.py` | `run_with_oom_retry(engine, graph)`: free memory → restart in `lowvram` → retry once → plain-English `EngineOOM` |
+| `engine/fake.py` | `FakeEngine(FakeConfig)`: validates like `/prompt` (known nodes, links, uploads, optional model list), emits the same events, deterministic placeholder PNGs at the graph's output size, simulated OOM (by latent area per VRAM mode), validation error, crash (+ one auto-restart), failure, slow runs; `p11 serve --fake` |
+| `engine/lockfile.py` | `load_lock()`: `$P11_ENGINE_LOCK`, else the repo's `engine/engine.lock.toml`, else `~/.local/share/p11/engine/engine.lock.toml` |
+| `engine/__init__.py` | `create_engine(settings, fake=False)` |
+| `gpu/telemetry.py` | `GpuSample` (VRAM, temperature, power, clocks, throttle reasons); `NvmlSampler` (`nvidia-ml-py`), `NvidiaSmiSampler` fallback, `default_sampler()`, `stream(sampler)` at ≤ 1 Hz; `ThermalGuard(pause_at, resume_at)` with hysteresis (settings 87 / 80 °C, H9) |
+
+**Run flow.** `run` opens `ws://127.0.0.1:<port>/ws?clientId=<id>`, `POST /prompt` with its own `prompt_id`, and maps messages for that prompt only: `executing` → `Executing` (node `None` = done), `progress` → `Progress` (titled `base`/`hires` from the compiler's `_meta`), `executed` → `Executed`, `execution_success` → done, `execution_interrupted` → `EngineInterrupted`, `execution_error` → `EngineOOM` (exception type/message or `Got an OOM` in the log since the run started) or `EngineExecutionError`; HTTP 400 → `EngineValidation` with the first node error; a lost websocket → `EngineCrashed` if the process died, else `EngineUnavailable`; the hard timeout interrupts the run and raises `EngineTimeout`.
+
+```
+job (07) ─► run_with_oom_retry ─► Engine.run ──ws + HTTP──► ComfyUI (127.0.0.1:8188)
+               │ EngineOOM                                     ▲
+               └─► free_memory ─► restart("lowvram") ─► retry ─┘   ProcessSupervisor: lock, pid,
+                                                                   log, 1 crash restart, stop
+```
+
+**Files.** Engine log `~/.cache/p11/logs/engine.log` (rotated, 3 kept); pid file `~/.cache/p11/engine.pid`; scratch `~/.cache/p11/engine/{in,out,tmp,user}` (`0700`; outputs deleted after fetch; uploads are content-addressed `p11-<kind>-<sha256[:20]>.<ext>`, never user file names).
+
+**Tests.** `tests/engine_contract.py` is one contract suite run against `FakeEngine`, against `ComfyEngine` over a mock ComfyUI server (`tests/fixtures/mock_comfyui.py`, same endpoints and messages, backed by a `FakeEngine`) in `make test`, and against the real engine in `make gpu-test` (`tests/gpu/test_engine_contract_gpu.py`, which forces a real OOM with `tests/gpu/vram_hog.py`). Supervisor tests use `tests/fixtures/dummy_engine.py`.
 
 Quality gates: `make check` (see `CONTRIBUTING.md`); CI runs the same target.
 

@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md` (Content boundary), `prompts/P11_shared-instructions.md`, spec §4 (Video Face-swap), §11.2 R13, R14, R24, §11.3 S5, S6, S8. Phase Log entries for 05, 07 and 12. ADR-0005, ADR-0011. **Spec §11.6** (decided 2026-11-02 14:57 CST): H9 pause 87 °C / resume 80 °C, each adjustable by up to ±5 °C from Phase 03's measured throttle point with an ADR; H7 test material; H8 power profile during measurements.
 
+**Phase 05 results (2026-11-02 19:28 CST):** use `p11.gpu.telemetry.ThermalGuard(settings.thermal_pause_c, settings.thermal_resume_c)` (defaults 87 / 80 °C, H9; `Settings` enforces resume < pause) fed from `stream(default_sampler())`; `GpuSample.thermal_throttled` reports the thermal clock-event bits. Per-frame runs should go through `run_with_oom_retry`; interrupt latency is ~0.5 s.
+
 ## Goal
 Short joke clips need no scripting. You upload a clip and a face photo, press **Swap**, and get back an MP4 with the original audio. Along the way the job shows clear progress and an ETA, pauses when the laptop runs hot, can be cancelled, and resumes after a crash. It runs on the same face-swap engine and the same NSFW guard as Phase 12.
 

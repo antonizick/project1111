@@ -7,6 +7,8 @@
 
 **Phase 04 results (2026-11-02 18:27 CST):** register the compiler with `p11.recipe.compile.register_step("inpaint", fn)`, where `fn(step, ctx, g) → IMAGE ref` builds nodes with `g.node(class_type, **inputs)`; `ctx.load_image(g, slot_or_None)` adds a `LoadImage` fed from a slot, the previous step's output or `recipe.source_image`; `ctx.model(ref, default_id, kind)` resolves models; `ctx.text()` fills `{{slot}}` placeholders. The `Inpaint` fields (`image_slot, mask_slot, prompt, negative, denoise, denoise_preset, grow_mask_px, model`) are fixed in schema v1; changing them needs a migration in `recipe/migrate.py`.
 
+**Phase 05 results (2026-11-02 19:28 CST):** upload the photo and mask with `engine.upload(data, kind="image"|"mask")` (content-addressed names `p11-<kind>-<sha>.png`) and bind them with `bind_inputs`; the FakeEngine accepts `VAEEncode`, `VAEEncodeForInpaint`, `SetLatentNoiseMask`, `InpaintModelConditioning`, `LoadImageMask`, `ImageToMask`, `MaskToImage`, `GrowMask`, `FeatherMask`, `ImageCompositeMasked` (verified at the pin); add any other node you use to `KNOWN_NODES` in `p11/engine/fake.py` (the gpu test checks the list against the real engine).
+
 ## Goal
 Fixing or changing part of an image is first-class. You open any result or an uploaded photo in Inpaint, brush a mask, optionally type what should be there, pick "subtle fix" or "major change", and apply. The result chains back into the gallery, and templates can capture it. The **mask editor** built here is reused by Phase 11 (background) and Phase 12 (pose/face regions).
 

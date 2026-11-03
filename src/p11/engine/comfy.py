@@ -5,8 +5,9 @@ the pinned source (ComfyUI v0.43.0 ``426f5ee``: ``server.py``, ``execution.py``,
 ``protocol.py``, ``comfy/model_management.py``) on 2026-11-02 18:40 CST, and ``start()`` refuses
 an engine whose reported version differs from ``engine/engine.lock.toml``.
 
-Endpoints: ``POST /prompt`` {prompt, client_id, prompt_id} → {prompt_id, number, node_errors} or
-400 {error, node_errors}; ``GET /ws?clientId=`` (JSON {type, data} text frames, binary previews);
+Endpoints: ``GET /object_info``; ``POST /prompt`` {prompt, client_id, prompt_id} → {prompt_id,
+number, node_errors} or 400 {error, node_errors}; ``GET /ws?clientId=`` (JSON {type, data} text
+frames, binary previews);
 ``GET /history/{id}``; ``GET /view?filename&subfolder&type``; ``POST /upload/image`` (multipart
 ``image``, ``type``, ``subfolder``, ``overwrite``); ``POST /interrupt`` {prompt_id};
 ``POST /free`` {unload_models, free_memory}; ``POST /history`` {delete}; ``GET /system_stats``.
@@ -284,7 +285,7 @@ class ComfyEngine:
                 ok = await self._ready()
             except httpx.HTTPError:
                 ok = False
-            if not ok and not sup.running:
+            if not ok:  # not answering: unusable, whatever the supervisor has noticed so far
                 state = "crashed"
         return EngineHealth(
             state=state,
@@ -314,6 +315,13 @@ class ComfyEngine:
         except httpx.HTTPError as exc:
             raise EngineUnavailable(f"The engine did not answer /system_stats: {exc}") from exc
         return parse_system_stats(r.json())
+
+    async def node_types(self) -> frozenset[str]:
+        """Node class names the running engine knows (``GET /object_info``)."""
+        self._require_ready()
+        r = await self._http.get("/object_info", timeout=60.0)
+        r.raise_for_status()
+        return frozenset(r.json())
 
     async def upload(self, image: Path | bytes, kind: UploadKind = "image") -> EngineFileRef:
         self._require_ready()
