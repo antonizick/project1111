@@ -111,7 +111,9 @@ def wait_job(c: TestClient, job_id: str, timeout: float = 3600) -> dict[str, Any
     raise AssertionError(f"job {job_id} did not finish")
 
 
-def make_clip(portrait: Path, dest: Path, *, seconds: float, fps: int, size: tuple[int, int]) -> Path:
+def make_clip(
+    portrait: Path, dest: Path, *, seconds: float, fps: int, size: tuple[int, int]
+) -> Path:
     frames = int(seconds * fps)
     w, h = size
     vf = (
@@ -173,7 +175,8 @@ def stage_quality(quality: str) -> None:
                          json={"video": vid, "face": face_id, "quality": quality,
                                "confirm_limits": True})  # fmt: skip
             assert res.status_code == 201, res.text
-            job = wait_job(c, res.json()["id"])
+            # Good at 1080p is ~7 s a frame (900 frames ≈ 1 h 45 min); 3600 s cut the first run.
+            job = wait_job(c, res.json()["id"], timeout=4 * 3600)
             total_s = time.perf_counter() - t0
         assert job["state"] == "done", job.get("error") or job
         detail = c.get(f"/api/video/jobs/{job['id']}", headers=c.token_headers).json()  # type: ignore[attr-defined]
@@ -211,7 +214,17 @@ def _serve(env: dict[str, str]) -> subprocess.Popen[str]:
         env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        # Its own process group: `uv run` forks `p11 serve`, and a kill must reach both.
+        start_new_session=True,
     )
+
+
+def _kill(proc: subprocess.Popen[str], sig: signal.Signals) -> None:
+    """Signal the whole service process group (uv and the `p11 serve` it started)."""
+    try:
+        os.killpg(proc.pid, sig)
+    except ProcessLookupError:
+        return
 
 
 def _http(env: dict[str, str], method: str, path: str, body: Any = None,
@@ -273,16 +286,17 @@ def stage_resume() -> None:
         vid = _http(env, "POST", "/api/uploads?kind=video", raw=clip.read_bytes())["id"]
         face_id = _http(env, "POST", "/api/uploads?kind=image", raw=face.read_bytes())["id"]
         t0 = time.perf_counter()
-        job = _http(env, "POST", "/api/video/jobs",
-                    {"video": vid, "face": face_id, "quality": "fast", "keep_frames": True})  # fmt: skip
+        body = {"video": vid, "face": face_id, "quality": "fast", "keep_frames": True}
+        job = _http(env, "POST", "/api/video/jobs", body)
         # Wait until a few frames are swapped, then kill the service outright (a crash).
         detail: dict[str, Any] = {}
         while not detail.get("swapped") or detail["swapped"] < 3:
             time.sleep(1)
             detail = _http(env, "GET", f"/api/video/jobs/{job['id']}")
         killed_at = detail["swapped"]
-        proc.send_signal(signal.SIGKILL)
+        _kill(proc, signal.SIGKILL)
         proc.wait(timeout=30)
+        time.sleep(1)  # let the kernel release the port
 
         # Restart: the job is marked interrupted, and a Resume continues at the right frame.
         proc = _serve(env)
@@ -318,11 +332,59 @@ def stage_resume() -> None:
         assert not scratch.exists(), f"cancel left the scratch frames at {scratch}"
         record("cancel-cleans-scratch", job=job2["id"], scratch=str(scratch), deleted=True)
     finally:
-        proc.send_signal(signal.SIGTERM)
+        _kill(proc, signal.SIGTERM)
         try:
             proc.wait(timeout=30)
         except subprocess.TimeoutExpired:
-            proc.kill()
+            _kill(proc, signal.SIGKILL)
+
+
+def stage_resume_quality(quality: str) -> None:
+    """Resume an interrupted 30 s 1080p run (the Studio was killed mid-job) to the end.
+
+    Opening the Studio marks the killed job ``failed`` (``job.interrupted``); the resume continues
+    in the same scratch at the first unfinished frame. Records the frames done before the kill,
+    the resumed part's per-frame time and the finished file's audio.
+    """
+    from p11.media.ffmpeg import probe
+
+    c = studio_client(OUT / "studio")
+    with c, performance() as profile:
+        jobs = c.get("/api/video/jobs?limit=50", headers=c.token_headers).json()  # type: ignore[attr-defined]
+        todo = [j for j in jobs if j["resumable"]]
+        if not todo:
+            raise SystemExit("no interrupted video run to resume")
+        old = todo[0]
+        before = old["swapped"]
+        with Monitor() as mon:
+            t0 = time.perf_counter()
+            res = c.post(f"/api/video/jobs/{old['id']}/resume", headers=c.token_headers)  # type: ignore[attr-defined]
+            assert res.status_code == 201, res.text
+            job = wait_job(c, res.json()["id"], timeout=4 * 3600)
+            total_s = time.perf_counter() - t0
+        assert job["state"] == "done", job.get("error") or job
+        detail = c.get(f"/api/video/jobs/{job['id']}", headers=c.token_headers).json()  # type: ignore[attr-defined]
+        out_file = OUT / f"result-1080p-30s-{quality}.mp4"
+        out_file.write_bytes(_http_get_detail(c, detail["file"]))
+    made = probe(out_file)
+    temps = [s["temp_c"] for _, s in mon.samples if s["temp_c"] == s["temp_c"]]
+    resumed = detail["frames"] - before
+    record(
+        f"1080p-30s-{quality}-resumed",
+        quality=quality,
+        frames=detail["frames"],
+        swapped_before_kill=before,
+        resumed_frames=resumed,
+        resumed_s=round(total_s, 1),
+        per_frame_s=round(total_s / max(1, resumed), 2),
+        pass_through=detail["pass_through"],
+        peak_temp_c=max(temps) if temps else None,
+        out_size=f"{made.width}x{made.height}",
+        out_seconds=round(made.seconds, 2),
+        out_audio=made.audio.codec if made.audio else None,
+        timings=detail["timings"],
+        power_profile=profile,
+    )
 
 
 def main() -> None:
@@ -333,8 +395,10 @@ def main() -> None:
         stage_quality(stage)
     elif stage == "resume":
         stage_resume()
+    elif stage in ("resume-fast", "resume-good"):
+        stage_resume_quality(stage.removeprefix("resume-"))
     else:
-        raise SystemExit("usage: video_bench.py material|fast|good|resume")
+        raise SystemExit("usage: video_bench.py material|fast|good|resume|resume-fast|resume-good")
 
 
 if __name__ == "__main__":
