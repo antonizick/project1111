@@ -44,6 +44,34 @@ def gpu_lock_file() -> Path:
     return cache_dir() / "gpu.lock"
 
 
+def runtime_dir() -> Path:
+    """Per-login runtime files (session token, studio state): ``$XDG_RUNTIME_DIR/p11``."""
+    override = os.environ.get("P11_RUNTIME_DIR")
+    if override:
+        return Path(override)
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    return Path(runtime) / APP if runtime else cache_dir() / "run"
+
+
+def logs_dir() -> Path:
+    return cache_dir() / "logs"
+
+
+def inputs_dir() -> Path:
+    """Validated uploads (S6, S8): generated names only, ``0700``."""
+    return data_dir() / "inputs"
+
+
+def gallery_db() -> Path:
+    """The SQLite gallery index (a cache of the sidecars, spec R7)."""
+    return data_dir() / "gallery.db"
+
+
+def jobs_db() -> Path:
+    """The SQLite job table, so a restart shows interrupted jobs."""
+    return data_dir() / "jobs.db"
+
+
 @dataclass(frozen=True)
 class Paths:
     config: Path

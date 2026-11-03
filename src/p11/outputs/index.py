@@ -158,16 +158,14 @@ class GalleryIndex:
         )
         return [_entry(r) for r in rows]
 
-    def search(
+    def _filters(
         self,
-        text: str = "",
-        *,
-        template: str | None = None,
-        favourites: bool = False,
-        limit: int = 100,
-        offset: int = 0,
-    ) -> list[ImageEntry]:
-        """Newest first. ``text`` matches prompt words by prefix (``mount`` finds "mountain")."""
+        text: str,
+        template: str | None,
+        favourites: bool,
+        since: str | None,
+        until: str | None,
+    ) -> tuple[str, list[object]]:
         where: list[str] = []
         args: list[object] = []
         query = fts_query(text)
@@ -179,12 +177,46 @@ class GalleryIndex:
             args.append(template)
         if favourites:
             where.append("favourite = 1")
-        sql = "SELECT * FROM images"
-        if where:
-            sql += " WHERE " + " AND ".join(where)
-        sql += " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
+        if since is not None:
+            where.append("created_at >= ?")
+            args.append(since)
+        if until is not None:
+            where.append("created_at < ?")
+            args.append(until)
+        return (" WHERE " + " AND ".join(where)) if where else "", args
+
+    def search(
+        self,
+        text: str = "",
+        *,
+        template: str | None = None,
+        favourites: bool = False,
+        since: str | None = None,
+        until: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[ImageEntry]:
+        """Newest first. ``text`` matches prompt words by prefix (``mount`` finds "mountain").
+
+        ``since``/``until`` are ISO timestamps compared with ``created_at`` (``until`` exclusive).
+        """
+        where, args = self._filters(text, template, favourites, since, until)
+        sql = f"SELECT * FROM images{where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
         args += [max(0, min(limit, 1000)), max(0, offset)]
         return [_entry(r) for r in self.db.execute(sql, args)]
+
+    def search_count(
+        self,
+        text: str = "",
+        *,
+        template: str | None = None,
+        favourites: bool = False,
+        since: str | None = None,
+        until: str | None = None,
+    ) -> int:
+        """How many images ``search`` would page through with the same filters."""
+        where, args = self._filters(text, template, favourites, since, until)
+        return int(self.db.execute(f"SELECT COUNT(*) FROM images{where}", args).fetchone()[0])
 
     def count(self) -> int:
         return int(self.db.execute("SELECT COUNT(*) FROM images").fetchone()[0])

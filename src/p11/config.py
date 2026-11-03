@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # Thermal guard thresholds (owner question 5, spec H9; Phase 13 may tune them by ±5 °C).
     thermal_pause_c: int = Field(default=87, ge=50, le=100)
     thermal_resume_c: int = Field(default=80, ge=40, le=95)
+    # Video limits (R13): beyond these an upload is accepted with a warning.
+    video_warn_seconds: float = Field(default=60.0, gt=0, le=600)
+    video_warn_height: int = Field(default=1080, ge=240, le=2160)
+    # Seconds without jobs before the Studio stops the engine and frees the GPU lock (R24).
+    engine_idle_stop: float = Field(default=300.0, ge=10, le=86400)
 
     @field_validator("host")
     @classmethod
