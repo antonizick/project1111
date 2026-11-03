@@ -35,7 +35,7 @@ from .state import (
 )
 
 State = Literal["installed", "missing", "corrupt", "user-added", "unregistered"]
-SETS = ("default", "full", "optional")
+SETS = ("default", "full", "optional", "face", "control")
 
 #: Sampler defaults for a user-added checkpoint, by family. They are P11's own starting points
 #: (the same samplers the curated models use), editable per recipe; not facts about the model.

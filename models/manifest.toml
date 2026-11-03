@@ -136,3 +136,202 @@ files = [
   { url = "https://huggingface.co/onnx-community/BiRefNet-ONNX/resolve/534d3c82d3bb8b2f0867db6dfbc3a525b8e42f67/onnx/model.onnx", filename = "birefnet.onnx", sha256 = "58f621f00f5d756097615970a88a791584600dcf7c45b18a0a6267535a1ebd3c", size = 972666916 },
 ]
 licence = { name = "MIT", url = "https://opensource.org/license/mit", commercial_use = true }
+
+# --- Phase 12: face, pose and reference control (ADR-0028…0032) -------------------------------
+# The `face` set is the face-swap path (detector, recogniser, swapper, restorer and the S5 NSFW
+# guard); the `control` set is pose/reference (DWPose, depth, ControlNet Union, IP-Adapter and its
+# CLIP vision encoder). Both are also in `full`; `default` is unchanged (14.63 GB, H1).
+# Checked 2026-11-03 10:12 CST: huggingface.co API (revision, LFS SHA-256, size) and the local
+# downloads re-hashed with sha256sum; licence terms read at each project's own page.
+[[model]]
+id = "yunet-2023mar"
+name = "YuNet face detector (2023-03)"
+kind = "facedetect"
+base = "any"
+sets = ["face", "full"]
+source = "opencv/face_detection_yunet @ 3cc26e7f1014a5ee5d74a42acee58bafc9d0a310"
+notes = "Face detection and 5 landmarks for face swap and face restore (ADR-0028). Run by OpenCV's FaceDetectorYN on the CPU. Original model from Shiqi Yu's libfacedetection, MIT (opencv_zoo LICENSE checked 2026-11-03 10:37 CST)."
+files = [
+  { url = "https://huggingface.co/opencv/face_detection_yunet/resolve/3cc26e7f1014a5ee5d74a42acee58bafc9d0a310/face_detection_yunet_2023mar.onnx", filename = "yunet-2023mar.onnx", sha256 = "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4", size = 232589 },
+]
+licence = { name = "MIT", url = "https://opensource.org/license/mit", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co facefusion/models-3.0.0 revision 728b9659, LFS
+# SHA-256 f1f79dc3… matches the local file; InsightFace's own licence policy read 2026-11-03 10:36 CST.
+[[model]]
+id = "arcface-w600k-r50"
+name = "ArcFace w600k_r50 face recognition (InsightFace buffalo_l)"
+kind = "facedetect"
+base = "any"
+sets = ["face", "full"]
+source = "facefusion/models-3.0.0 @ 728b9659bd9691bf32cbf7f61af478d94b7ba81e (ONNX export of deepinsight/insightface buffalo_l)"
+notes = "512-d face embedding for the face swap (ADR-0028). NON-COMMERCIAL: InsightFace's README says models trained with their data are for non-commercial research purposes only, and face recognition models need a licence from insightface.ai (checked 2026-11-03 10:36 CST). Personal use on the owner's machine only (H3)."
+files = [
+  { url = "https://huggingface.co/facefusion/models-3.0.0/resolve/728b9659bd9691bf32cbf7f61af478d94b7ba81e/arcface_w600k_r50.onnx", filename = "arcface-w600k-r50.onnx", sha256 = "f1f79dc3b0b79a69f94799af1fffebff09fbd78fd96a275fd8f0cbbea23270d1", size = 174388474 },
+]
+licence = { name = "InsightFace model zoo: non-commercial research only", url = "https://github.com/deepinsight/insightface#license", commercial_use = false, flags = ["non-commercial", "research-only"] }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co facefusion/models-3.0.0 revision 728b9659, LFS
+# SHA-256 a290273e… matches the local file; same InsightFace policy as above.
+[[model]]
+id = "inswapper-128"
+name = "INSwapper 128 face swap (InsightFace)"
+kind = "faceswap"
+base = "any"
+sets = ["face", "full"]
+source = "facefusion/models-3.0.0 @ 728b9659bd9691bf32cbf7f61af478d94b7ba81e (ONNX export of deepinsight/insightface inswapper_128)"
+notes = "The face swap itself (ADR-0011, ADR-0028). NON-COMMERCIAL and contact-insightface-for-licence (their README, checked 2026-11-03 10:36 CST). P11 runs it in P11 on the CPU, not as a ComfyUI node."
+files = [
+  { url = "https://huggingface.co/facefusion/models-3.0.0/resolve/728b9659bd9691bf32cbf7f61af478d94b7ba81e/inswapper_128.onnx", filename = "inswapper-128.onnx", sha256 = "a290273ed497312095dac48cdef20feec9d5208298223dd01288ab202b54bea7", size = 555303150 },
+]
+licence = { name = "InsightFace model zoo: non-commercial research only", url = "https://github.com/deepinsight/insightface#license", commercial_use = false, flags = ["non-commercial", "research-only"] }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co facefusion/models-3.0.0 rev 728b9659, LFS SHA-256
+# accc4757… matches the local file; GFPGAN's Apache-2.0 LICENSE (Tencent) read 2026-11-03 10:36 CST.
+[[model]]
+id = "gfpgan-1.4"
+name = "GFPGAN v1.4 face restore"
+kind = "facerestore"
+base = "any"
+sets = ["face", "full"]
+source = "facefusion/models-3.0.0 @ 728b9659bd9691bf32cbf7f61af478d94b7ba81e (ONNX export of TencentARC/GFPGAN v1.4)"
+notes = "Polishes a swapped or small face (ADR-0028). Apache-2.0 (Tencent ARC GFPGAN)."
+files = [
+  { url = "https://huggingface.co/facefusion/models-3.0.0/resolve/728b9659bd9691bf32cbf7f61af478d94b7ba81e/gfpgan_1.4.onnx", filename = "gfpgan-1.4.onnx", sha256 = "accc4757b26bdb89b32b4d3500d4f79c9dff97c1dd7c7104bf9dcb95e3311385", size = 340299087 },
+]
+licence = { name = "Apache-2.0", url = "https://opensource.org/license/apache-2-0", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co facefusion/models-3.3.0 rev 6271ab1c, LFS SHA-256
+# 5aae1806… matches locally; Marqo's card (Apache-2.0) read 2026-11-03 10:02 CST.
+[[model]]
+id = "nsfw-marqo-384"
+name = "NSFW image classifier (Marqo, ViT-tiny 384)"
+kind = "classifier"
+base = "any"
+sets = ["face", "full"]
+source = "facefusion/models-3.3.0 @ 6271ab1c4619ceb2e534d65e0ec973f22a9aec38 (ONNX export of Marqo/nsfw-image-detection-384)"
+notes = "S5 NSFW target guard, classifier 1 of 2 (ADR-0029). Refuses the face swap when it says NSFW (P >= 0.5). Cannot be disabled."
+files = [
+  { url = "https://huggingface.co/facefusion/models-3.3.0/resolve/6271ab1c4619ceb2e534d65e0ec973f22a9aec38/nsfw_2.onnx", filename = "nsfw-marqo-384.onnx", sha256 = "5aae1806ce44e3c27fab0a7d44eed581dd25ca71a4387ff809a191c98239c1be", size = 22489928 },
+]
+licence = { name = "Apache-2.0", url = "https://opensource.org/license/apache-2-0", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co facefusion/models-3.3.0 rev 6271ab1c, LFS SHA-256
+# 778139fb… matches locally; Freepik's card (MIT, four levels) read 2026-11-03 10:02 CST.
+[[model]]
+id = "nsfw-freepik-eva02"
+name = "NSFW image classifier (Freepik, EVA02 448)"
+kind = "classifier"
+base = "any"
+sets = ["face", "full"]
+source = "facefusion/models-3.3.0 @ 6271ab1c4619ceb2e534d65e0ec973f22a9aec38 (ONNX export of Freepik/nsfw_image_detector)"
+notes = "S5 NSFW target guard, classifier 2 of 2 (ADR-0029). Refuses when P(medium)+P(high) >= 0.5, the card's own rule. Cannot be disabled. Trained for AI-generated images too (its card: 96-100 % on AI content)."
+files = [
+  { url = "https://huggingface.co/facefusion/models-3.3.0/resolve/6271ab1c4619ceb2e534d65e0ec973f22a9aec38/nsfw_3.onnx", filename = "nsfw-freepik-eva02.onnx", sha256 = "778139fb930240ac39812a1480295bfc5dc2cec8a8e46ee6b453481d600c0fa2", size = 358188033 },
+]
+licence = { name = "MIT", url = "https://opensource.org/license/mit", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co yzd-v/DWPose revision 1a714410, LFS SHA-256
+# 7860ae79… matches the local file; the repo's licence is Apache-2.0.
+[[model]]
+id = "dwpose-yolox-l"
+name = "YOLOX-L person detector (DWPose)"
+kind = "preprocess"
+base = "any"
+sets = ["control", "full"]
+source = "yzd-v/DWPose @ 1a7144101628d69ee7a3768d1ee3a094070dc388"
+notes = "Person boxes for the pose extractor (ADR-0030). CPU, ONNX."
+files = [
+  { url = "https://huggingface.co/yzd-v/DWPose/resolve/1a7144101628d69ee7a3768d1ee3a094070dc388/yolox_l.onnx", filename = "dwpose-yolox-l.onnx", sha256 = "7860ae79de6c89a3c1eb72ae9a2756c0ccfbe04b7791bb5880afabd97855a411", size = 216746733 },
+]
+licence = { name = "Apache-2.0", url = "https://opensource.org/license/apache-2-0", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co yzd-v/DWPose revision 1a714410, LFS SHA-256
+# 724f4ff2… matches the local file.
+[[model]]
+id = "dwpose-ll-ucoco-384"
+name = "DWPose whole-body pose estimator (384x288)"
+kind = "preprocess"
+base = "any"
+sets = ["control", "full"]
+source = "yzd-v/DWPose @ 1a7144101628d69ee7a3768d1ee3a094070dc388"
+notes = "Body keypoints for the pose extractor (ADR-0030): OpenPose-18 body from a photo or a video frame. CPU, ONNX."
+files = [
+  { url = "https://huggingface.co/yzd-v/DWPose/resolve/1a7144101628d69ee7a3768d1ee3a094070dc388/dw-ll_ucoco_384.onnx", filename = "dwpose-ll-ucoco-384.onnx", sha256 = "724f4ff2439ed61afb86fb8a1951ec39c6220682803b4a8bd4f598cd913b1843", size = 134399116 },
+]
+licence = { name = "Apache-2.0", url = "https://opensource.org/license/apache-2-0", commercial_use = true }
+
+# Checked 2026-11-03 10:30 CST: huggingface.co onnx-community/depth-anything-v2-small rev
+# 4472b736, LFS SHA-256 afb6a5c2… matches locally; card and preprocessor read 2026-11-03 10:30 CST.
+[[model]]
+id = "depth-anything-v2-small"
+name = "Depth Anything V2 Small (depth preprocessor)"
+kind = "preprocess"
+base = "any"
+sets = ["control", "full"]
+source = "onnx-community/depth-anything-v2-small @ 4472b7362082ad9968fee890ca0f1e5aca36b93d"
+notes = "Depth map for the optional Depth control (ADR-0030). CPU, ONNX, 99 MB."
+files = [
+  { url = "https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/model.onnx", filename = "depth-anything-v2-small.onnx", sha256 = "afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c", size = 99060839 },
+]
+licence = { name = "Apache-2.0", url = "https://opensource.org/license/apache-2-0", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co xinsir/controlnet-union-sdxl-1.0 revision 801a4a3f,
+# LFS SHA-256 9fae2e50… matches the local file; the repo card says Apache-2.0.
+[[model]]
+id = "controlnet-union-sdxl-promax"
+name = "ControlNet Union SDXL ProMax (openpose, depth, canny, ...)"
+kind = "controlnet"
+base = "sdxl"
+sets = ["control", "full"]
+source = "xinsir/controlnet-union-sdxl-1.0 @ 801a4a3fa3d4c936f4feea95b98607bc6726f80c"
+notes = "One ControlNet for every control P11 shows (ADR-0030): openpose, depth, canny. Loaded with the core ControlNetLoader and applied with SetUnionControlNetType + ControlNetApplyAdvanced."
+files = [
+  { url = "https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/801a4a3fa3d4c936f4feea95b98607bc6726f80c/diffusion_pytorch_model_promax.safetensors", filename = "controlnet-union-sdxl-promax.safetensors", sha256 = "9fae2e50cb431bfcbe05822b59ec2228df545ef27f711dea8949e9f4ed9f7cdc", size = 2513342408 },
+]
+licence = { name = "Apache-2.0", url = "https://opensource.org/license/apache-2-0", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co h94/IP-Adapter revision 018e4027, LFS SHA-256
+# 3f5062b8… matches the local file; the repo card says Apache-2.0.
+[[model]]
+id = "ip-adapter-plus-sdxl"
+name = "IP-Adapter Plus SDXL (style / composition reference)"
+kind = "ipadapter"
+base = "sdxl"
+sets = ["control", "full"]
+source = "h94/IP-Adapter @ 018e402774aeeddd60609b4ecdb7e298259dc729 (sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors)"
+notes = "Style reference (ADR-0031), loaded by P11's own p11_ipadapter node pack (only that pack is allowed to load). 16-token resampler over CLIP ViT-H penultimate states."
+files = [
+  { url = "https://huggingface.co/h94/IP-Adapter/resolve/018e402774aeeddd60609b4ecdb7e298259dc729/sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors", filename = "ip-adapter-plus-sdxl.safetensors", sha256 = "3f5062b8400c94b7159665b21ba5c62acdcd7682262743d7f2aefedef00e6581", size = 847517512 },
+]
+licence = { name = "Apache-2.0", url = "https://opensource.org/license/apache-2-0", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co h94/IP-Adapter revision 018e4027, LFS SHA-256
+# 677ad886… matches the local file; the repo card says Apache-2.0.
+[[model]]
+id = "ip-adapter-plus-face-sdxl"
+name = "IP-Adapter Plus Face SDXL (character reference)"
+kind = "ipadapter"
+base = "sdxl"
+sets = ["control", "full"]
+source = "h94/IP-Adapter @ 018e402774aeeddd60609b4ecdb7e298259dc729 (sdxl_models/ip-adapter-plus-face_sdxl_vit-h.safetensors)"
+notes = "Character / face-consistency reference (ADR-0031). The face-ID variant needs an InsightFace embedding model and is not shipped (its licence is non-commercial)."
+files = [
+  { url = "https://huggingface.co/h94/IP-Adapter/resolve/018e402774aeeddd60609b4ecdb7e298259dc729/sdxl_models/ip-adapter-plus-face_sdxl_vit-h.safetensors", filename = "ip-adapter-plus-face-sdxl.safetensors", sha256 = "677ad8860204f7d0bfba12d29e6c31ded9beefdf3e4bbd102518357d31a292c1", size = 847517512 },
+]
+licence = { name = "Apache-2.0", url = "https://opensource.org/license/apache-2-0", commercial_use = true }
+
+# Checked 2026-11-03 10:12 CST: huggingface.co h94/IP-Adapter rev 018e4027, LFS SHA-256
+# 6ca9667d… matches locally; the repo card (Apache-2.0) read 2026-11-03 10:12 CST.
+[[model]]
+id = "clip-vit-h-14-encoder"
+name = "CLIP ViT-H/14 image encoder (for IP-Adapter)"
+kind = "clipvision"
+base = "sdxl"
+sets = ["control", "full"]
+source = "h94/IP-Adapter @ 018e402774aeeddd60609b4ecdb7e298259dc729 (models/image_encoder/model.safetensors)"
+notes = "Turns a reference image into tokens for IP-Adapter (ADR-0031). Loaded by ComfyUI's core CLIPVisionLoader from the clip_vision folder."
+files = [
+  { url = "https://huggingface.co/h94/IP-Adapter/resolve/018e402774aeeddd60609b4ecdb7e298259dc729/models/image_encoder/model.safetensors", filename = "clip-vit-h-14-encoder.safetensors", sha256 = "6ca9667da1ca9e0b0f75e46bb030f7e011f44f86cbfb8d5a36590fcd7507b030", size = 2528373448 },
+]
+licence = { name = "Apache-2.0 (repo); CLIP ViT-H/14 weights are OpenAI CLIP, MIT", url = "https://opensource.org/license/apache-2-0", commercial_use = true }

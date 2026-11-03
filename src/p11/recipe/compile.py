@@ -110,6 +110,9 @@ class GraphInput:
     data: bytes | None = None
     #: How the runner uploads it to the engine.
     kind: Literal["image", "mask"] = "image"
+    #: Preprocessing the runner applies to these bytes before uploading (Phase 12 controls):
+    #: ``pose`` (photo -> OpenPose skeleton image), ``depth`` or ``canny``. ``None``: upload as is.
+    transform: str | None = None
 
 
 @dataclass(frozen=True)
@@ -331,9 +334,6 @@ _STEP_COMPILERS: dict[str, StepCompiler] = {}
 _PLAN_COMPILERS: dict[str, PlanCompiler] = {}
 _MODIFIERS: dict[str, ModifierCompiler] = {}
 _NOT_YET = {
-    "face_swap": "Phase 12",
-    "pose": "Phase 12",
-    "reference": "Phase 12",
     "text_overlay": "Phase 14",
 }
 

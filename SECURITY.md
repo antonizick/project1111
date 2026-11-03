@@ -42,3 +42,33 @@ P11 Studio is a web server on your own machine, and any web page you visit can t
 **The UI (Phase 08)** loads nothing from the network: no CDN, fonts or analytics (Playwright fails the build if a page request leaves `127.0.0.1:<port>`). Downloads are made from an in-memory `blob:` URL. "Delete" moves files into P11's own trash folder (`~/.local/share/p11/trash/`, `0700`); "Empty trash" deletes only that folder, after a confirmation.
 
 Report a way to reach the API from a web page, read another user's outputs, get a file outside P11's folders, or find the token in a log as a vulnerability.
+
+## The face-swap content boundary (Phase 12, spec S5)
+
+Generation is unfiltered (A5): P11 has no safety checker, prompt filter or blocklist. Face-swap is
+the one path that can turn a picture of a real, identifiable person into sexual imagery, so **every
+face swap carries an NSFW check on its target and refuses sexual or nude images**.
+
+- The check runs **twice per swap** (target before the swap, result before it is saved) and **once
+  more at submit time** whenever the target already exists as a file, so the UI, the API, a template
+  run and (in Phase 13) every video frame are covered by the same code path.
+- **Two classifiers, both required, either refusing is enough**: Marqo's ViT-tiny and Freepik's
+  EVA02, both hash-pinned ONNX models with fixed thresholds (ADR-0029). The thresholds and model
+  IDs are constants in `src/p11/media/nsfw.py`.
+- **There is no switch.** No setting, environment variable, API parameter, recipe field or template
+  field names the guard; `FaceSwap` deliberately has no guard field, and `tests/unit/test_media_faces.py`
+  greps the source for one.
+- **It fails closed.** If either classifier is missing or unreadable, the swap does not run.
+- **P11 ships no feature, preset or template that puts a real person's face into sexual content, and
+  nothing that sexualizes minors.** This is not open to a phase's judgment or to a change request.
+
+The refusal is a plain-English problem ("P11 does not put faces onto nude or sexual images. Choose a
+different image.") with no score, no probability and no hint about how to get past it. Test fixtures
+for the guard are synthetic and non-explicit (S6): a generated image with magenta corners for the
+stub, and P11-generated portraits for the real classifiers. Never add an explicit image to the repo
+or to fixtures.
+
+**Using other people's likenesses.** The Studio shows a one-line notice in the face panel: "Use
+faces of people who agreed." Face photos are private data (S6): uploads are stored under
+`~/.local/share/p11/` with `0700`, EXIF/GPS is stripped on upload, and nothing is written to the
+repo, fixtures or logs.

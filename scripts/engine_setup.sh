@@ -85,13 +85,38 @@ run uv pip sync -q --python "$VENV/bin/python" --require-hashes \
   --index-strategy unsafe-best-match --extra-index-url "$TORCH_INDEX" "$REQ_LOCK"
 
 # 4. Model folders outside the checkout (R8) and extra_model_paths.yaml.
-for d in checkpoints loras vae controlnet ipadapter upscale facerestore faceswap segmentation embeddings; do
+for d in checkpoints loras vae controlnet ipadapter clip_vision upscale facerestore faceswap \
+         facedetect classifiers preprocess segmentation embeddings; do
   run mkdir -p "$MODELS/$d"
 done
 yaml="$ENGINE_DIR/extra_model_paths.yaml"
 if [[ $DRY == 0 ]]; then
   sed "s#@MODELS@#$MODELS#g" "$REPO_ROOT/engine/extra_model_paths.yaml.tmpl" > "$yaml.new"
   if cmp -s "$yaml.new" "$yaml"; then rm "$yaml.new"; else mv "$yaml.new" "$yaml"; echo "wrote $yaml"; fi
+fi
+
+# 4b. P11's own custom node pack (S3, ADR-0031): copied from this repo, digest checked against
+#     engine.lock.toml. It is the only pack the engine is allowed to load (its launch flags).
+PACK_NAME="p11_ipadapter"
+PACK_SRC="$REPO_ROOT/engine/custom_nodes/$PACK_NAME"
+PACK_ENTRY="__init__.py"
+PACK_SHA="$(awk -F'"' -v n="name = \"$PACK_NAME\"" '$0 == n {found=1} found && /^sha256 = / {print $2; exit}' "$LOCK_TOML")"
+[[ -n $PACK_SHA ]] || { echo "no sha256 for $PACK_NAME in $LOCK_TOML" >&2; exit 1; }
+pack_sum="$(sha256sum "$PACK_SRC/$PACK_ENTRY" | cut -d' ' -f1)"
+if [[ $pack_sum != "$PACK_SHA" ]]; then
+  echo "engine/custom_nodes/$PACK_NAME/$PACK_ENTRY is not the copy engine.lock.toml pins." >&2
+  echo "Review the change and update the sha256 there (S3)." >&2
+  exit 1
+fi
+run mkdir -p "$COMFY/custom_nodes/$PACK_NAME"
+if [[ $DRY == 0 ]]; then
+  dest="$COMFY/custom_nodes/$PACK_NAME/$PACK_ENTRY"
+  if [[ -f $dest ]] && cmp -s "$PACK_SRC/$PACK_ENTRY" "$dest"; then
+    echo "$PACK_NAME already installed"
+  else
+    cp "$PACK_SRC/$PACK_ENTRY" "$dest.new" && mv "$dest.new" "$dest"
+    echo "installed $PACK_NAME into $COMFY/custom_nodes/"
+  fi
 fi
 
 # 5. Torch check on the GPU (ADR-0009): CUDA, sm_75, real fp16 kernels, no CPU fallback.

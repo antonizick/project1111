@@ -32,7 +32,10 @@ def now_stamp() -> str:
 
 
 def _atomic_write(path: Path, text: str, mode: int = 0o600) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    from p11.paths import ensure_private_dir
+
+    # P11's own state holds licence acknowledgements and per-model flags (S6): 0700 like the rest.
+    ensure_private_dir(path.parent)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
     try:
         with os.fdopen(fd, "w") as f:

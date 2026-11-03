@@ -1,6 +1,6 @@
 # P11 Benchmarks
 
-**Last updated:** 2026-11-02 18:08 CST (Phase 03). Measured on the reference laptop by `scripts/bench/` against the pinned engine. Later phases append their own sections (Phase 05: adapter overhead; Phase 16: success criteria).
+**Last updated:** 2026-11-03 11:55 CST (Phase 12). Measured on the reference laptop by `scripts/bench/` against the pinned engine. Later phases append their own sections (Phase 05: adapter overhead; Phase 16: success criteria).
 
 ## Method
 - **Engine:** headless ComfyUI v0.43.0 (`426f5eea52a7ece1dd599fff4cb6cd1f352ddd24`), uv CPython 3.12.15, torch 2.14.1+cu130, cuDNN 9.24, SDPA attention, UNet/text encoders fp16, VAE fp32 (ComfyUI's default on Turing). Launched by `scripts/bench/engine.py` with the flags in `engine/engine.lock.toml` (`--listen 127.0.0.1 --offline --disable-all-custom-nodes …`), core nodes only.
@@ -217,6 +217,62 @@ Measured 2026-11-03 on the laptop. Script: `scripts/bench/background_tune.py` (`
 - **Acceptance budget:** one Apply on the defaults (auto-mask + colour match + Light harmonize) on a 1024² subject ≈ **20 s** warm (≤ 37 s from a cold engine); recorded by `tests/gpu/test_background_gpu.py`.
 
 **Action count (Playwright, `e2e/background.spec.ts`, FakeEngine):** open result -> Background -> choose photo -> Apply -> Download = **4 actions** (Appendix B allows 5).
+
+## Face, pose and reference (Phase 12, ADR-0028…0031)
+
+Measured on the reference laptop (i7-9750H CPU for the face pipeline and the map makers, RTX 2070
+Mobile for the generations) by `tests/gpu/test_face_pose_gpu.py`, whose numbers land in
+`~/.cache/p11/face-pose/measurements.json`. Everything is synthetic (S6): the faces are P11-generated
+portraits, the poses are skeletons drawn in code, the reference is a generated picture.
+
+**Faces (CPU, no VRAM, ADR-0028).** 1024×1024 P11-generated portraits:
+
+| Step | Time | Notes |
+|---|---|---|
+| YuNet detection (two sizes merged) | 0.03–0.44 s | first call slower (model load) |
+| ArcFace embedding | ~0.2 s | 512-d |
+| `inswapper_128` swap + paste-back | **2.4 s** | 128-px aligned face, feathered box mask |
+| swap + GFPGAN v1.4 restore | **3.9 s** | 512-px FFHQ alignment, full-strength blend |
+| whole `face_swap` job (submit → saved) | 11.2 s first, ~4 s after | includes the guard, uploads and indexing |
+
+Identity transfer is convincing at 100 % and GFPGAN cleans up the 128-px swap without over-smoothing
+(crops kept in `~/.cache/p11/face-pose/` and `~/.cache/p11/phase12/proto/`). This is what decided
+ADR-0028 over a ComfyUI node or the FaceFusion CLI: same algorithm, no engine involvement, no VRAM,
+2.4 s per frame — which is the number Phase 13's video path multiplies.
+
+**The S5 guard (ADR-0029).** 1.8 s cold, **0.7 s** warm for both classifiers together (Marqo
+ViT-tiny 384 + Freepik EVA02 448, CPU). On the synthetic portraits it says safe, as it must
+(P(NSFW) 0.069 and 0.058 on one portrait). It runs twice per swap (target and result) and once more
+at submit time, so a swap costs about 2 s of checking; the refusal path is covered by the stub tests.
+
+**Pose (ADR-0030).** DWPose extraction from a photo: **0.3–0.9 s** per picture (YOLOX-L + RTMPose-l
+on the CPU), giving 18 body keypoints; a full-body generated figure yields 12–18 visible joints. The
+OpenPose picture is drawn in ~10 ms. The acceptance measure is a **pose distance**: DWPose reads the
+result back and the mean distance between matching joints is compared with the skeleton that was
+applied **0.061** of the picture (asserted < 0.2; recorded in
+`~/.cache/p11/face-pose/measurements.json` alongside these tables). A 1024×1024 generation with the union ControlNet follows the
+skeleton and ran **61 s end to end on its first run** (cold engine + loading the 2.5 GB
+ControlNet-Union ProMax) — the steady-state figure is the ordinary ~14 s of a Lightning 1024²
+generation once the model is resident. No OOM at the default preset; the ControlNet adds about
+2.5 GB of VRAM while it runs.
+
+**Reference (ADR-0031).** A style reference (a generated watercolour) applied to four seeds of
+"a lighthouse on a cliff at dusk" at 1024x1024, weight 0.75:
+
+| Run | Wall time | Notes |
+|---|---|---|
+| first with a reference | 24.8 s | cold: loads CLIP ViT-H/14 (2.5 GB) + IP-Adapter Plus |
+| runs 2-4 | **12.7 s** | warm, i.e. the same as a plain Lightning 1024x1024 generation |
+
+The four results keep one look (same dusk palette, same painterly treatment) while the composition
+changes with the seed - the picture is `~/.cache/p11/face-pose/reference-seed-5{1..4}.png`, alongside
+the swap and pose results and a contact sheet (`sheet.jpg`). The face variant (`character` mode) uses
+the same path with `ip-adapter-plus-face-sdxl`. Cost on the GPU: the CLIP encoder and the adapter are
+resident only while the step runs; no OOM at the default preset.
+
+**VRAM and disk.** Nothing in the face path touches the GPU (it runs with the engine stopped). The
+`face` set is 1.43 GB and the `control` set is 7.23 GB (2.5 GB of which is the CLIP ViT-H encoder and
+2.5 GB the union ControlNet); the default set is unchanged at 14.63 GB.
 
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.

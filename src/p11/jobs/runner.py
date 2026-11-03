@@ -35,8 +35,12 @@ from p11.engine.base import (
 from p11.engine.base import bind_inputs as bind_graph_inputs
 from p11.engine.recovery import run_with_oom_retry
 from p11.media import composite as composite_media
+from p11.media.control import Controls
+from p11.media.faces import FaceKit, run_face_restore, run_face_swap
+from p11.media.imageio import open_rgb
 from p11.media.inpaint import Prepared, check_mask, prepare, stitch
 from p11.media.inputs import ID_RE, InputStore, UnknownInput
+from p11.media.nsfw import check_target
 from p11.media.segment import Segmenters, Segments
 from p11.outputs import metadata
 from p11.outputs.index import GalleryIndex, entry_from_record
@@ -111,6 +115,10 @@ class Runner:
     #: resolves manifest IDs through the models root and raises a plain-English error when the
     #: model is missing.
     segmenters: Segments = field(default_factory=Segmenters)
+    #: Face detection, swap, restore and the S5 NSFW guard (ADR-0028/0029).
+    faces: FaceKit = field(default_factory=FaceKit)
+    #: Control maps for ``pose`` steps (ADR-0030).
+    controls: Controls = field(default_factory=Controls)
     run_timeout: float | None = None
     clock: Callable[[], datetime] = field(default=lambda: datetime.now().astimezone())
 
@@ -140,10 +148,29 @@ class Runner:
         for ref in refs:
             self.resolve_file(ref)
 
+    def guard_targets(self, items: list[PlanItem], recipe: Recipe) -> None:
+        """S5 (ADR-0029): refuse a face swap onto a sexual or nude target before it is queued.
+
+        The swap itself checks again at run time, so a target that only exists after an earlier
+        step runs is still covered. Nothing can turn this off.
+        """
+        for item in items:
+            if not isinstance(item, LocalStep) or item.op != "face_swap":
+                continue
+            for inp in item.inputs:
+                if inp.placeholder != "image" or inp.source == "step":
+                    continue
+                try:
+                    data = self._input_bytes(inp, {}, recipe, {})
+                except UnknownInput:
+                    continue  # an image the run will make: checked again when it exists
+                check_target(self.faces.guard(), open_rgb(data))
+
     def validate(self, recipe: Recipe, bindings: Bindings) -> list[PlanItem]:
         """Compile with a fixed seed: slot, model and step errors surface before queueing."""
         items = compile(recipe, bindings, self.registry(), seed=0)
         self.check_files(recipe, bindings)
+        self.guard_targets(items, recipe)
         for item in items:
             if isinstance(item, LocalStep):
                 masks = [i for i in item.inputs if i.kind == "mask"]
@@ -291,7 +318,10 @@ class Runner:
         for inp in graph.inputs:
             mask = inp.kind == "mask" or bool(inp.slot and slot_kinds.get(inp.slot) == "mask")
             kind: UploadKind = "mask" if mask else "image"
-            files[inp.placeholder] = await self.engine.upload(data[inp.placeholder], kind)
+            raw = data[inp.placeholder]
+            if inp.transform:
+                raw = await asyncio.to_thread(self.controls.transform, inp.transform, raw)
+            files[inp.placeholder] = await self.engine.upload(raw, kind)
         return bind_graph_inputs(graph, files), prepared
 
     def _input_bytes(
@@ -323,6 +353,11 @@ class Runner:
         """Run one local step in P11 (ADR-0027). Phase 14 adds ``text_overlay`` here."""
         if item.op == "replace_background":
             return composite_media.run_replace_background(item.params, data, self.segmenters)
+        if item.op == "face_swap":
+            # The S5 guard runs inside: before the swap and again on the result (ADR-0029).
+            return run_face_swap(item.params, data, self.faces)
+        if item.op == "face_restore":
+            return run_face_restore(item.params, data, self.faces)
         raise ValueError(f"Unknown local step {item.op!r}.")
 
     def _record(
