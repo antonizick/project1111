@@ -7,8 +7,10 @@ import uvicorn
 
 from p11 import __version__, paths
 from p11.config import load_settings
+from p11.models.cli import app as models_app
 
 app = typer.Typer(help="P11 Studio: local image generation.", no_args_is_help=True)
+app.add_typer(models_app, name="models")
 
 
 @app.command()
@@ -51,7 +53,6 @@ for _name, _phase in [
     ("status", "07"),
     ("open", "07"),
     ("doctor", "07"),
-    ("models", "06"),
     ("update", "15"),
 ]:
     _stub(_name, _phase)

@@ -14,7 +14,15 @@ from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from p11 import paths
 
@@ -83,8 +91,14 @@ class ModelFile(_Strict):
 
     @field_validator("url")
     @classmethod
-    def _https(cls, value: str) -> str:
+    def _https(cls, value: str, info: ValidationInfo) -> str:
         parts = urlsplit(value)
+        if (
+            parts.scheme == "http"
+            and parts.hostname == "127.0.0.1"
+            and (info.context or {}).get("loopback_http")
+        ):
+            return value  # tests only: a loopback test server
         if parts.scheme != "https" or not parts.hostname:
             raise ValueError(f"model URLs must be https: {value!r}")
         return value
@@ -249,14 +263,17 @@ def find_manifest() -> Path:
     return paths.data_dir() / MANIFEST_NAME
 
 
-def parse_manifest(text: str, path: Path | None = None) -> Manifest:
+def parse_manifest(text: str, path: Path | None = None, *, loopback_http: bool = False) -> Manifest:
+    """Parse and validate. ``loopback_http`` lets tests point URLs at a local http server."""
     where = str(path) if path else "manifest"
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as exc:
         raise ManifestError(f"{where}: not valid TOML: {exc}") from None
     try:
-        return Manifest.model_validate({**data, "path": path})
+        return Manifest.model_validate(
+            {**data, "path": path}, context={"loopback_http": loopback_http}
+        )
     except ValidationError as exc:
         raise ManifestError(f"{where}: {exc}") from None
 

@@ -660,7 +660,7 @@ def entry_info(entry: Entry, filename: str | None = None) -> ModelInfo:
     family: Family | None = entry.base if entry.base != "any" else None
     return ModelInfo(
         manifest_id=entry.id,
-        kind=cast(ModelKind, entry.kind),
+        kind=entry.kind,
         filename=filename or entry.file.filename,
         sha256=entry.file.sha256,
         family=family,
