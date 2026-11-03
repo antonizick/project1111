@@ -164,3 +164,17 @@ def test_run_checks_never_raises(monkeypatch):
     monkeypatch.setattr(doctor.shutil, "which", lambda n: None)
     report = doctor.run_checks(quick=True)
     assert "gpu.missing" in codes(report) and "engine.missing" in codes(report)
+
+
+def test_ffmpeg_present_and_missing(monkeypatch):
+    monkeypatch.setattr(doctor.shutil, "which", lambda n: f"/usr/bin/{n}")
+    r = Report()
+    doctor.check_ffmpeg(r)
+    assert r.ok and r.checks[0].name == "ffmpeg"
+    monkeypatch.setattr(
+        doctor.shutil, "which", lambda n: None if n == "ffprobe" else f"/usr/bin/{n}"
+    )
+    r = Report()
+    doctor.check_ffmpeg(r)
+    assert codes(r) == {"ffmpeg.missing"}
+    assert "ffprobe" in r.problems[0].message and "pacman" in r.problems[0].hint

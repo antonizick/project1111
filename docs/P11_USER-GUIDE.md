@@ -214,3 +214,36 @@ old photos, small faces or an avatar that came out soft.
 (pose, depth and reference). P11 tells you exactly which one is missing if you skip them. The
 InsightFace face models are licensed for **non-commercial research only**, so the install asks you
 to acknowledge their licence first (`--accept-licences` in a script).
+
+## 8. Video face-swap (written in Phase 13)
+
+Open **Video** in the left nav. Choose a short clip and the photo whose face you want to use (or
+press **Use face in Video** on a result or gallery picture — that picture becomes the face photo).
+P11 shows the clip's first frame with the faces it found: click the one to swap onto (P11 follows it
+across the clip), or leave **Largest face in every frame** selected. Press **Swap faces**. The
+finished MP4 keeps the clip's own sound.
+
+- **Quality**: **Fast** skips the face restore and works at 720p; **Good** restores the swapped
+  faces at full size. **Frame size** can cap the frames further (smaller is faster).
+- **Start/End** trim the clip before processing; **Smooth the face over time** blends the face with
+  the previous frame where it barely moves (less flicker, slightly softer).
+- **Keep the frames** leaves the extracted frames on disk — also needed to resume a run you
+  cancelled yourself. Cancelled runs without it are cleaned up.
+- **Progress** shows the frame count, an ETA, the GPU temperature and a **Cooling down** note when
+  the laptop gets hot; **Cancel** stops the job, **Esc** cancels too. If P11 is killed mid-job
+  (crash, power loss), the job appears in **Recent video swaps** as *interrupted* with a **Resume**
+  button that continues at the last finished frame.
+
+> **Use faces of people who agreed.** P11 refuses nude or sexual clips and refuses to save a swap
+> that looks nude or sexual; the check runs on every swapped frame and there is no switch to turn it
+> off.
+
+**Limits.** Clips up to **60 s and 1080p** are the recommended size. Longer or larger clips work
+after you tick **I understand, run it anyway** (P11 shows a rough time estimate first): face-swapping
+is seconds of work per frame, so a 30 s clip is tens of minutes on the laptop. Trimming the clip or
+picking **Fast** is the way to shorten a run. A finished video is saved next to your pictures
+(`~/Pictures/P11/…`) with a sidecar describing how it was made.
+
+**Models.** The video path uses the same face models as **Swap face**:
+`p11 models install face` (they are licensed for non-commercial research, so the install asks you to
+acknowledge that first).

@@ -36,6 +36,8 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0030 | 2026-11-03 11:05 CST | Pose and depth controls: ControlNet Union in the engine, maps made in P11 | Accepted | 12 |
 | ADR-0031 | 2026-11-03 11:05 CST | IP-Adapter through P11's own node pack (`p11_ipadapter`) | Accepted | 12 |
 | ADR-0032 | 2026-11-03 11:05 CST | Additive schema changes for face, pose and reference | Accepted | 12 |
+| ADR-0033 | 2026-11-03 14:08 CST | Video face-swap: CPU face path per frame, ffmpeg extract/stitch, resumable job rows | Accepted | 13 |
+| ADR-0034 | 2026-11-03 14:08 CST | The S5 guard on video: every swapped frame plus a sampled pre-pass, no switch | Accepted | 13 |
 
 ---
 
@@ -395,3 +397,24 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 - **Manifest:** kinds `classifier` (`classifiers/`), `preprocess` (`preprocess/`) and `clipvision` (`clip_vision/`), and the sets **`face`** and **`control`** (`SetName` and `SETS`), each entry listing both its targeted set and `full`.
 - **All additive**: every older schema-v1 document still validates and no stored recipe can contain the new fields (the ADR-0025 precedent), so `schema_version` stays 1 and no migration runs.
 **Consequences.** `tests/unit/test_recipe_model.py` covers the new members; `PROVISIONAL_DEFAULT_SET` (the compiler's pure registry) grew by the 13 new models and is asserted equal to the manifest. Older P11 builds refuse a `face_restore` step with a clear "cannot run … yet" message, which is the behaviour `migrate`/`compile` already had for future step types.
+## ADR-0033: Video face-swap: CPU face path per frame, ffmpeg extract/stitch, resumable job rows
+**Recorded.** 2026-11-03 14:08 CST (Phase 13)
+**Status.** Accepted
+**Context.** R13 asks for probe → extract → swap in batches → optional restore → re-encode with the original audio, with progress, cancel, resume after a crash and scratch cleanup. The prompt's "through the engine (or FaceFusion CLI, per ADR-0011)" predates ADR-0028, which decided that faces are P11's own CPU pipeline; the video path reuses that module per frame so one implementation and one guard cover images and video.
+**Decision.**
+- **Per-frame swaps call `p11.media.faces.run_face_swap` unchanged.** The S5 guard therefore runs inside every swapped frame (ADR-0029) with no video-specific code path that could forget it (ADR-0034). Frame extraction and stitching are the system ffmpeg (n9.0.2 on the reference laptop, recorded), always argument lists, never shell strings (S8); rotation is honoured by auto-rotate on decode and the output is H.264 yuv420p at the source frame rate with the audio copied when the codec fits MP4 and re-encoded to AAC when it does not.
+- **Video jobs are job rows of their own kind** (`jobs.db` migration v2: `kind`, `spec` columns): the recipe compiler has no video output, so the pipeline lives in `src/p11/jobs/video.py` behind `JobQueue.submit_video`/`resume_video`. The queue's single worker still runs one job at a time (R24): a video job holds no GPU lock because it uses no GPU, and it skips the engine start entirely.
+- **Resume is per frame.** The scratch dir `~/.cache/p11/jobs/<job>/` holds the frames; `<job>.json` (outside it) records the stage, the frame count and the last finished frame, saved after every frame. A crash keeps both; a **user** cancel deletes the scratch frames unless "keep frames" is set (`JobControl.cancel(purge=True)`), and a shutdown never purges, so an interrupted run is always resumable. A resume re-checks the spec's hash (`render_hash`, which ignores `resume_of`/`keep_frames`/`confirm_limits`) so two different settings can never mix, and continues at the first unfinished frame without redoing finished ones.
+- **Quality presets** are `fast` (no GFPGAN, 720p cap, CRF 23) and `good` (restore, full size, CRF 18); the user can override the frame-size cap, trim the clip, opt into temporal smoothing (blend of the face region with the previous output where the tracked box barely moved) and "keep frames". R13's 60 s / 1080p defaults warn with a rough time estimate and need an explicit confirmation (`confirm_limits`), enforced at submit and again in the job.
+- **The finished video** goes to the R7 layout as `.mp4` with a JSON sidecar (the run record's video equivalent) and is served by `/api/video/jobs/{id}/file` with Range support for the player. It does **not** enter the gallery index, which is image-only in v1.
+**Consequences.** `Job.summary` carries `kind`; `/api/jobs` shows video jobs alongside generations. A swap is seconds of CPU per frame (measured in `docs/P11_BENCHMARKS.md`), so a 30 s clip is tens of minutes — the UI shows frame progress and an ETA, and the limits confirmation names the estimate. The video path needs ffmpeg at run time (`p11 doctor` and the installer already name it).
+
+## ADR-0034: The S5 guard on video: every swapped frame plus a sampled pre-pass, no switch
+**Recorded.** 2026-11-03 14:08 CST (Phase 13)
+**Status.** Accepted
+**Context.** S5 keeps the NSFW target check on video face-swap. The Phase 12 results recorded "one sampled frame per second" as the option for clips, with the requirement that the guard run for every frame the pipeline swaps and that the choice and its risk be stated.
+**Decision.**
+- **Every swapped frame is guarded twice, in code that already exists:** `run_face_swap` classifies the target frame before the swap and the result before it is written (ADR-0029) — for video, once per frame. Nothing in the video path can bypass it: the pipeline only swaps through that function.
+- **A sampled pre-pass refuses the whole clip before any swapping**: about one frame per second plus every detected scene change (a 32x32 thumbnail difference) goes through `check_target` first, so a bad clip fails in seconds instead of after an hour of CPU work. A refusal stops the job and deletes its scratch frames (S6).
+- **No switch** exists anywhere (the module constants of `p11/media/nsfw.py` are the only thresholds); the guard fails closed when a classifier is missing.
+**Consequences.** The guard costs about 1.4 s per frame on the CPU (two classifier runs), measured in the benchmarks — the recorded cost of covering every frame. **Risk, stated:** two classifiers at fixed thresholds can still miss a frame (the residual risk Phase 12 recorded for still images applies to frames too), and a clip that passes the sampled pre-pass can contain an unsafe moment between samples — which the per-frame check then catches at swap time. Sampling exists only for fail-fast behaviour; it never replaces the per-frame check.

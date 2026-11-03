@@ -22,7 +22,7 @@ export const VIEWS: { id: View; label: string; phase?: string; about: string }[]
   { id: "inpaint", label: "Inpaint", about: "Repaint part of an image." },
   { id: "background", label: "Background", about: "Swap the background." },
   { id: "face", label: "Face & Pose", about: "Face swap, pose and reference." },
-  { id: "video", label: "Video", phase: "13", about: "Face swap in short clips." },
+  { id: "video", label: "Video", about: "Face swap in short clips." },
   { id: "models", label: "Models", phase: "14", about: "Install and switch models." },
 ];
 

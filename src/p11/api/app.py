@@ -24,9 +24,11 @@ from p11.gpu.telemetry import GpuSampler, default_sampler
 from p11.gpulock import GpuLockTimeout
 from p11.jobs.errors import problem_for
 from p11.jobs.queue import QueueFull
+from p11.jobs.video import VideoError
 from p11.media.composite import CompositeError
 from p11.media.control import ControlError, Controls
 from p11.media.faces import FaceError, FaceKit
+from p11.media.ffmpeg import VideoError as FfmpegError
 from p11.media.imageio import ImageError
 from p11.media.inpaint import MaskError
 from p11.media.inputs import UnknownInput
@@ -74,6 +76,8 @@ TYPED_ERRORS: tuple[type[Exception], ...] = (
     TemplateError,
     UnknownModelError,
     EngineError,
+    FfmpegError,
+    VideoError,
     GpuLockTimeout,
 )
 

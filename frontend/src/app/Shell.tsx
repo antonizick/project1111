@@ -9,6 +9,7 @@ import { BackgroundView } from "../features/background/BackgroundView";
 import { FaceView } from "../features/face/FaceView";
 import { InpaintView } from "../features/inpaint/InpaintView";
 import { TemplatesView } from "../features/templates/TemplatesView";
+import { VideoView } from "../features/video/VideoView";
 import { Dialog } from "../components/Dialog";
 import { useNav, VIEWS, type View } from "./nav";
 import { SHORTCUTS, useShortcuts } from "./shortcuts";
@@ -23,6 +24,8 @@ const BUILT: ReadonlySet<View> = new Set([
   "templates",
   "inpaint",
   "background",
+  "face",
+  "video",
 ]);
 const THEME_KEY = "p11.theme";
 
@@ -135,6 +138,7 @@ export function Shell({ version, fake }: { version: string; fake: boolean }) {
         <InpaintView active={view === "inpaint"} />
         <BackgroundView active={view === "background"} />
         <FaceView active={view === "face"} />
+        <VideoView active={view === "video"} />
         {!BUILT.has(view) && <Placeholder view={view} />}
       </main>
       <StatusBar />

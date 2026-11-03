@@ -212,7 +212,7 @@ export function FaceView({ active }: { active: boolean }) {
     job?.state === "done" && job.images[0] !== undefined ? state.images[job.images[0]] : undefined;
 
   return (
-    <section className="face-view" aria-label="Face &amp; Pose">
+    <section className="face-view" aria-label="Face &amp; Pose" hidden={!active}>
       <nav className="tool-tabs" aria-label="Tools">
         {TOOLS.map((t) => (
           <button

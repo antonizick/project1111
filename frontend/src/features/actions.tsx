@@ -64,6 +64,8 @@ export function useImageActions(onJobs?: (jobs: Job[]) => void) {
     inpaint: (img: ImageEntry) => nav.edit("inpaint", img),
     background: (img: ImageEntry) => nav.edit("background", img),
     face: (img: ImageEntry) => nav.edit("face", img),
+    // The Video view takes a clip; an image opened from the gallery becomes its face photo.
+    video: (img: ImageEntry) => nav.edit("video", img),
     later: (key: keyof typeof LATER) => {
       const l = LATER[key];
       if (l) toasts.push({ kind: "info", message: `${l.label} arrives in Phase ${l.phase}.` });

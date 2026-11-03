@@ -11,6 +11,8 @@ export type { Problem };
 export type Job = {
   id: string;
   state: JobState;
+  /** "recipe" (a generation) or "video" (a video face-swap, Phase 13). */
+  kind?: string;
   name: string;
   count: number;
   template: string | null;
@@ -207,4 +209,46 @@ export type Template = {
   last_image: ImageEntry | null;
 };
 
-export type Upload = { id: string; kind: string; width: number; height: number };
+export type Upload = {
+  id: string;
+  kind: string;
+  width: number;
+  height: number;
+  sha256?: string;
+  created_at?: string;
+  /** Videos only: length in seconds and the R13 limit warnings. */
+  seconds?: number | null;
+  warnings?: string[];
+};
+
+/** A video face-swap job with its pipeline detail (Phase 13). */
+export type VideoJob = Job & {
+  record_job: string;
+  stage: string;
+  frames: number;
+  swapped: number;
+  pass_through: number;
+  seconds: number;
+  fps: number;
+  width: number;
+  height: number;
+  timings: Record<string, number>;
+  resumable: boolean;
+  file: string | null;
+};
+
+/** What one video face-swap run does (`POST /api/video/jobs`). */
+export type VideoRequest = {
+  video: string;
+  face: string;
+  quality?: "fast" | "good";
+  source_face_index?: number;
+  /** Face picked on the first frame; `null` = largest face in every frame. */
+  target_face?: number | null;
+  trim_start?: number;
+  trim_end?: number | null;
+  max_height?: number | null;
+  smooth?: boolean;
+  keep_frames?: boolean;
+  confirm_limits?: boolean;
+};

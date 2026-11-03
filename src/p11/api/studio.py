@@ -23,12 +23,13 @@ from p11.jobs.events import EventBus
 from p11.jobs.queue import JobQueue, ThermalWatch
 from p11.jobs.runner import Runner
 from p11.jobs.store import JobStore
+from p11.jobs.video import VideoJobs
 from p11.media.control import Controls
 from p11.media.faces import FaceKit
 from p11.media.inputs import InputStore
 from p11.media.segment import Segmenters, Segments
 from p11.outputs.index import GalleryIndex
-from p11.recipe.model import Generate, Recipe
+from p11.recipe.model import FileRef, Generate, Recipe
 from p11.recipe.registry import ModelRegistry
 from p11.templates.starter import install_starters
 from p11.templates.store import TemplateStore
@@ -44,15 +45,18 @@ class StudioPaths:
     outputs: Path
     data: Path
     templates: Path
+    #: Video job scratch (frames, per-frame progress): ``0700`` under the cache (Phase 13).
+    scratch: Path
 
     @classmethod
     def real(cls, settings: Settings) -> StudioPaths:
-        return cls(settings.outputs_root, paths.data_dir(), paths.config_dir() / "templates")
+        return cls(settings.outputs_root, paths.data_dir(), paths.config_dir() / "templates",
+                   paths.cache_dir() / "jobs")  # fmt: skip
 
     @classmethod
     def sandbox(cls, root: Path) -> StudioPaths:
         """``--fake`` keeps its demo gallery away from the real one."""
-        return cls(root / "pictures", root / "data", root / "templates")
+        return cls(root / "pictures", root / "data", root / "templates", root / "jobs")
 
 
 def gpu_json(sample: GpuSample) -> dict[str, object]:
@@ -119,12 +123,22 @@ class Studio:
             controls=self.controls,
         )
         guard = ThermalGuard(self.settings.thermal_pause_c, self.settings.thermal_resume_c)
+        video = VideoJobs(
+            resolve=lambda ref: runner.resolve_file(FileRef(ref=ref)),
+            inputs=self.inputs,
+            faces=self.faces,
+            outputs_root=self.paths.outputs,
+            scratch_root=self.paths.scratch,
+            warn_seconds=self.settings.video_warn_seconds,
+            warn_height=self.settings.video_warn_height,
+        )
         self.queue = JobQueue(
             self.jobs,
             runner,
             self.bus,
             thermal=ThermalWatch(self.sampler, guard) if self.sampler else None,
             idle_stop=self.idle_stop,
+            video=video,
         )
         if self.starters:
             await asyncio.to_thread(install_starters, self.templates)

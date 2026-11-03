@@ -34,6 +34,8 @@ class JobErrorOut(BaseModel):
 class JobOut(BaseModel):
     id: str
     state: str
+    #: ``recipe`` (a generation) or ``video`` (a video face-swap, Phase 13).
+    kind: str = "recipe"
     name: str
     count: int
     template: str | None

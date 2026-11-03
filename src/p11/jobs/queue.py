@@ -30,7 +30,8 @@ from p11.recipe.migrate import migrate
 from .errors import problem_for
 from .events import EventBus
 from .runner import JobControl, Runner, parse_bindings
-from .store import FINISHED, Job, JobError, JobState, JobStore
+from .store import ACTIVE, FINISHED, Job, JobError, JobState, JobStore
+from .video import VideoError, VideoJobs, VideoSpec
 
 log = logging.getLogger("p11.jobs")
 
@@ -88,10 +89,12 @@ class JobQueue:
         thermal: ThermalWatch | None = None,
         idle_stop: float = 300.0,
         lowvram_reset: float = 60.0,
+        video: VideoJobs | None = None,
     ) -> None:
         self.store = store
         self.runner = runner
         self.bus = bus
+        self.video = video
         self.thermal = thermal
         self.idle_stop = idle_stop
         self.lowvram_reset = lowvram_reset
@@ -162,6 +165,47 @@ class JobQueue:
         log.info("job queued", extra={"job": job.id, "count": count})
         return job
 
+    def check_video(self, spec: VideoSpec) -> None:
+        """Submit-time checks (ffmpeg probe, limits, first-frame guard): blocking; run this in a
+        worker thread, never on the event-loop thread (it must not touch the SQLite stores)."""
+        if self.video is None:
+            raise VideoError("Video face-swap is not available in this session.")
+        self.video.submit_check(spec)
+
+    def submit_video(self, spec: VideoSpec) -> Job:
+        """Queue a video face-swap whose checks already passed (quick; event-loop thread only)."""
+        if self.video is None:
+            raise VideoError("Video face-swap is not available in this session.")
+        if len(self._pending) >= QUEUE_LIMIT:
+            raise QueueFull(f"{QUEUE_LIMIT} jobs are already waiting.")
+        job = Job(
+            id=uuid.uuid4().hex,
+            state="queued",
+            recipe={},
+            bindings={},
+            kind="video",
+            spec=spec.as_json(),
+        )
+        job = self._save(job)
+        self._pending.append(job.id)
+        self._wake.set()
+        log.info("video job queued", extra={"job": job.id, "resume": spec.resume_of})
+        return job
+
+    def resume_video(self, job_id: str) -> VideoSpec:
+        """The spec that continues an interrupted run at its last finished frame (same settings)."""
+        old = self.get(job_id)
+        if old is None or old.kind != "video" or old.spec is None:
+            raise VideoError("That is not a video job.")
+        if old.state in ACTIVE:
+            raise VideoError("That job is still running.")
+        if self.video is None or not self.video.resumable(job_id):
+            raise VideoError(
+                "There is nothing left to resume: the interrupted run's frames are gone."
+            )
+        spec = VideoSpec.from_json(old.spec)
+        return replace(spec, resume_of=job_id, confirm_limits=True)
+
     def get(self, job_id: str) -> Job | None:
         return self._jobs.get(job_id) or self.store.get(job_id)
 
@@ -182,7 +226,7 @@ class JobQueue:
             return self._save(replace(job, state="cancelled", note=None))
         control = self._controls.get(job_id)
         if control is not None:
-            control.cancel()
+            control.cancel(purge=True)  # a user cancel may drop the job's scratch (Phase 13)
             await self.engine.interrupt()
         return self.get(job_id)
 
@@ -252,24 +296,39 @@ class JobQueue:
         state: JobState = "done"
         error: JobError | None = None
         report = None
+        retried = False
         try:
-            health = await self.engine.health()
-            if not health.ready:
-                if health.state == "stopped" and self.engine.vram_mode == "lowvram":
-                    await self.engine.restart("dynamic")
-                else:
-                    await self.engine.start()
-            report = await self.runner.run(
-                recipe=migrate(job.recipe),
-                bindings=parse_bindings(job.bindings),
-                count=job.count,
-                template=job.template,
-                parent=job.parent,
-                control=control,
-                publish=self.bus.publish,
-                job_id=job.id,
-                on_progress=lambda p, note: self._progress(job.id, p, note),
-            )
+            if job.kind == "video":
+                # The video pipeline is CPU work (ADR-0028): no engine, no GPU lock (R24), but
+                # it still checkpoints the thermal guard between frame batches (R14).
+                if self.video is None or job.spec is None:
+                    raise VideoError("Video face-swap is not available in this session.")
+                await self.video.run(
+                    spec=VideoSpec.from_json(job.spec),
+                    job_id=job.id,
+                    control=control,
+                    publish=self.bus.publish,
+                    on_progress=lambda p, note: self._progress(job.id, p, note),
+                )
+            else:
+                health = await self.engine.health()
+                if not health.ready:
+                    if health.state == "stopped" and self.engine.vram_mode == "lowvram":
+                        await self.engine.restart("dynamic")
+                    else:
+                        await self.engine.start()
+                report = await self.runner.run(
+                    recipe=migrate(job.recipe),
+                    bindings=parse_bindings(job.bindings),
+                    count=job.count,
+                    template=job.template,
+                    parent=job.parent,
+                    control=control,
+                    publish=self.bus.publish,
+                    job_id=job.id,
+                    on_progress=lambda p, note: self._progress(job.id, p, note),
+                )
+                retried = report.retried
         except EngineInterrupted:
             state = "cancelled" if control.cancelled else "failed"
             if state == "failed":
@@ -290,7 +349,7 @@ class JobQueue:
             self.current = None
         latest = self.get(job.id) or job
         images = tuple(report.image_ids) if report else latest.images
-        note = latest.note if state == "done" and report and report.retried else None
+        note = latest.note if state == "done" and retried else None
         self._save(
             replace(latest, state=state, error=error, images=images, note=note,
                     progress=1.0 if state == "done" else latest.progress)

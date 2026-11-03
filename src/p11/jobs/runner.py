@@ -75,10 +75,13 @@ class JobControl:
 
     def __init__(self, thermal: Callable[[JobControl], Awaitable[None]] | None = None) -> None:
         self.cancelled = False
+        #: Set by a user cancel (not by shutdown): the job's scratch may be deleted (Phase 13).
+        self.purge = False
         self._thermal = thermal
 
-    def cancel(self) -> None:
+    def cancel(self, *, purge: bool = False) -> None:
         self.cancelled = True
+        self.purge = self.purge or purge
 
     async def checkpoint(self, *, long: bool = False) -> None:
         """Between units of work: raise if cancelled; for long jobs wait while the GPU is hot."""

@@ -274,6 +274,67 @@ resident only while the step runs; no OOM at the default preset.
 `face` set is 1.43 GB and the `control` set is 7.23 GB (2.5 GB of which is the CLIP ViT-H encoder and
 2.5 GB the union ControlNet); the default set is unchanged at 14.63 GB.
 
+## Video face-swap (Phase 13, ADR-0033, ADR-0034)
+
+Measured on the reference laptop (the face pipeline is CPU work on the i7-9750H; the GPU is only
+watched for the thermal curve) by `tests/gpu/test_video_gpu.py` and `scripts/bench/video_bench.py`,
+whose numbers land in `~/.cache/p11/video/measurements.json` and
+`~/.cache/p11/bench/video/measurements.json`. Everything is synthetic (S6, H7): the clips are slow
+zooms over a P11-generated portrait with a generated sine tone, so every frame carries a face.
+
+**Pipeline cost (320x320, 3 s at 10 fps, Fast; `tests/gpu/test_video_gpu.py`).** 30 frames end to
+end (extract + guard pre-pass + 30 swaps + stitch) in **105.9 s** — **3.53 s per frame** wall time
+at that size. The swap itself is the Phase 12 number (2.4 s, 3.9 s with GFPGAN) plus the S5 guard,
+which runs twice per frame (target and result, ADR-0034; ~0.7 s per verdict warm, Phase 12): the
+guard is the price of checking every frame, recorded on purpose.
+
+**30 s 1920x1080 30 fps clip (900 frames), Fast and Good** (`scripts/bench/video_bench.py material
+fast good`; power profile `performance` during the runs, restored to `power-saver` after, H8; AC):
+
+| Quality | Frames | Swap stage | Per frame | Whole job | Peak GPU | Thermal pauses | Output |
+|---|---|---|---|---|---|---|---|
+| Fast (no restore, 720p frames) | 900 | 2340 s | **2.75 s** | ~40 min | 58 °C | 0 | 1280x720, 30.0 s, AAC copied |
+| Good (GFPGAN, full size) | 484 of 900 | 3342 s for 484 | **6.9 s** | ~1 h 45 min projected | 53 °C (mid-run sample) | 0 | not stitched (run cut, see below) |
+
+The Good row is a **partial** run: the harness's one-hour wait ran out at frame 484 (now four
+hours, `video_bench.py`), so the clip was not stitched; the per-frame time is measured over those
+484 full-size frames with GFPGAN (15:23–16:19 CST), and the whole-job figure is projected from it.
+The output path itself (stitch, audio, player) is the same as Fast's and was proven there. The
+scratch frames were deleted.
+
+The Fast row is the **killed-and-resumed** run: the Studio died at frame 45 (the agent session
+that hosted it ended), the next Studio start marked the job interrupted, and a Resume continued in
+the same scratch at frame 46 and finished all 900 frames (855 swapped in 2350 s; extract 40.9 s,
+stitch 7.7 s). The finished file is 30.0 s with the original AAC track and plays in the Studio's
+`<video>` player; the scratch frames were deleted afterwards. A first attempt on a busy machine
+measured 5–7 s per frame — the per-frame time is CPU-bound and halves when nothing else runs. One
+1080p frame through `run_face_swap` alone (both guard verdicts, detection, swap, PNG encode) took
+3.0 s, and 4.5 s with GFPGAN, measured once on an otherwise idle machine.
+
+**Thermal guard (R14, H9).** The video job is CPU work, so the GPU sits idle near its desktop
+temperature (peak **58 °C** over the 30 s Fast run, never near the 87 °C pause): owner question 5's
+87/80 °C stands and no ±5 °C tuning was warranted (H9). The pause and resume themselves were proven
+with the thresholds lowered to 50/45 °C: the job paused on its first frame batch with a
+"Paused: the GPU is at 53 °C" note and resumed when the readings fell below 45 °C
+(`tests/gpu/test_video_gpu.py::test_thermal_pauses_and_resumes_the_video_job`; readings offset from
+the live NVML sensor so the test is deterministic).
+
+**Kill, resume and cancel on the real service** (`scripts/bench/video_bench.py resume`, a 4 s
+640x480 clip, `p11 serve` as its own process group): `SIGKILL` of the service at frame 3 → restart →
+the job is `failed` with `job.interrupted` and listed as resumable → Resume finished all 40 frames
+(163.9 s total including the restart); a second job cancelled at frame 2 left **no** scratch frames
+behind (`~/.cache/p11/jobs/<job>/frames` deleted). Plus the 30 s 1080p kill-and-resume above.
+
+**Temporal smoothing (task 5)** (`scripts/bench/video_bench.py smooth`, the same 4 s 640x480
+clip at Fast, 2026-11-03 16:53 CST). Flicker proxy: mean absolute difference between consecutive
+frames (grey, 0–255). The source clip (a slow zoom) is **1.955**; swapped without smoothing
+**1.985** (the swap adds only +0.03, because the face is picked consistently by box overlap);
+swapped with smoothing **1.761**, below the source, because the blend with the previous output
+also damps the zoom's own motion inside the face box. So on this material the plain swap barely
+flickers and smoothing is a mild trade (steadier face, slightly laggy on motion); it stays **off by
+default** and optional, as the prompt asked. The smoothing run cost no extra time (78.6 s warm vs
+199.4 s for the first run, which loaded the face models).
+
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
 - **Quality model:** Juggernaut XL v9, DPM++ 2M Karras, 30 steps, CFG 4.5, baked VAE. 38.6 s native, ~41 s per wallpaper.
