@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §5, §11.1 A6, §11.2 R4, R8, R9, R10, R11, R12, §11.3 S4, S9. Phase Log entries for 03 and 04. `docs/P11_BENCHMARKS.md` and Phase 03's default-set ADR. ADR-0006. **Spec §11.6** (decided 2026-11-02 14:57 CST): H1 default set ≤ 30 GB; H2 login-free Hugging Face only, login/Civitai models documented as optional extras; H3 licence handling.
 
+**Phase 04 results (2026-11-02 18:27 CST):** the compiler needs a `p11.recipe.registry.ModelRegistry` (protocol: `get(manifest_id) → ModelInfo` raising `UnknownModelError`). `ModelInfo` carries `manifest_id, kind, filename` (the name ComfyUI lists in its model folder), `sha256, family (sdxl|sd15), defaults (SamplerDefaults: sampler_name, scheduler, steps, cfg, clip_skip, hires_steps), vae` (manifest ID of the VAE to load) and `scale` (upscalers). Implement it from the manifest in `models/registry.py` and replace `PROVISIONAL_DEFAULT_SET` (ADR-0018 values) as the app's registry; keep the same manifest IDs (`realvisxl5-lightning`, `juggernautxl9`, `sdxl-vae-fp16-fix`, `4x-nomos-webphoto-realplksr`, `realisticvision6`; the SD 1.5 VAE's provisional ID is `vae-ft-mse-840000`, rename it there if you pick another and update the presets/golden files). `hires_steps` is 3 for RealVisXL Lightning, 15 for Juggernaut, 12 for Realistic Vision (Phase 03).
+
 ## Goal
 P11 knows exactly which models it ships with and can fetch them safely. A hash-pinned `models/manifest.toml` holds Phase 03's picks. The downloader resumes, verifies hashes and records licences. A registry covers manifest and user-added models, and the `p11 models` CLI drives it. After this phase, `p11 models install default` turns an empty models directory into the tested default set.
 

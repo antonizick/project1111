@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §4 (Generation, Templates, Quality), §5, §11.2 R3, R9, R17, R18, R23, §11.3 S4, S5. Phase Log entries for 03, 06, 08 and 09. `docs/P11_BENCHMARKS.md`. ADR-0010.
 
+**Phase 04 results (2026-11-02 18:27 CST):** `TextOverlay` (schema v1: `text, font, size_pct, colour, position, margin_pct, stroke_px, stroke_colour, shadow, also_prompt_model`) has no compiler yet and `compile()` raises `UnsupportedStepError` for it. Text overlay runs in Pillow, not in the engine, so extend the compile driver with a local (non-engine) step output and record it in an ADR. Upscale chains: `Generate.quality` switches to the preset's `quality_chain` (provisionally `latent`), `Generate.chain` forces one; the `Upscale` step supports `model | latent | both` with `scale` or `width`/`height`. Presets live in `recipe/presets.py` (one table).
+
 ## Goal
 Output quality is good by default and fast when you want it. Upscaling has a clear Quality/Speed toggle. The 3D animated avatar preset is dialled in. Logos get exact, crisp text through a deterministic overlay step. Logo work gets variations and batch help. The model manager UI turns `p11 models` into a page.
 

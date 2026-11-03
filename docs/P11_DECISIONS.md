@@ -18,8 +18,11 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0012 | 2026-11-02 13:16 CST | Installer: clone + `./install.sh`, no driver installs | Accepted | 00 |
 | ADR-0013 | 2026-11-02 13:16 CST | Local-only security posture | Accepted | 00 |
 | ADR-0014 | 2026-11-02 13:16 CST | Advisory GPU lock across sessions and parallel phases | Accepted | 00 |
+| ADR-0015 | 2026-11-02 14:57 CST | Hands-off pre-authorizations for the PHX run | Accepted | preflight |
+| ADR-0016 | 2026-11-02 14:57 CST | v1.0.0 is a private release | Accepted (amends ADR-0003) | preflight |
 | ADR-0017 | 2026-11-02 15:08 CST | gitleaks runs as a local pre-commit hook from a user-level pinned binary | Accepted | 01 |
 | ADR-0018 | 2026-11-02 17:56 CST | Default model set and engine VRAM mode | Accepted | 03 |
+| ADR-0019 | 2026-11-02 18:28 CST | Recipe compiler: one graph per step, modifier steps, placeholder inputs, raw PNG chunks | Accepted | 04 |
 
 ---
 
@@ -73,6 +76,8 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 **Options considered.** Store ComfyUI workflow JSON; store P11 recipes and compile.
 **Decision.** Recipes (spec R6) with a schema version and migrations; a pure compiler emits ComfyUI API graphs.
 **Consequences.** Engine node changes touch only the compiler; recipes stay readable and diffable; the compiler needs strong tests (Phase 04).
+
+**Update (2026-11-02 18:28 CST, Phase 04).** Schema v1 is implemented in `src/p11/recipe/model.py` (frozen Pydantic v2 models, `extra="forbid"`, tuples for collections): `Recipe {schema_version: 1, id, name, tags, folder, steps, slots, seed, created_at (timezone-aware), source_image?: FileRef}`; `Step` is a union discriminated by `type`: `generate` (prompt, negative, style, aspect, model, vae, loras, sampler overrides, chain, quality, batch_size), `upscale` (image_slot, chain model/latent/both, scale or width+height, upscaler, model, denoise, prompt, negative), `inpaint`, `replace_background`, `face_swap`, `pose`, `reference`, `text_overlay` (fields fixed now; bodies compiled by Phases 10–14). `ModelRef {manifest_id, sha256?}`, `FileRef {ref, sha256?}` (opaque P11 file ID, no `..`), `Slot {name, kind: text|image|face_image|background_image|mask|video, label, required, default (text only)}`, `SeedStrategy = fixed(value) | random | increment(start)`. Text fields reference text slots as `{{name}}`. Migrations live in `recipe/migrate.py` (`MIGRATIONS[n]: v n → v n+1`; future versions refused with "Update P11"). Compiler details in ADR-0019.
 
 ## ADR-0008: uv-managed CPython, separate from host Python 3.14
 **Recorded.** 2026-11-02 13:16 CST (Phase 00)
@@ -183,3 +188,20 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 
 **Engine VRAM mode.** Default: ComfyUI's dynamic VRAM (no flag). It peaks at ~7.7 GB total because it caches weights into free VRAM and releases them under pressure; it was 0–10 % faster than `--disable-dynamic-vram`. **OOM retry (Phase 05):** restart with `--disable-dynamic-vram --lowvram`: 6.5 GB peak, ~10 % slower, the same outputs. No `--novram` or CPU fallback is needed for these models. Generation timeouts for Phase 05: cold first image ≤ 60 s, warm wallpaper ≤ 30 s (fast), ≤ 90 s (Quality model), ≤ 6 min (Quality chain on the SD 1.5 model); a 5× margin on these is a safe hard timeout.
 **Consequences.** Phase 06 writes these entries to `models/manifest.toml` (re-verifying at the source); Phase 04 uses the buckets, chains and sampler defaults; Phase 05 uses the VRAM mode and OOM retry; Phase 14's quality toggle switches the chain (and optionally the model). Nick may override the pick through `/phase-add`.
+
+## ADR-0019: Recipe compiler: one graph per step, modifier steps, placeholder inputs, raw PNG chunks
+**Recorded.** 2026-11-02 18:28 CST (Phase 04)
+**Status.** Accepted
+**Context.** Phase 04 builds the pure recipe → ComfyUI compiler (ADR-0007) and the output metadata. Multi-step recipes (generate → inpaint → background → face → upscale) must compile now for generate/upscale and stay open for Phases 10–14; some later steps (text overlay, possibly compositing) do not run in the engine.
+**Options considered.** (a) One merged graph per recipe; (b) one graph per graph-producing step, images passed between graphs by the job runner. Pose/reference as (c) their own graphs or (d) modifiers folded into the generate step. PNG metadata via (e) Pillow re-save with `PngInfo` or (f) editing chunks in the byte stream.
+**Decision.**
+- **(b) One `EngineGraph` per graph-producing step.** A later step reads the earlier output through a `LoadImage` node whose `image` is a placeholder (`p11:step:<i>`, `p11:slot:<name>`, `p11:source`), listed in `EngineGraph.inputs`; the job runner uploads the file and substitutes the engine's name. Each step's output is saved, indexed and resumable on its own, non-engine steps can sit between engine steps, and a failure points at one step. Cost: one PNG upload per later step (small next to sampling time).
+- **(d) `pose` and `reference` are modifiers**: they must follow a `generate` step and are folded into its graph through `register_modifier(type, fn)`, which rewrites the step's `Conditioning` (model, clip, vae, positive, negative). Graph steps register with `register_step(type, fn)`; unregistered types raise `UnsupportedStepError` naming the phase that adds them.
+- Graphs use core nodes only, with class and input names read from ComfyUI v0.43.0 (`426f5ee`): `CheckpointLoaderSimple, VAELoader, LoraLoader, CLIPSetLastLayer, CLIPTextEncode, EmptyLatentImage, KSampler, VAEDecode, VAEDecodeTiled, VAEEncodeTiled, LatentUpscale, LatentUpscaleBy, UpscaleModelLoader, ImageUpscaleWithModel, ImageScale, ImageScaleBy, LoadImage, SaveImage`. Output is `SaveImage` (`filename_prefix p11/step-NN`); the job runner moves it into the R7 layout. Node IDs are sequential and JSON is canonical (sorted keys), so the same input gives byte-identical graphs.
+- Sampler and scheduler names are checked at compile time against the pinned engine's lists, not in the schema, so an engine bump never invalidates stored recipes.
+- Models are resolved through a `ModelRegistry` protocol (Phase 06 implements it from the manifest); `PROVISIONAL_DEFAULT_SET` carries ADR-0018's IDs, files, hashes and sampler defaults until then. A `ModelRef.sha256` that differs from the registry's is an error.
+- Seeds are stored up to 2^53 − 1 (JavaScript-safe); random seeds are drawn below 2^32 by the runner (`resolve_seed`) and passed in, so `compile` itself stays pure. The hires pass uses seed + 1 (as in the bake-off).
+- Slot kind `mask` was added to the kinds in the phase prompt so inpaint masks and manual background masks are typed inputs.
+- **(f) PNG chunks are edited in the byte stream**: `iTXt` chunks `p11:recipe` and `p11:run` (zlib) are inserted before `IEND`, so pixels are never re-encoded; `strip_metadata` keeps only image, colour and transparency chunks (drops all text, `eXIf`, `tIME`, ComfyUI's `prompt`/`workflow` and unknown chunks).
+- Pydantic v2 and stdlib `sqlite3` (FTS5, migrations on `PRAGMA user_version`) follow R21; no deviation. Hypothesis (MPL-2.0, dev only) was added for property tests.
+**Consequences.** Phase 05/07 must feed `EngineGraph.inputs` and collect `SaveImage` outputs; Phase 06 implements `ModelRegistry`; Phases 10–13 add `register_step`/`register_modifier` compilers; Phase 14 (text overlay) and possibly 11 (compositing) must extend the driver with a local, non-engine step kind and an ADR. Compiler changes are guarded by 20 golden graphs (`tests/golden/compile/`, regenerate with `P11_UPDATE_GOLDEN=1` and review the diff).

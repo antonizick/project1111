@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §4 (Inpainting), §6, §11.2 R5, R6, R10, R18, R24, §11.3 S3, S4, S8, Appendix B. Phase Log entries for 04, 05, 06, 07 and 08. ADR-0007.
 
+**Phase 04 results (2026-11-02 18:27 CST):** register the compiler with `p11.recipe.compile.register_step("inpaint", fn)`, where `fn(step, ctx, g) → IMAGE ref` builds nodes with `g.node(class_type, **inputs)`; `ctx.load_image(g, slot_or_None)` adds a `LoadImage` fed from a slot, the previous step's output or `recipe.source_image`; `ctx.model(ref, default_id, kind)` resolves models; `ctx.text()` fills `{{slot}}` placeholders. The `Inpaint` fields (`image_slot, mask_slot, prompt, negative, denoise, denoise_preset, grow_mask_px, model`) are fixed in schema v1; changing them needs a migration in `recipe/migrate.py`.
+
 ## Goal
 Fixing or changing part of an image is first-class. You open any result or an uploaded photo in Inpaint, brush a mask, optionally type what should be there, pick "subtle fix" or "major change", and apply. The result chains back into the gallery, and templates can capture it. The **mask editor** built here is reused by Phase 11 (background) and Phase 12 (pose/face regions).
 

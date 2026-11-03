@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §2, §6, §11.2 R5, R6, R7, R14, R16, R18, R24, §11.3 S1, S2, S6, S8, S9. Phase Log entries for 04, 05 and 06. ADR-0007, ADR-0013, ADR-0014.
 
+**Phase 04 results (2026-11-02 18:27 CST):** the runner uses `resolve_seed(recipe.seed, run_index, rng)` then `compile(recipe, bindings, registry, seed=…)` (`SlotBindingError.slot` names a missing input for a 4xx), feeds `EngineGraph.inputs`, and saves each output with `p11.outputs.layout.output_path(root, now, template_slug, seed, step)` (reserves a `0600` file in `0700` dirs), `metadata.write_sidecar` + `metadata.embed_record` with a `RunRecord` (set `template` and `parent`), then `GalleryIndex(db).add(index.entry_from_record(rel_path, record))`. Export uses `metadata.strip_metadata`. Templates: `p11.templates.store.TemplateStore(paths.config_dir() / "templates")`. Bindings are `str` for text slots and `FileRef(ref=…)` (an upload ID, never a path from the browser) for image slots.
+
 ## Goal
 P11 Studio is a complete local service. A hardened JSON API on 127.0.0.1 accepts recipes and uploads, runs them as jobs on the engine (one GPU job at a time) and streams progress. It also serves the gallery and templates. The CLI manages the service's life: `serve`, `start`, `stop`, `status`, `open` and `doctor`. Everything works with `--fake` (FakeEngine) for the UI phases and in CI.
 

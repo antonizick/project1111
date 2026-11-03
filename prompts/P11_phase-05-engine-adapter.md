@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §2 (stability), §11.1 A2, §11.2 R2, R5, R14, R19, R20, R24, §11.3 S1, S3. Phase Log entries for 03 and 04. `docs/P11_BENCHMARKS.md`, `engine/engine.lock.toml`. ADR-0002, ADR-0009, ADR-0014 and Phase 03's default-set/VRAM-mode ADR.
 
+**Phase 04 results (2026-11-02 18:27 CST):** `p11.recipe.compile.compile(recipe, bindings, registry, seed=…)` returns `list[EngineGraph]` (`p11/recipe/compile.py`): `nodes` (API-format dict), `output_node` (a `SaveImage` with `filename_prefix` `p11/step-NN`), `inputs` (`GraphInput`: `LoadImage` nodes whose `image` is a placeholder `p11:slot:<name>`, `p11:step:<index>` or `p11:source`; upload the file and substitute the engine file name before queueing), `models`, `seed`, `size`, and `to_json()` (canonical bytes). Base/hires `KSampler` nodes carry `_meta.title` `base`/`hires` for progress mapping. `tests/gpu/test_compiled_graph_engine.py` runs a compiled wallpaper graph through `scripts/bench/engine.py`; switch it to `ComfyEngine` and the FakeEngine parity tests can reuse the golden graphs in `tests/golden/compile/`.
+
 ## Goal
 All of P11 talks to the engine through one `Engine` protocol. It has two implementations: `ComfyEngine`, which supervises the pinned headless ComfyUI process and speaks its HTTP and websocket API, and `FakeEngine`, which behaves the same for tests. Progress, cancellation, OOM recovery, memory release and GPU telemetry work reliably on the laptop.
 

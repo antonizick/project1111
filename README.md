@@ -2,7 +2,7 @@
 
 P11 is a fully local image-generation system for Omarchy Linux, tuned for a laptop with an 8 GB NVIDIA GPU. **P11 Studio** is its own browser form UI (Vite, React, TypeScript) with a Python service (FastAPI, Typer CLI, SQLite) that drives a pinned, headless ComfyUI engine reachable only on `127.0.0.1`. Planned features: photoreal text-to-image at wallpaper resolutions, one-click templates, inpainting, background replacement with your own photos, face-swap, pose and reference control, short-video face-swap, and a curated, hash-pinned model set.
 
-> **Status: pre-release, under construction.** The repository holds the specification, the implementation plan, the project governance files and the Python/React scaffold (CLI, `/healthz`, placeholder page). There is no installable product yet. Progress is tracked in [`P11_IMPLEMENTATION_PLAN.md`](P11_IMPLEMENTATION_PLAN.md).
+> **Status: pre-release, under construction.** The repository holds the specification, the implementation plan, the project governance files and the Python/React scaffold (CLI, `/healthz`, placeholder page), the pinned engine with its benchmarks, and the recipe core (recipe schema, presets, recipe → engine graph compiler, output layout and metadata, gallery index, template store). There is no installable product yet. Progress is tracked in [`P11_IMPLEMENTATION_PLAN.md`](P11_IMPLEMENTATION_PLAN.md).
 
 ## Development quick start
 ```bash

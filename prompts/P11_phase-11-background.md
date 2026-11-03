@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §4 (Background Replacement), §11.2 R6, R10, R12, R24, §11.3 S3, S4, S6, S8, Appendix B. Phase Log entries for 06, 07 and 10. ADR-0007.
 
+**Phase 04 results (2026-11-02 18:27 CST):** `ReplaceBackground` (schema v1) has `image_slot, background_slot, mask_mode (auto|manual), mask_slot, segmentation_model, colour_match, feather_px, relight, relight_denoise`; register its compiler with `register_step("replace_background", fn)` (see Phase 10's note for the context API). Compositing done outside the engine is not yet a compiler output: `compile()` only returns engine graphs, so either express it with engine nodes or extend the driver with a local-step kind (as Phase 14 must for text overlay) and record the choice in an ADR.
+
 ## Goal
 Replacing a background with a photograph takes one click. You open an image, P11 finds the subject automatically, you refine the edge with the Phase 10 mask editor if needed, drop in a background photo (or describe one), and press **Replace Background**. The subject is blended in with matched colour and light, and the step can be captured in templates. This matters most for logo and product shots.
 

@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md`, `prompts/P11_shared-instructions.md`, spec §1 (success criteria), §4 (Templates), §11.2 R6, R17, R18, R22, R23, §11.3 S5, Appendix B. Phase Log entries for 04, 07 and 08. ADR-0007.
 
+**Phase 04 results (2026-11-02 18:27 CST):** `p11.templates.store.TemplateStore` already does save (slugged file names, same-ID overwrite, `-2` suffixes), folders (≤ 3 levels), search by name/tag/folder, `export`/`import_bytes` (validated and migrated; imports get a new ID unless `keep_id`), and `problems()` for unreadable files. Slots are `Slot(name, kind, label, required, default)`; text slots are referenced as `{{name}}` in prompts. Build the UI on it rather than a second store.
+
 ## Goal
 Any successful result becomes a reusable one-click template in ≤ 3 actions, and templates run with one click (plus one action per unfilled input slot). P11 ships starter templates for Nick's repeated jobs: photoreal wallpapers, software/indie-game logos and 3D animated avatars.
 
