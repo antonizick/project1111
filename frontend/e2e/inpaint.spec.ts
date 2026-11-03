@@ -104,11 +104,14 @@ test("mask editor keeps up on a 2560×1440 photo (draw time per pointer move)", 
     for (const x of bytes) s += String.fromCharCode(x);
     return btoa(s);
   });
-  await page.getByLabel("Upload photo").setInputFiles({
-    name: "synthetic.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(b64, "base64"),
-  });
+  await page
+    .getByRole("form", { name: "Inpaint" })
+    .getByLabel("Upload photo")
+    .setInputFiles({
+      name: "synthetic.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(b64, "base64"),
+    });
   const stage = page.getByTestId("mask-stage");
   await expect(stage).toBeVisible();
   // Frame intervals while painting a long stroke with a big brush.

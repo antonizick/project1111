@@ -188,10 +188,15 @@ def spill_background(original: np.ndarray, alpha: np.ndarray, radius: int) -> np
     blurred with a normalized blur, so each edge pixel gets the nearby outside colours.
     """
     outside = (np.clip(alpha, 0.0, 1.0) < 0.02).astype(np.float32)
-    blurred_weight = np.asarray(
-        Image.fromarray((outside * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(radius)),
-        np.float32,
-    ) / 255.0
+    blurred_weight = (
+        np.asarray(
+            Image.fromarray((outside * 255).astype(np.uint8)).filter(
+                ImageFilter.GaussianBlur(radius)
+            ),
+            np.float32,
+        )
+        / 255.0
+    )
     filled = original * outside[..., None]
     blurred_colours = np.asarray(
         Image.fromarray(np.clip(filled, 0, 255).astype(np.uint8)).filter(
@@ -199,7 +204,7 @@ def spill_background(original: np.ndarray, alpha: np.ndarray, radius: int) -> np
         ),
         np.float32,
     )
-    return blurred_colours / np.maximum(blurred_weight, 1e-4)[..., None]
+    return cast("np.ndarray", blurred_colours / np.maximum(blurred_weight, 1e-4)[..., None])
 
 
 def unmix_spill(subject: np.ndarray, old_bg: np.ndarray, alpha: np.ndarray) -> np.ndarray:
@@ -215,7 +220,22 @@ def unmix_spill(subject: np.ndarray, old_bg: np.ndarray, alpha: np.ndarray) -> n
 
 
 def feather(mask: Image.Image, px: int) -> Image.Image:
-    return mask.filter(ImageFilter.GaussianBlur(px)) if px > 0 else mask
+    """Soften the matte edge **inward**: erode by ``px / 2``, then blur by ``px / 4``.
+
+    A plain blur spreads alpha outside the subject, so the old background just outside the cut
+    shows through as a translucent halo; eroding first keeps alpha ~0 at and beyond the matte's
+    edge (measured on the Phase 11 tuning set, ``docs/P11_BENCHMARKS.md``).
+    """
+    if px <= 0:
+        return mask
+    hard = mask.point(lambda v: 255 if v >= 128 else 0)
+    # Erosion = 2 x blur radius puts alpha at ~2 % on the matte's edge while thin parts (a mug
+    # handle) keep their core.
+    eroded = ImageChops.invert(grow(ImageChops.invert(hard), max(1, px // 2)))
+    if eroded.getbbox() is None:  # a subject thinner than the feather: keep it, soften lightly
+        eroded = hard
+    # Never more opaque than the matte itself, so its own soft detail (hair) is kept inside.
+    return ImageChops.darker(eroded.filter(ImageFilter.GaussianBlur(max(1, px // 4))), mask)
 
 
 def edge_band(alpha: Image.Image, width_frac: float = BAND_FRACTION) -> Image.Image:

@@ -198,7 +198,23 @@ Measured 2026-11-03 on the laptop. Script: `scripts/bench/background_tune.py` (`
 
 **Colour match tuning (10 pairs, `grids/*-colour.jpg`):** strength 0 keeps the subject untouched but leaves it lit for another scene; the first formula (full LAB mean/std transfer) was **rejected**: at 1.0 it dragged a red mug to the background's dominant hue (brown), at 0.5 it muted it. The shipped formula transfers lightness (L) in full and only **35 %** of the background's tint statistics (mean and spread) on the chroma channels (`CHROMA_SIGMA`), which keeps a saturated subject's identity while the light matches. **Pick: on by default, strength 1.0** (`colour_match_strength`).
 
-**Harmonize (relight) tuning:** light 0.25 / strong 0.45 denoise over the seam band (crop-and-stitch); measured below.
+**Edge (halo) tuning, 100 % crops (`~/.cache/p11/phase11/seam-*.jpg`):** three findings, all fixed before the picks.
+- Unmixing the edge against the **new** background (first version) left a white rim on the mug; the spill to remove is the **old** background, now estimated locally from confident background pixels just outside the matte (`spill_background`, normalized blur).
+- A plain Gaussian feather spreads alpha **outside** the matte, so a translucent band of the old scene showed around the mug. The feather now works inward: binarize at 50 %, erode by `feather/2`, blur by `feather/4`, capped by the matte itself (alpha ≈ 2 % at the matte's edge). Eroding by the full feather ate the mug's handle; half keeps it.
+- **Result at the defaults (feather 8 px, colour match 1.0):** the mug's body and handle and the portrait's hair edge show no halo at 100 %. Remaining: a few specks of the old wall where the matte keeps soft hair wisps, and thin chair spindles lose some opacity (follow-up; Edge feather 0 keeps them).
+
+**Memory:** ONNX Runtime's CPU arena kept ~12 GB resident after a 1024² BiRefNet-lite run (measured max RSS 11.8 GB); with `enable_cpu_mem_arena = False` the peak is 6.6 GB during a run and is released after it, at the same speed (7.2–7.7 s warm). The Studio uses the arena-free setting.
+
+**Harmonize (relight) tuning** (10 pairs x Light 0.25 / Strong 0.45, through the Studio API on the pinned engine, power profile `performance` then restored to `power-saver`, AC; seed 77):
+
+| Harmonize | Wall s (median) | Engine s (median) | Peak VRAM | Peak GPU temp |
+|---|---|---|---|---|
+| Light 0.25 | 20.2 | 18.9 | 7.7 GB | 68 °C |
+| Strong 0.45 | 16.3 | 14.8 | 7.7 GB | 68 °C |
+
+- 20/20 runs finished, **no OOM** (peak whole-card VRAM 7,736 MiB with the desktop, dynamic VRAM); the first run includes the cold model load (36.6 s wall). Times include the CPU segmentation (~8–10 s) inside the job; the engine pass over the seam crop is ~6–10 s. Light runs measured slower than Strong only because each subject's first job paid the segmentation and upload; the pass itself has the same steps.
+- **Picks:** Harmonize **Light 0.25** by default (unifies the light along the seam without repainting the subject), **Strong 0.45** as the option, Off = local composite only (~8–11 s total, no engine). Colour match **on, strength 1.0**; Edge feather **8 px**.
+- **Acceptance budget:** one Apply on the defaults (auto-mask + colour match + Light harmonize) on a 1024² subject ≈ **20 s** warm (≤ 37 s from a cold engine); recorded by `tests/gpu/test_background_gpu.py`.
 
 **Action count (Playwright, `e2e/background.spec.ts`, FakeEngine):** open result -> Background -> choose photo -> Apply -> Download = **4 actions** (Appendix B allows 5).
 

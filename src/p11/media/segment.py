@@ -72,10 +72,13 @@ class OnnxSegmenter:
 
     def _load(self) -> None:
         # Imported here so tests (and the FakeEngine sandbox) never need the runtime.
-        import onnxruntime as ort  # type: ignore[import-not-found]  # no stubs shipped
+        import onnxruntime as ort  # type: ignore[import-untyped]  # no stubs shipped
 
         so = ort.SessionOptions()
         so.intra_op_num_threads = self.threads
+        # Without the arena, activations (~6 GB peak at 1024²) are freed after each run; with it
+        # the process keeps ~12 GB for its lifetime (measured 2026-11-03, ADR-0026).
+        so.enable_cpu_mem_arena = False
         try:
             self._session = ort.InferenceSession(
                 str(self.path), so, providers=["CPUExecutionProvider"]
