@@ -9,6 +9,7 @@ license-files = ["LICENSE", "NOTICE"]
 dependencies = [
     "fastapi>=0.162.0",
     "httpx>=0.28.1",
+    "nvidia-ml-py>=13.615.71",
     "pillow>=13.0.0",
     "pydantic>=2.14.2",
     "pydantic-settings>=2.16.2",
@@ -63,3 +64,8 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 strict = true
 files = ["src/p11"]
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# nvidia-ml-py ships no type information.
+module = ["pynvml"]
+ignore_missing_imports = true

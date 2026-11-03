@@ -25,12 +25,16 @@ def show_paths() -> None:
 
 
 @app.command()
-def serve() -> None:
+def serve(
+    fake: bool = typer.Option(False, "--fake", help="Use the FakeEngine (no GPU, no ComfyUI)."),
+) -> None:
     """Run P11 Studio in the foreground on 127.0.0.1."""
     from p11.api.app import create_app
+    from p11.engine import create_engine
 
     settings = load_settings()
-    uvicorn.run(create_app(), host=settings.host, port=settings.studio_port)
+    engine = create_engine(settings, fake=True) if fake else None
+    uvicorn.run(create_app(engine=engine), host=settings.host, port=settings.studio_port)
 
 
 def _stub(name: str, phase: str) -> None:

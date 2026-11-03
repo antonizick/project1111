@@ -8,12 +8,15 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from p11 import __version__
+from p11.engine.base import Engine
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
-def create_app(web_dir: Path | None = None) -> FastAPI:
+def create_app(web_dir: Path | None = None, engine: Engine | None = None) -> FastAPI:
     app = FastAPI(title="P11 Studio", version=__version__, docs_url=None, redoc_url=None)
+    # The engine the API drives (Phase 07 wires the routes and lifecycle).
+    app.state.engine = engine
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

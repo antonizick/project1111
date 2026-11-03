@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -28,9 +28,9 @@ class Settings(BaseSettings):
     engine_port: int = Field(default=8188, ge=1024, le=65535)
     models_root: Path = Field(default_factory=lambda: paths.resolve().models)
     outputs_root: Path = Field(default_factory=lambda: paths.resolve().pictures)
-    # Placeholders until owner question 5 is settled (Phase 05 uses them).
-    thermal_pause_c: int = 83
-    thermal_resume_c: int = 75
+    # Thermal guard thresholds (owner question 5, spec H9; Phase 13 may tune them by ±5 °C).
+    thermal_pause_c: int = Field(default=87, ge=50, le=100)
+    thermal_resume_c: int = Field(default=80, ge=40, le=95)
 
     @field_validator("host")
     @classmethod
@@ -38,6 +38,12 @@ class Settings(BaseSettings):
         if value not in LOOPBACK_HOSTS:
             raise ValueError("host must be 127.0.0.1: P11 Studio is local-only (spec S1)")
         return value
+
+    @model_validator(mode="after")
+    def _thermal_hysteresis(self) -> Settings:
+        if self.thermal_resume_c >= self.thermal_pause_c:
+            raise ValueError("thermal_resume_c must be below thermal_pause_c")
+        return self
 
     @classmethod
     def settings_customise_sources(
