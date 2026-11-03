@@ -325,6 +325,16 @@ the job is `failed` with `job.interrupted` and listed as resumable → Resume fi
 (163.9 s total including the restart); a second job cancelled at frame 2 left **no** scratch frames
 behind (`~/.cache/p11/jobs/<job>/frames` deleted). Plus the 30 s 1080p kill-and-resume above.
 
+**Temporal smoothing (task 5)** (`scripts/bench/video_bench.py smooth`, the same 4 s 640x480
+clip at Fast, 2026-11-03 16:53 CST). Flicker proxy: mean absolute difference between consecutive
+frames (grey, 0–255). The source clip (a slow zoom) is **1.955**; swapped without smoothing
+**1.985** (the swap adds only +0.03, because the face is picked consistently by box overlap);
+swapped with smoothing **1.761**, below the source, because the blend with the previous output
+also damps the zoom's own motion inside the face box. So on this material the plain swap barely
+flickers and smoothing is a mild trade (steadier face, slightly laggy on motion); it stays **off by
+default** and optional, as the prompt asked. The smoothing run cost no extra time (78.6 s warm vs
+199.4 s for the first run, which loaded the face models).
+
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
 - **Quality model:** Juggernaut XL v9, DPM++ 2M Karras, 30 steps, CFG 4.5, baked VAE. 38.6 s native, ~41 s per wallpaper.

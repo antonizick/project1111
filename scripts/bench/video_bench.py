@@ -14,6 +14,7 @@ in git); the numbers go to ``docs/P11_BENCHMARKS.md``.
     uv run python scripts/bench/video_bench.py fast
     uv run python scripts/bench/video_bench.py good
     uv run python scripts/bench/video_bench.py resume
+    uv run python scripts/bench/video_bench.py smooth
 
 The quality runs go through the Studio API in-process (real face models, GPU lock R24, power
 profile H8: the video job is CPU work, but the thermal curve is part of the measurement). The
@@ -196,6 +197,54 @@ def stage_quality(quality: str) -> None:
         timings=detail["timings"],
         power_profile=profile,
     )
+
+
+def _frame_jitter(frames: Path) -> float:
+    """Mean absolute difference between consecutive frames (0-255), the flicker proxy."""
+    import numpy as np
+
+    paths = sorted(frames.glob("frame_*.png"))
+    prev: Any = None
+    diffs: list[float] = []
+    for p in paths:
+        cur = np.asarray(Image.open(p).convert("L"), dtype=np.float32)
+        if prev is not None:
+            diffs.append(float(np.abs(cur - prev).mean()))
+        prev = cur
+    return sum(diffs) / max(1, len(diffs))
+
+
+def stage_smooth() -> None:
+    """Task 5: the short clip at Fast with and without temporal smoothing, flicker compared.
+
+    The clip is a slow zoom over a still portrait, so the source frames barely change; whatever
+    the swapped frames add on top of the source's own frame-to-frame difference is swap flicker.
+    """
+    clip = OUT / "clip-short.mp4"
+    face = OUT / "face.png"
+    if not clip.is_file() or not face.is_file():
+        raise SystemExit("run the material stage first")
+    tmp = OUT / "smooth"
+    c = studio_client(tmp)
+    results: dict[str, Any] = {}
+    with c:
+        vid = c.post("/api/uploads?kind=video", content=clip.read_bytes(),
+                     headers=c.token_headers).json()["id"]  # type: ignore[attr-defined]
+        face_id = c.post("/api/uploads?kind=image", content=face.read_bytes(),
+                         headers=c.token_headers).json()["id"]  # type: ignore[attr-defined]
+        for smooth in (False, True):
+            t0 = time.perf_counter()
+            res = c.post("/api/video/jobs", headers=c.token_headers,  # type: ignore[attr-defined]
+                         json={"video": vid, "face": face_id, "quality": "fast",
+                               "smooth": smooth, "keep_frames": True})  # fmt: skip
+            assert res.status_code == 201, res.text
+            job = wait_job(c, res.json()["id"])
+            assert job["state"] == "done", job.get("error") or job
+            scratch = tmp / "jobs" / job["id"]
+            results["source"] = round(_frame_jitter(scratch / "frames"), 3)
+            results["smooth" if smooth else "plain"] = round(_frame_jitter(scratch / "swapped"), 3)
+            results[f"{'smooth' if smooth else 'plain'}_s"] = round(time.perf_counter() - t0, 1)
+    record("temporal-smoothing", clip="640x480 4 s 10 fps", metric="mean |frame - prev|", **results)
 
 
 def _http_get_detail(c: TestClient, file_url: str) -> bytes:
@@ -397,8 +446,12 @@ def main() -> None:
         stage_resume()
     elif stage in ("resume-fast", "resume-good"):
         stage_resume_quality(stage.removeprefix("resume-"))
+    elif stage == "smooth":
+        stage_smooth()
     else:
-        raise SystemExit("usage: video_bench.py material|fast|good|resume|resume-fast|resume-good")
+        raise SystemExit(
+            "usage: video_bench.py material|fast|good|resume|resume-fast|resume-good|smooth"
+        )
 
 
 if __name__ == "__main__":
