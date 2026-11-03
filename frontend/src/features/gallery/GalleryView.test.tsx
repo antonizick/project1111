@@ -43,9 +43,9 @@ async function openGallery(routes = {}) {
 
 it("lists images by day, searches and filters", async () => {
   const { user, calls } = await openGallery();
-  const list = screen.getByRole("list", { name: "Images" });
+  const list = screen.getByRole("group", { name: "Images" });
   expect(within(list).getAllByRole("listitem")).toHaveLength(3);
-  expect(within(list).getAllByRole("heading", { level: 3 })).toHaveLength(2);
+  expect(within(list).getAllByRole("heading", { level: 2 })).toHaveLength(2);
   expect(screen.getByText("3 images")).toBeVisible();
   expect(screen.getByText("Trash: 2 images (4 KB)")).toBeVisible();
   await user.type(screen.getByLabelText("Search prompts"), "prompt 2");

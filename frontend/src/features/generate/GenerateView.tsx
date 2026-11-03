@@ -234,7 +234,7 @@ export function GenerateView({ active }: { active: boolean }) {
         </fieldset>
 
         <div className="row">
-          <label htmlFor="count">Images</label>
+          <label htmlFor="count">Number of images</label>
           <input
             id="count"
             type="number"

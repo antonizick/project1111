@@ -1,4 +1,4 @@
-"""Phase 08 gallery actions: model filter, facets, bulk export, variations, trash, model defaults."""
+"""Phase 08 gallery actions: model filter, facets, export, variations, trash, model defaults."""
 
 from __future__ import annotations
 

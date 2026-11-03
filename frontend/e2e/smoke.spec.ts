@@ -1,21 +1,11 @@
-import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
-import { studioEnv } from "../playwright.config";
-
-// What `p11 open` does, without a desktop window: mint a one-time launch URL and load it.
-function launchUrl(): string {
-  return execFileSync("uv", ["run", "p11", "open", "--print-url"], {
-    cwd: "..",
-    env: studioEnv,
-    encoding: "utf8",
-  }).trim();
-}
+import { launchUrl } from "./studio";
 
 test("p11 open's one-time link starts a working session", async ({ page, browser }) => {
   const url = launchUrl();
   await page.goto(url);
   await expect(page.getByRole("heading", { name: "P11 Studio" })).toBeVisible();
-  await expect(page.getByText(/Session active/)).toBeVisible();
+  await expect(page.getByText(/Connected · v.* · fake engine/)).toBeVisible();
   expect(new URL(page.url()).hash).toBe("");
   // The cookie lets the page load API images; the token stays out of the URL.
   const gallery = await page.evaluate(async () => {
@@ -36,6 +26,8 @@ test("the page loads under the strict CSP without violations", async ({ page }) 
     if (/Content Security Policy/i.test(m.text())) violations.push(m.text());
   });
   await page.goto(launchUrl());
-  await expect(page.getByText(/Session active/)).toBeVisible();
+  await expect(page.getByText(/Connected · v/)).toBeVisible();
+  await page.getByRole("button", { name: "Gallery" }).click();
+  await expect(page.getByRole("group", { name: "Images" })).toBeVisible();
   expect(violations).toEqual([]);
 });

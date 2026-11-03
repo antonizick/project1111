@@ -14,6 +14,8 @@ import { DetailView } from "./DetailView";
 import { columnsFor, layoutRows, totalHeight, visibleRows, GAP, TILE } from "./layout";
 
 const PAGE = 120;
+/** Left + right padding of .gallery-scroll (theme.css). */
+const PADDING = 32;
 
 function formatBytes(n: number): string {
   if (n < 1024 * 1024) return `${Math.ceil(n / 1024)} KB`;
@@ -93,7 +95,7 @@ export function GalleryView({ active }: { active: boolean }) {
     const el = scroller.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() =>
-      setSize({ width: el.clientWidth || 1000, height: el.clientHeight || 800 }),
+      setSize({ width: (el.clientWidth || 1032) - PADDING, height: el.clientHeight || 800 }),
     );
     ro.observe(el);
     return () => ro.disconnect();
@@ -243,14 +245,14 @@ export function GalleryView({ active }: { active: boolean }) {
             )}
           </section>
         ) : (
-          <div className="gallery-canvas" style={{ height }} role="list" aria-label="Images">
+          <div className="gallery-canvas" style={{ height }} role="group" aria-label="Images">
             {visible.map((row) =>
               row.kind === "header" ? (
-                <h3 key={row.key} className="day" style={{ top: row.top }}>
+                <h2 key={row.key} className="day" style={{ top: row.top }}>
                   {row.label}
-                </h3>
+                </h2>
               ) : (
-                <div key={row.key} className="tile-row" style={{ top: row.top }}>
+                <div key={row.key} className="tile-row" role="list" style={{ top: row.top }}>
                   {row.items.map((img, i) => (
                     <div
                       key={img.id}
