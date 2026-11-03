@@ -7,6 +7,8 @@
 
 **Phase 05 results (2026-11-02 19:28 CST):** the OOM soak can force a real OOM with `tests/gpu/vram_hog.py` (oversized latents do not OOM at v0.43.0, ADR-0020). `tests/gpu/test_engine_contract_gpu.py::test_engine_listens_on_loopback_only_and_stays_offline` checks the listening socket and scans the engine log for non-loopback URLs; the engine environment sets `HF_HUB_OFFLINE`, `HF_HUB_DISABLE_TELEMETRY`, `TRANSFORMERS_OFFLINE`, `DO_NOT_TRACK`.
 
+**Phase 07 results (2026-11-02 23:50 CST):** the threat model starts from `src/p11/api/security.py` (Host allowlist, Origin/Sec-Fetch-Site, token header vs read-only cookie, launch codes, CSP, body caps), `p11/media/validate.py` (S8) and ADR-0022; existing tests: `tests/unit/test_api_security.py`, `test_media.py`. Known limits to review: the token file is readable by the same user (out of scope by SECURITY.md); `StaticFiles` serves `src/p11/web/` without a token by design; the upload route buffers images in memory (≤ 64 MiB) and spools videos to disk. The access log never logs query strings; `debug_private` is the only path for prompt text.
+
 ## Goal
 Prove that P11 is safe, stable and as effortless as the spec promises, using measurements on the laptop, and fix what falls short. Every security control S1–S10 is verified, every success criterion is measured, licences are audited for publication, and every open follow-up is closed or deferred under spec H12 (non-security items recorded with measurements and listed for Nick's review at Phase 17; high/critical security findings fixed or the phase blocks).
 

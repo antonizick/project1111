@@ -9,6 +9,8 @@
 
 **Phase 06 results (2026-11-02 23:09 CST):** the Models page mirrors `p11 models … --json` (ADR-0021): `ModelStatus.as_json()` has `id, name, kind, base, state (installed|missing|corrupt|user-added|unregistered), origin (manifest|user|disk), filename, path, size, sha256, verified, enabled, sets, format, licence {name, url, commercial_use, flags, accepted}, detail`. Install through `ModelManager.install(target, downloader=…, accept_licences=…, confirm=…, progress=(label, done, total))` after `plan(target)` (gives `to_fetch`, `to_accept` and `download_bytes` for the size and licence dialog); add with `ModelManager.add(path, kind=…, allow_pickle=…)`; `set_enabled`, `remove(id, delete_file=…)`, `verify(ids)`. A new LoRA goes into `models/manifest.toml` with the same schema (verified facts, a `# Checked <TS>` comment, `commercial_use`).
 
+**Phase 07 results (2026-11-02 23:50 CST):** the Models page reads `GET /api/models` (the same objects as `p11 models list --json`); presets come from `GET /api/presets`. Text overlay is a local (non-engine) step: `Runner.run` in `p11/jobs/runner.py` currently runs every compiled graph on the engine, so add the local-step path there and keep saving through `Runner._record`.
+
 ## Goal
 Output quality is good by default and fast when you want it. Upscaling has a clear Quality/Speed toggle. The 3D animated avatar preset is dialled in. Logos get exact, crisp text through a deterministic overlay step. Logo work gets variations and batch help. The model manager UI turns `p11 models` into a page.
 
