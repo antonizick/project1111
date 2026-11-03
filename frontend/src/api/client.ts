@@ -15,6 +15,8 @@ import type {
   Template,
   TrashInfo,
   Upload,
+  VideoJob,
+  VideoRequest,
 } from "./types";
 
 const json = (body: unknown): RequestInit => ({
@@ -120,7 +122,7 @@ export const client = {
     variable_prompt: boolean;
     mask?: "auto" | "slot" | "fixed";
   }) => api<Template>("/api/templates/from-image", json(body)),
-  upload: (file: Blob, kind: "image" | "mask" = "image") =>
+  upload: (file: Blob, kind: "image" | "mask" | "video" = "image") =>
     api<Upload>(`/api/uploads?kind=${kind}`, { method: "POST", body: file }),
   backgroundMask: (image: string, segmentationModel?: string | null) =>
     apiBlob(
@@ -134,6 +136,18 @@ export const client = {
   poseExtract: (ref: string) => api<PoseExtraction>("/api/pose/extract", json({ ref })),
   poseRender: (people: unknown[], width: number, height: number) =>
     apiBlob("/api/pose/render", json({ people, width, height })),
+  // Video face-swap (Phase 13). The frame is a still from the clip (the face picker).
+  videoFrame: (ref: string, time = 0) => apiBlob("/api/video/frame", json({ ref, time })),
+  videoDetect: (ref: string, time = 0) =>
+    api<FaceDetection>("/api/video/detect", json({ ref, time })),
+  submitVideo: (req: VideoRequest) => api<VideoJob>("/api/video/jobs", json(req)),
+  videoJobs: () => api<VideoJob[]>("/api/video/jobs?limit=20"),
+  videoJob: (id: string) => api<VideoJob>(`/api/video/jobs/${encodeURIComponent(id)}`),
+  resumeVideo: (id: string) =>
+    api<VideoJob>(`/api/video/jobs/${encodeURIComponent(id)}/resume`, json({})),
+  videoFileUrl: (id: string) => `/api/video/jobs/${encodeURIComponent(id)}/file`,
+  downloadVideo: (id: string) =>
+    apiBlob(`/api/video/jobs/${encodeURIComponent(id)}/file?download=1`),
 };
 
 /** Faces P11 found in a picture, largest first (box normalised to the picture). */

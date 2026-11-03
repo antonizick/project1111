@@ -56,6 +56,9 @@ export function ImageActions({
       <button type="button" className="btn" onClick={() => actions.face(image)}>
         Face
       </button>
+      <button type="button" className="btn" onClick={() => actions.video(image)}>
+        Use face in Video
+      </button>
       {(Object.keys(LATER) as (keyof typeof LATER)[]).map((k) => (
         <button
           key={k}
