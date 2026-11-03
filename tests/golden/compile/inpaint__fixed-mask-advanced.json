@@ -1,0 +1,140 @@
+{
+ "1": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+  }
+ },
+ "10": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "p11/step-00",
+   "images": [
+    "9",
+    0
+   ]
+  }
+ },
+ "2": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "1",
+    1
+   ],
+   "text": "moss"
+  }
+ },
+ "3": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "1",
+    1
+   ],
+   "text": "blurry"
+  }
+ },
+ "4": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "p11:slot:photo"
+  }
+ },
+ "5": {
+  "class_type": "LoadImageMask",
+  "inputs": {
+   "channel": "red",
+   "image": "p11:inline:0"
+  }
+ },
+ "6": {
+  "class_type": "InpaintModelConditioning",
+  "inputs": {
+   "mask": [
+    "5",
+    0
+   ],
+   "negative": [
+    "3",
+    0
+   ],
+   "noise_mask": true,
+   "pixels": [
+    "4",
+    0
+   ],
+   "positive": [
+    "2",
+    0
+   ],
+   "vae": [
+    "1",
+    2
+   ]
+  }
+ },
+ "7": {
+  "_meta": {
+   "title": "inpaint"
+  },
+  "class_type": "KSampler",
+  "inputs": {
+   "cfg": 4.0,
+   "denoise": 0.8,
+   "latent_image": [
+    "6",
+    2
+   ],
+   "model": [
+    "1",
+    0
+   ],
+   "negative": [
+    "6",
+    1
+   ],
+   "positive": [
+    "6",
+    0
+   ],
+   "sampler_name": "dpmpp_2m",
+   "scheduler": "karras",
+   "seed": 1111,
+   "steps": 12
+  }
+ },
+ "8": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "7",
+    0
+   ],
+   "vae": [
+    "1",
+    2
+   ]
+  }
+ },
+ "9": {
+  "class_type": "ImageCompositeMasked",
+  "inputs": {
+   "destination": [
+    "4",
+    0
+   ],
+   "mask": [
+    "5",
+    0
+   ],
+   "resize_source": false,
+   "source": [
+    "8",
+    0
+   ],
+   "x": 0,
+   "y": 0
+  }
+ }
+}

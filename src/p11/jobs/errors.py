@@ -18,6 +18,7 @@ from p11.engine.base import (
     EngineValidation,
 )
 from p11.gpulock import GpuLockTimeout
+from p11.media.inpaint import MaskError
 from p11.media.inputs import UnknownInput
 from p11.media.validate import UploadRejected
 from p11.recipe.compile import CompileError, SlotBindingError
@@ -50,6 +51,8 @@ def problem_for(exc: BaseException) -> tuple[int, JobError]:
         return 422, JobError("recipe.invalid", msg, "Check the recipe's settings.")
     if isinstance(exc, UploadRejected):
         return 422, JobError("upload.rejected", str(exc), exc.hint)
+    if isinstance(exc, MaskError):
+        return 422, JobError("input.mask", str(exc), "Open the image in Inpaint and paint a mask.")
     if isinstance(exc, UnknownInput):
         return 422, JobError("input.missing", str(exc), "Upload the file again.")
     if isinstance(exc, TemplateError):

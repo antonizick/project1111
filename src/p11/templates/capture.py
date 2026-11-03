@@ -9,22 +9,27 @@ changes here:
 * an image the run started from (``source_image``, a follow-up on an earlier output) becomes a
   ``source`` image slot on the first step that takes one, so a template never points at a gallery
   image that may be deleted;
-* the prompt becomes a ``prompt`` text slot only when the user marks it variable.
+* the prompt becomes a ``prompt`` text slot only when the user marks it variable;
+* an inpaint mask stays a slot (paint or upload one per run) unless the user keeps it **fixed**:
+  then the mask (a shape, never a photo; made small by ``media.inpaint.compact_mask``) is stored in
+  the step as ``mask_png`` and the slot goes (ADR-0025).
 
-Uploads and other bound files are never copied into a template (S6).
+Uploads and other bound photos are never copied into a template (S6).
 """
 
 from __future__ import annotations
 
+import base64
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Literal
 
 from ..outputs.metadata import RunRecord
-from ..recipe.model import PLACEHOLDER, FixedSeed, Generate, RandomSeed, Recipe, Slot
+from ..recipe.model import PLACEHOLDER, FixedSeed, Generate, Inpaint, RandomSeed, Recipe, Slot
 
 SeedMode = Literal["fixed", "random"]
+MaskMode = Literal["slot", "fixed"]
 MAX_SLOTS = 16
 
 
@@ -44,8 +49,12 @@ def capture_template(
     tags: Sequence[str] = (),
     seed: SeedMode = "fixed",
     variable_prompt: bool = False,
+    masks: Mapping[str, bytes] | None = None,
 ) -> Recipe:
-    """The template for ``record``: a new recipe ID, the chosen seed strategy and inferred slots."""
+    """The template for ``record``: a new recipe ID, the chosen seed strategy and inferred slots.
+
+    ``masks`` maps an inpaint mask slot to the (compacted) mask PNG to keep fixed in the template.
+    """
     recipe = record.recipe
     slots: list[Slot] = []
     for slot in recipe.slots:
@@ -58,7 +67,11 @@ def capture_template(
 
     if recipe.source_image is not None:
         for i, step in enumerate(steps):
-            field = next((f for f, _ in step.image_fields if getattr(step, f) is None), None)
+            field = next(
+                (f for f, kinds in step.image_fields
+                 if "image" in kinds and getattr(step, f) is None),
+                None,
+            )  # fmt: skip
             if field is None:
                 continue
             slot_name = _free_name(taken, "source")
@@ -83,6 +96,15 @@ def capture_template(
                 )
                 steps[i] = step.model_copy(update={"prompt": "{{" + slot_name + "}}"})
                 break
+
+    fixed = set()
+    for i, step in enumerate(steps):
+        if isinstance(step, Inpaint) and step.mask_slot and step.mask_slot in (masks or {}):
+            png = base64.b64encode((masks or {})[step.mask_slot]).decode()
+            steps[i] = step.model_copy(update={"mask_slot": None, "mask_png": png})
+            fixed.add(step.mask_slot)
+    still_used = {name for step in steps for _, name, _ in step.image_slots()}
+    slots = [s for s in slots if s.name not in fixed or s.name in still_used]
 
     return Recipe(
         id=uuid.uuid4().hex,

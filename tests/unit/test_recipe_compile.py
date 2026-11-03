@@ -443,7 +443,6 @@ def test_later_phase_steps_are_unsupported_for_now() -> None:
     slots = (Slot(name="mask", kind="mask"), Slot(name="face", kind="face_image"),
              Slot(name="pose", kind="image"))  # fmt: skip
     for step, phase in [
-        (Inpaint(mask_slot="mask"), "Phase 10"),
         (FaceSwap(face_slot="face"), "Phase 12"),
         (TextOverlay(text="Hi"), "Phase 14"),
         (Pose(pose_slot="pose"), "Phase 12"),
@@ -456,10 +455,11 @@ def test_later_phase_steps_are_unsupported_for_now() -> None:
 def test_register_step_and_modifier(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(c, "_STEP_COMPILERS", dict(c._STEP_COMPILERS))
     monkeypatch.setattr(c, "_MODIFIERS", dict(c._MODIFIERS))
+    c.unregister("inpaint")
 
     def fake_inpaint(step: Inpaint, ctx: c.CompileContext, g: c.GraphBuilder) -> c.Ref:
         img = ctx.load_image(g, step.image_slot)
-        mask = ctx.load_image(g, step.mask_slot)
+        mask = ctx.load_mask(g, step.mask_slot)
         return g.node("ImageCompositeMasked", destination=img, source=img, mask=mask)
 
     def fake_pose(step: Pose, ctx: c.CompileContext, g: c.GraphBuilder,

@@ -31,6 +31,9 @@ PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
 Seed = Annotated[int, Field(ge=0, le=MAX_SEED)]
 Unit = Annotated[float, Field(ge=0.0, le=1.0)]
 
+#: Largest inline (fixed) inpaint mask, base64 characters (~300 KB of PNG).
+MAX_INLINE_MASK = 400_000
+
 
 class _Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -194,20 +197,41 @@ class Upscale(_Step):
 
 
 class Inpaint(_Step):
-    """Repaint the masked part of an image (Phase 10 compiles it)."""
+    """Repaint the masked part of an image (Phase 10, ``recipe/steps/inpaint.py``, ADR-0025).
+
+    The mask comes from ``mask_slot`` (painted or uploaded per run) or, in a template saved with a
+    fixed mask, from ``mask_png`` (a small greyscale PNG, base64; a shape, never a photo). White is
+    repainted. ``denoise_preset`` (UI: Subtle fix / Change / Replace) overrides ``denoise`` with the
+    tuned strength from ``presets.INPAINT_PRESETS``; ``None`` uses ``denoise`` as given.
+    ``crop`` ("only masked area at full resolution") inpaints a padded box around the mask at the
+    model's working size and pastes it back, so small fixes keep their detail.
+    """
 
     type: Literal["inpaint"] = "inpaint"
     image_slot: str | None = None
-    mask_slot: str
+    mask_slot: str | None = None
+    mask_png: str | None = Field(
+        default=None, min_length=8, max_length=MAX_INLINE_MASK, pattern=r"^[A-Za-z0-9+/]+=*$"
+    )
     prompt: str = Field(default="", max_length=4000)
     negative: str = Field(default="", max_length=4000)
     denoise: Unit = 0.6
     denoise_preset: Literal["subtle", "balanced", "major"] | None = None
     grow_mask_px: int = Field(default=8, ge=0, le=256)
+    mask_blur_px: int = Field(default=12, ge=0, le=128)
+    crop: bool = True
+    padding_px: int = Field(default=48, ge=0, le=1024)
     model: ModelRef | None = None
+    sampler: SamplerOverride | None = None
 
     image_fields = (("image_slot", IMAGE_KINDS - {"mask"}), ("mask_slot", frozenset({"mask"})))
     text_fields = ("prompt", "negative")
+
+    @model_validator(mode="after")
+    def _one_mask(self) -> Inpaint:
+        if (self.mask_slot is None) == (self.mask_png is None):
+            raise ValueError("inpaint: give exactly one of mask_slot or mask_png")
+        return self
 
 
 class ReplaceBackground(_Step):

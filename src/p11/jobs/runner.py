@@ -33,6 +33,7 @@ from p11.engine.base import (
 )
 from p11.engine.base import bind_inputs as bind_graph_inputs
 from p11.engine.recovery import run_with_oom_retry
+from p11.media.inpaint import Prepared, check_mask, prepare, stitch
 from p11.media.inputs import ID_RE, InputStore, UnknownInput
 from p11.outputs import metadata
 from p11.outputs.index import GalleryIndex, entry_from_record
@@ -136,6 +137,14 @@ class Runner:
         """Compile with a fixed seed: slot, model and step errors surface before queueing."""
         graphs = compile(recipe, bindings, self.registry(), seed=0)
         self.check_files(recipe, bindings)
+        for graph in graphs:
+            for inp in graph.inputs:
+                if graph.prep is None or inp.placeholder != graph.prep.mask:
+                    continue
+                if inp.data is not None:
+                    check_mask(inp.data)
+                elif inp.file is not None:
+                    check_mask(self.resolve_file(inp.file))
         return graphs
 
     async def run(
@@ -173,7 +182,7 @@ class Runner:
 
                 where = _Where(job_id, run_index, count, gi, len(graphs), done, total)
                 on_event = _event_handler(where, publish, on_progress, report, previews)
-                nodes = await self._bind(graph, images, recipe, slot_kinds)
+                nodes, prepared = await self._bind(graph, images, recipe, slot_kinds)
                 result = await run_with_oom_retry(
                     self.engine, nodes, on_event=on_event, timeout=self.run_timeout
                 )
@@ -183,6 +192,8 @@ class Runner:
                 outs = outs or list(result.images)
                 if not outs:
                     raise EngineInterrupted("The engine returned no image.")
+                if prepared is not None:
+                    outs = [replace(o, data=stitch(prepared, o.data)) for o in outs]
                 images[graph.step_index] = outs[0].data
                 last = gi == len(graphs) - 1
                 first_rel: str | None = None
@@ -227,22 +238,30 @@ class Runner:
         images: Mapping[int, bytes],
         recipe: Recipe,
         slot_kinds: Mapping[str, str],
-    ) -> EngineGraph | dict[str, Any]:
+    ) -> tuple[EngineGraph | dict[str, Any], Prepared | None]:
+        """Upload the graph's inputs (prepared by ``MaskPrep`` for inpaint) and bind them."""
         if not graph.inputs:
-            return graph
+            return graph, None
+        data = {inp.placeholder: self._input_bytes(inp, images, recipe) for inp in graph.inputs}
+        prepared = None
+        if graph.prep is not None:
+            prep = graph.prep
+            prepared = prepare(data[prep.image], data[prep.mask], prep)
+            data[prep.image], data[prep.mask] = prepared.image, prepared.mask
         files = {}
         for inp in graph.inputs:
-            data = self._input_bytes(inp, images, recipe)
-            kind: UploadKind = (
-                "mask" if inp.slot and slot_kinds.get(inp.slot) == "mask" else "image"
-            )
-            files[inp.placeholder] = await self.engine.upload(data, kind)
-        return bind_graph_inputs(graph, files)
+            mask = inp.kind == "mask" or bool(inp.slot and slot_kinds.get(inp.slot) == "mask")
+            kind: UploadKind = "mask" if mask else "image"
+            files[inp.placeholder] = await self.engine.upload(data[inp.placeholder], kind)
+        return bind_graph_inputs(graph, files), prepared
 
     def _input_bytes(self, inp: GraphInput, images: Mapping[int, bytes], recipe: Recipe) -> bytes:
         if inp.source == "step":
             assert inp.step is not None
             return images[inp.step]
+        if inp.source == "inline":
+            assert inp.data is not None
+            return inp.data
         file = inp.file if inp.source == "slot" else recipe.source_image
         if file is None:
             raise UnknownInput("This step needs an input image, but none was given.")
