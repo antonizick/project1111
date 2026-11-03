@@ -106,3 +106,33 @@ files = [
   { url = "https://huggingface.co/stabilityai/sd-vae-ft-mse-original/resolve/629b3ad3030ce36e15e70c5db7d91df0d60c627f/vae-ft-mse-840000-ema-pruned.safetensors", filename = "vae-ft-mse-840000-ema-pruned.safetensors", sha256 = "735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75", size = 334641190 },
 ]
 licence = { name = "MIT", url = "https://opensource.org/license/mit", commercial_use = true }
+
+# Checked 2026-11-03 07:30 CST: revision de15b22b, 224005088 bytes, SHA-256 matches HF LFS and the
+# local file; card licence `mit` (export of ZhengPeng7/BiRefNet_lite, also MIT).
+[[model]]
+id = "birefnet-lite"
+name = "BiRefNet Lite (subject segmentation)"
+kind = "segmentation"
+base = "any"
+sets = ["default"]
+source = "onnx-community/BiRefNet_lite-ONNX @ de15b22ba131738a16dff04aab8bdf8dc32e3ac1"
+notes = "Background segmentation (Phase 11, ADR-0026): ONNX export of BiRefNet_lite, run on CPU in P11 (no VRAM). Default set grew 14.41 GB -> 14.63 GB for one-click background replacement (H1 allows 30 GB)."
+files = [
+  { url = "https://huggingface.co/onnx-community/BiRefNet_lite-ONNX/resolve/de15b22ba131738a16dff04aab8bdf8dc32e3ac1/onnx/model.onnx", filename = "birefnet-lite.onnx", sha256 = "5600024376f572a557870a5eb0afb1e5961636bef4e1e22132025467d0f03333", size = 224005088 },
+]
+licence = { name = "MIT", url = "https://opensource.org/license/mit", commercial_use = true }
+
+# Checked 2026-11-03 07:30 CST: revision 534d3c82, 972666916 bytes, SHA-256 matches HF LFS and the
+# local file; card licence `mit` (export of ZhengPeng7/BiRefNet, also MIT).
+[[model]]
+id = "birefnet"
+name = "BiRefNet (subject segmentation, high quality)"
+kind = "segmentation"
+base = "any"
+sets = ["full"]
+source = "onnx-community/BiRefNet-ONNX @ 534d3c82d3bb8b2f0867db6dfbc3a525b8e42f67"
+notes = "Higher-quality segmentation for background replacement (Phase 11, ADR-0026): ONNX export of BiRefNet, run on CPU in P11. Pick it in a replace_background step's segmentation_model."
+files = [
+  { url = "https://huggingface.co/onnx-community/BiRefNet-ONNX/resolve/534d3c82d3bb8b2f0867db6dfbc3a525b8e42f67/onnx/model.onnx", filename = "birefnet.onnx", sha256 = "58f621f00f5d756097615970a88a791584600dcf7c45b18a0a6267535a1ebd3c", size = 972666916 },
+]
+licence = { name = "MIT", url = "https://opensource.org/license/mit", commercial_use = true }

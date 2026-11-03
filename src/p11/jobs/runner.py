@@ -8,6 +8,7 @@ gallery index; step ``i``'s ``parent`` is step ``i-1``'s image, so an edit chain
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 import random
@@ -33,12 +34,14 @@ from p11.engine.base import (
 )
 from p11.engine.base import bind_inputs as bind_graph_inputs
 from p11.engine.recovery import run_with_oom_retry
+from p11.media import composite as composite_media
 from p11.media.inpaint import Prepared, check_mask, prepare, stitch
 from p11.media.inputs import ID_RE, InputStore, UnknownInput
+from p11.media.segment import Segmenters, Segments
 from p11.outputs import metadata
 from p11.outputs.index import GalleryIndex, entry_from_record
 from p11.outputs.layout import output_path
-from p11.recipe.compile import EngineGraph, GraphInput, compile, resolve_seed
+from p11.recipe.compile import EngineGraph, GraphInput, LocalStep, PlanItem, compile, resolve_seed
 from p11.recipe.migrate import migrate
 from p11.recipe.model import FileRef, Recipe
 from p11.recipe.registry import ModelRegistry
@@ -104,6 +107,10 @@ class Runner:
     outputs_root: Path
     gallery: GalleryIndex
     inputs: InputStore
+    #: Subject segmentation for ``replace_background`` local steps (ADR-0026); the default
+    #: resolves manifest IDs through the models root and raises a plain-English error when the
+    #: model is missing.
+    segmenters: Segments = field(default_factory=Segmenters)
     run_timeout: float | None = None
     clock: Callable[[], datetime] = field(default=lambda: datetime.now().astimezone())
 
@@ -133,19 +140,25 @@ class Runner:
         for ref in refs:
             self.resolve_file(ref)
 
-    def validate(self, recipe: Recipe, bindings: Bindings) -> list[EngineGraph]:
+    def validate(self, recipe: Recipe, bindings: Bindings) -> list[PlanItem]:
         """Compile with a fixed seed: slot, model and step errors surface before queueing."""
-        graphs = compile(recipe, bindings, self.registry(), seed=0)
+        items = compile(recipe, bindings, self.registry(), seed=0)
         self.check_files(recipe, bindings)
-        for graph in graphs:
-            for inp in graph.inputs:
-                if graph.prep is None or inp.placeholder != graph.prep.mask:
-                    continue
+        for item in items:
+            if isinstance(item, LocalStep):
+                masks = [i for i in item.inputs if i.kind == "mask"]
+            else:
+                masks = [
+                    i
+                    for i in item.inputs
+                    if item.prep is not None and i.placeholder == item.prep.mask
+                ]
+            for inp in masks:
                 if inp.data is not None:
                     check_mask(inp.data)
                 elif inp.file is not None:
                     check_mask(self.resolve_file(inp.file))
-        return graphs
+        return items
 
     async def run(
         self,
@@ -176,46 +189,68 @@ class Runner:
             chain_parent = parent
             timings: dict[str, float] = {}
             now = self.clock()
-            for gi, graph in enumerate(graphs):
+            local_out: dict[str, bytes] = {}
+            for gi, item in enumerate(graphs):
                 await control.checkpoint(long=long)
                 done = run_index * len(graphs) + gi
 
                 where = _Where(job_id, run_index, count, gi, len(graphs), done, total)
                 on_event = _event_handler(where, publish, on_progress, report, previews)
-                nodes, prepared = await self._bind(graph, images, recipe, slot_kinds)
-                result = await run_with_oom_retry(
-                    self.engine, nodes, on_event=on_event, timeout=self.run_timeout
-                )
-                if result.retried:
-                    report.retried = True
-                outs = [i for i in result.images if i.node == graph.output_node]
-                outs = outs or list(result.images)
-                if not outs:
-                    raise EngineInterrupted("The engine returned no image.")
-                if prepared is not None:
-                    outs = [replace(o, data=stitch(prepared, o.data)) for o in outs]
-                images[graph.step_index] = outs[0].data
                 last = gi == len(graphs) - 1
+                # An item another item of the same step follows is intermediate: only the step's
+                # last item is saved and becomes the next step's input (ADR-0027).
+                intermediate = not last and graphs[gi + 1].step_index == item.step_index
+                if isinstance(item, LocalStep):
+                    data = {
+                        inp.placeholder: self._input_bytes(inp, images, recipe, local_out)
+                        for inp in item.inputs
+                    }
+                    t0 = time.perf_counter()
+                    made = await asyncio.to_thread(self._run_local, item, data)
+                    local_out.update({f"p11:local:{k}": v for k, v in made.items()})
+                    images[item.step_index] = made["image"]
+                    timings[f"step-{item.step_index:02d}-local"] = round(
+                        time.perf_counter() - t0, 3
+                    )
+                    outs = [made["image"]]
+                else:
+                    nodes, prepared = await self._bind(item, images, recipe, slot_kinds, local_out)
+                    result = await run_with_oom_retry(
+                        self.engine, nodes, on_event=on_event, timeout=self.run_timeout
+                    )
+                    if result.retried:
+                        report.retried = True
+                    found = [i for i in result.images if i.node == item.output_node]
+                    found = found or list(result.images)
+                    if not found:
+                        raise EngineInterrupted("The engine returned no image.")
+                    if prepared is not None:
+                        found = [replace(o, data=stitch(prepared, o.data)) for o in found]
+                    images[item.step_index] = found[0].data
+                    timings[f"step-{item.step_index:02d}"] = round(result.seconds, 3)
+                    outs = [o.data for o in found]
+                if intermediate:
+                    outs = []
                 first_rel: str | None = None
-                for bi, out in enumerate(outs):
-                    parts = [] if last else [f"{graph.step_index:02d}-{graph.step_type}"]
+                for bi, out_data in enumerate(outs):
+                    parts = [] if last else [f"{item.step_index:02d}-{item.step_type}"]
                     if len(outs) > 1:
                         parts.append(str(bi + 1))
                     path = output_path(
                         self.outputs_root, now, template, seed, "-".join(parts) or None
                     )
-                    path.write_bytes(out.data)
-                    size = _png_size(out.data)
+                    path.write_bytes(out_data)
+                    size = _png_size(out_data)
                     rel = path.relative_to(self.outputs_root).as_posix()
                     first_rel = first_rel or rel
                     step_out = metadata.StepOutput(
-                        step_index=graph.step_index, step_type=graph.step_type, path=rel,
+                        step_index=item.step_index, step_type=item.step_type, path=rel,
                         width=size[0], height=size[1],
                     )  # fmt: skip
                     saved.append(Saved(path, step_out, chain_parent))
                 # The next step was made from this step's first image.
-                chain_parent = first_rel
-                timings[f"step-{graph.step_index:02d}"] = round(result.seconds, 3)
+                if first_rel is not None:
+                    chain_parent = first_rel
                 on_progress((done + 1) / total, None)
             report.image_ids += self._record(
                 recipe=recipe,
@@ -238,11 +273,15 @@ class Runner:
         images: Mapping[int, bytes],
         recipe: Recipe,
         slot_kinds: Mapping[str, str],
+        local_out: Mapping[str, bytes],
     ) -> tuple[EngineGraph | dict[str, Any], Prepared | None]:
         """Upload the graph's inputs (prepared by ``MaskPrep`` for inpaint) and bind them."""
         if not graph.inputs:
             return graph, None
-        data = {inp.placeholder: self._input_bytes(inp, images, recipe) for inp in graph.inputs}
+        data = {
+            inp.placeholder: self._input_bytes(inp, images, recipe, local_out)
+            for inp in graph.inputs
+        }
         prepared = None
         if graph.prep is not None:
             prep = graph.prep
@@ -255,17 +294,36 @@ class Runner:
             files[inp.placeholder] = await self.engine.upload(data[inp.placeholder], kind)
         return bind_graph_inputs(graph, files), prepared
 
-    def _input_bytes(self, inp: GraphInput, images: Mapping[int, bytes], recipe: Recipe) -> bytes:
+    def _input_bytes(
+        self,
+        inp: GraphInput,
+        images: Mapping[int, bytes],
+        recipe: Recipe,
+        local_out: Mapping[str, bytes],
+    ) -> bytes:
         if inp.source == "step":
             assert inp.step is not None
             return images[inp.step]
         if inp.source == "inline":
             assert inp.data is not None
             return inp.data
+        if inp.source == "local":
+            try:
+                return local_out[inp.placeholder]
+            except KeyError:
+                raise UnknownInput(
+                    "This step needs the output of its own earlier part, which is missing."
+                ) from None
         file = inp.file if inp.source == "slot" else recipe.source_image
         if file is None:
             raise UnknownInput("This step needs an input image, but none was given.")
         return self.resolve_file(file)
+
+    def _run_local(self, item: LocalStep, data: Mapping[str, bytes]) -> dict[str, bytes]:
+        """Run one local step in P11 (ADR-0027). Phase 14 adds ``text_overlay`` here."""
+        if item.op == "replace_background":
+            return composite_media.run_replace_background(item.params, data, self.segmenters)
+        raise ValueError(f"Unknown local step {item.op!r}.")
 
     def _record(
         self,
@@ -273,7 +331,7 @@ class Runner:
         recipe: Recipe,
         bindings: Bindings,
         seed: int,
-        graphs: list[EngineGraph],
+        graphs: list[PlanItem],
         registry: ModelRegistry,
         engine_version: str,
         saved: list[Saved],

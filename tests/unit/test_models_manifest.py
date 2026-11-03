@@ -136,13 +136,16 @@ def test_repo_manifest_is_valid_and_within_budget():
         "juggernautxl9",
         "sdxl-vae-fp16-fix",
         "4x-nomos-webphoto-realplksr",
+        "birefnet-lite",
     }
     assert sum(e.size for e in default) <= 30 * 1000**3  # owner question 1 / H1
     for e in m:
         assert not e.requires_login  # H2
         assert e.file.url.startswith("https://huggingface.co/")
         assert re.search(r"/resolve/[0-9a-f]{40}/", e.file.url), "URL must pin a commit"
-        assert e.file.filename.endswith(".safetensors")  # S4
+        # S4: tensors-only formats load by default. ONNX (segmentation, face analysis) is
+        # executable-proof and curated entries are hash-pinned (S4; Phase 06 note).
+        assert e.file.filename.endswith((".safetensors", ".onnx", ".gguf"))
         assert e.kind in KIND_FOLDERS
 
 

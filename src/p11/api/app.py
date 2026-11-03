@@ -24,8 +24,11 @@ from p11.gpu.telemetry import GpuSampler, default_sampler
 from p11.gpulock import GpuLockTimeout
 from p11.jobs.errors import problem_for
 from p11.jobs.queue import QueueFull
+from p11.media.composite import CompositeError
+from p11.media.imageio import ImageError
 from p11.media.inpaint import MaskError
 from p11.media.inputs import UnknownInput
+from p11.media.segment import SegmentationError, Segmenters, Segments
 from p11.media.validate import UploadRejected
 from p11.models.registry import ModelManager
 from p11.recipe.compile import CompileError
@@ -56,6 +59,9 @@ TYPED_ERRORS: tuple[type[Exception], ...] = (
     UploadRejected,
     UnknownInput,
     MaskError,
+    CompositeError,
+    ImageError,
+    SegmentationError,
     TemplateError,
     UnknownModelError,
     EngineError,
@@ -154,10 +160,21 @@ def create_app(
 
         fake = isinstance(engine, FakeEngine)
     registry: Callable[[], ModelRegistry]
+    segmenters: Segments
     if fake:
         registry = lambda: PROVISIONAL_DEFAULT_SET  # noqa: E731
+        segmenters = Segmenters(stub=True)
     else:
         registry = lambda: ModelManager(settings.models_root).registry()  # noqa: E731
+
+        def _model_path(mid: str) -> Path:
+            manager = ModelManager(settings.models_root)
+            entry = manager.manifest.get(mid)
+            if entry is None:
+                raise KeyError(mid)
+            return manager.path_of(entry)
+
+        segmenters = Segmenters(_model_path)
     if sampler == "auto":
         sampler = None if fake else default_sampler()
     studio = Studio(
@@ -172,6 +189,7 @@ def create_app(
         idle_stop=settings.engine_idle_stop,
         seed_demo=seed_demo,
         starters=starters,
+        segmenters=segmenters,
     )
 
     @asynccontextmanager

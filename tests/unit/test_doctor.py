@@ -111,7 +111,7 @@ def test_models_renamed_away_gives_an_actionable_hint(tmp_path, monkeypatch):
     r = Report()
     doctor.check_models(r)
     missing = [p for p in r.problems if p.code == "models.missing-default"]
-    assert len(missing) == 4  # empty root: every default model is missing
+    assert len(missing) == 5  # empty root: every default model is missing
     assert all("p11 models install default" in p.hint for p in missing)
 
 

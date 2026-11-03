@@ -26,6 +26,7 @@ MAX_SEED = 2**53 - 1
 ID_PATTERN = r"^[a-z0-9][a-z0-9._-]{0,63}$"
 SLOT_PATTERN = r"^[a-z][a-z0-9_]{0,31}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
+COLOUR_PATTERN = r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$"
 PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
 
 Seed = Annotated[int, Field(ge=0, le=MAX_SEED)]
@@ -235,29 +236,64 @@ class Inpaint(_Step):
 
 
 class ReplaceBackground(_Step):
-    """Cut out the subject and put it on a photo background (Phase 11 compiles it)."""
+    """Cut out the subject and put it on a photo, flat-colour or transparent background.
+
+    Phase 11 compiles it (``recipe/steps/background.py``, ADR-0027). The background is
+    ``background_slot`` (a photo) or ``background_colour`` (``#rrggbb`` / ``#rrggbbaa``; alpha 0
+    writes a transparent PNG). ``mask_mode = "auto"`` segments the subject at run time;
+    "manual" uses ``mask_slot`` (a mask per run) or ``mask_png`` (a fixed mask kept in the
+    template, as for inpaint). ``relight`` runs a low-denoise inpaint pass over the seam to unify
+    the light; ``prompt``/``negative`` feed it (empty: the recipe's generate prompt).
+    """
 
     type: Literal["replace_background"] = "replace_background"
     image_slot: str | None = None
-    background_slot: str
+    background_slot: str | None = None
+    background_colour: str | None = Field(default=None, pattern=COLOUR_PATTERN)
     mask_mode: Literal["auto", "manual"] = "auto"
     mask_slot: str | None = None
+    mask_png: str | None = Field(
+        default=None, min_length=8, max_length=MAX_INLINE_MASK, pattern=r"^[A-Za-z0-9+/]+=*$"
+    )
     segmentation_model: ModelRef | None = None
     colour_match: bool = True
+    colour_match_strength: Unit = 1.0
     feather_px: int = Field(default=8, ge=0, le=128)
     relight: bool = False
     relight_denoise: Unit = 0.25
+    prompt: str = Field(default="", max_length=4000)
+    negative: str = Field(default="", max_length=4000)
+    fit: Literal["cover", "contain"] = "cover"
+    background_x: Unit = 0.5
+    background_y: Unit = 0.5
+    subject_scale: float = Field(default=1.0, ge=0.1, le=4.0)
+    subject_x: Unit = 0.5
+    subject_y: Unit = 0.5
+    shadow: bool = False
 
     image_fields = (
         ("image_slot", IMAGE_KINDS - {"mask"}),
         ("background_slot", frozenset({"background_image", "image"})),
         ("mask_slot", frozenset({"mask"})),
     )
+    text_fields = ("prompt", "negative")
 
     @model_validator(mode="after")
-    def _manual_needs_mask(self) -> ReplaceBackground:
-        if self.mask_mode == "manual" and self.mask_slot is None:
-            raise ValueError("replace_background: manual mask mode needs mask_slot")
+    def _inputs(self) -> ReplaceBackground:
+        if (self.background_slot is None) == (self.background_colour is None):
+            raise ValueError(
+                "replace_background: give exactly one of background_slot or background_colour"
+            )
+        if self.mask_mode == "manual":
+            if (self.mask_slot is None) == (self.mask_png is None):
+                raise ValueError(
+                    "replace_background: manual mask mode needs exactly one of "
+                    "mask_slot or mask_png"
+                )
+        elif self.mask_slot is not None or self.mask_png is not None:
+            raise ValueError(
+                "replace_background: auto mask mode takes no mask; use mask_mode 'manual'"
+            )
         return self
 
 

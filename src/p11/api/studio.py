@@ -24,6 +24,7 @@ from p11.jobs.queue import JobQueue, ThermalWatch
 from p11.jobs.runner import Runner
 from p11.jobs.store import JobStore
 from p11.media.inputs import InputStore
+from p11.media.segment import Segmenters, Segments
 from p11.outputs.index import GalleryIndex
 from p11.recipe.model import Generate, Recipe
 from p11.recipe.registry import ModelRegistry
@@ -79,6 +80,8 @@ class Studio:
     seed_demo: bool = False
     #: Install the bundled starter templates on first run (Phase 09).
     starters: bool = False
+    #: Subject segmentation for background replacement (ADR-0026); ``--fake`` uses the stub.
+    segmenters: Segments = field(default_factory=Segmenters)
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat(timespec="seconds"))
     bus: EventBus = field(default_factory=EventBus)
     inputs: InputStore = field(init=False)
@@ -105,6 +108,7 @@ class Studio:
             outputs_root=self.paths.outputs,
             gallery=self.gallery,
             inputs=self.inputs,
+            segmenters=self.segmenters,
         )
         guard = ThermalGuard(self.settings.thermal_pause_c, self.settings.thermal_resume_c)
         self.queue = JobQueue(
