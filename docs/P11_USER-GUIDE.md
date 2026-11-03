@@ -104,6 +104,49 @@ Inpainting repaints the part of an image you paint over and leaves the rest unto
 
 **After applying:** the result is saved as a child of the original in the gallery. **Keep editing this result** loads it into the editor for another fix. **Save as Template** asks whether to **Keep this mask in the template** (the mask shape is stored in the template; the run asks only for the image) or **Ask for a mask each time** (the run asks for a mask image, white = repaint). The photo itself is never stored in a template.
 
+## 6. Background replacement (written in Phase 11)
+Background replacement cuts the subject out of a photo and puts it on a new background - a photo,
+a described scene, a flat colour or plain transparency (PNG with alpha). It matters most for
+product shots and logos.
+
+**The daily path in four actions:** press **Background** under a result (or in the gallery detail
+view), choose **Photo...** and pick the new background, press **Replace Background**, then
+**Download**. P11 finds the subject automatically (a few seconds; the model runs on the CPU so it
+never fights the generator for GPU memory) and the stage previews exactly what Apply will save.
+
+**The subject mask.** When the image opens, P11 segments the subject and shows the mask as an
+overlay (toggle it with **Show mask overlay**). Not perfect on your image? Press **Refine mask**:
+the mask editor opens with the found mask already in it (brush/eraser, <kbd>[</kbd>/<kbd>]</kbd>
+size, <kbd>I</kbd> invert, <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo - see section 5) and **Use this mask**
+takes it back. To start from your own photo, open **Background** in the left nav and choose
+**Upload photo**.
+
+**New background:**
+- **Photo...** any PNG, JPEG or WebP (location data is removed on upload).
+- **Describe**: type a scene ("a sunny beach") and press **Generate**; P11 makes the background and
+  puts the subject on it.
+- **Colour / transparent** a flat colour, or **Transparent** for a PNG with an alpha channel you
+  can drop into other tools.
+
+**Blend:**
+- **Harmonize** unifies the light: **Off** keeps the subject's own light, **Light** (the default)
+  matches the light near the edge, **Strong** matches harder across the subject. Each runs a
+  low-strength image pass on the graphics card.
+- **Match the colours of the background** (on by default) shifts the subject's colours towards the
+  background's, so the two look like one photo.
+- **Edge feather** softens the cut-out edge (the preview shows it).
+- **Drop shadow** adds a soft shadow under the subject.
+
+**Advanced:** **Fill frame** (crop the background to cover) or **Fit inside**, position sliders for
+the background and the subject, and the subject's size.
+
+**After applying:** the result is a child of the original in the gallery. **Keep editing this
+result** loads it back in. **Save as Template** asks where the subject comes from each run:
+**Find the subject each time** (the default: the template re-runs on any new subject), **Keep this
+mask in the template**, or **Ask for a mask each time**. The background photo becomes a template
+input ("Background photo"), so a template like "product on my studio background" asks for two
+photos and runs. Photos are never stored in a template.
+
 ## 9. Models (written in Phase 06)
 P11 ships a list of tested models (`models/manifest.toml`), not the models themselves. Each one is downloaded from its original host and checked against a pinned SHA-256 before P11 uses it.
 

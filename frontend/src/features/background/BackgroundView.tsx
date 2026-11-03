@@ -167,19 +167,23 @@ export function BackgroundView({ active }: { active: boolean }) {
     }
   };
 
-  /** Submit a job and resolve with its finished images (for Describe). */
+  /** Poll a job and resolve with its finished images (for Describe). */
   const waitForImages = (id: string): Promise<ImageEntry[]> =>
     new Promise((resolve, reject) => {
-      const stop = setInterval(() => {
-        const job = state.jobs[id];
-        if (!job || !FINISHED.has(job.state)) return;
-        clearInterval(stop);
-        if (job.state !== "done") {
-          reject(new Error(job.error?.message ?? "The background could not be generated."));
-          return;
-        }
-        Promise.all(job.images.map((i) => client.image(i))).then(resolve, reject);
-      }, 200);
+      const timer = setInterval(() => {
+        client
+          .job(id)
+          .then((job) => {
+            if (!FINISHED.has(job.state)) return;
+            clearInterval(timer);
+            if (job.state !== "done") {
+              reject(new Error(job.error?.message ?? "The background could not be generated."));
+              return;
+            }
+            Promise.all(job.images.map((i) => client.image(i))).then(resolve, reject);
+          })
+          .catch(() => undefined);
+      }, 250);
     });
 
   // Live preview through the server (same pipeline Apply runs), debounced per change.

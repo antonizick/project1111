@@ -71,6 +71,7 @@ export function galleryUrl(query: GalleryQuery): string {
 export const client = {
   submitJob: (req: JobRequest) => api<Job>("/api/jobs", json(req)),
   cancelJob: (id: string) => api<Job>(`/api/jobs/${encodeURIComponent(id)}/cancel`, json({})),
+  job: (id: string) => api<Job>(`/api/jobs/${encodeURIComponent(id)}`),
   recentJobs: () => api<Job[]>("/api/jobs?limit=20"),
   gallery: (query: GalleryQuery) => api<GalleryPage>(galleryUrl(query)),
   facets: () => api<Facets>("/api/gallery/facets"),

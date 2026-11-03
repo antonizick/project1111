@@ -98,6 +98,11 @@ _M_INV = np.linalg.inv(_M)
 _WHITE = np.array([0.95047, 1.0, 1.08883])
 #: Lab standard deviations below this are noise; stops a flat subject from being blown up.
 MIN_SIGMA = 4.0
+#: How much of the background's chroma (a/b: tint) statistics apply to the subject: mean and
+#: spread both. Lightness (L) transfers in full; limiting the tint keeps a saturated subject (a red
+#: mug) from being dragged to the background's dominant hue (tuned on the 10-pair set, see
+#: ``docs/P11_BENCHMARKS.md`` -> Background replacement).
+CHROMA_SIGMA = 0.35
 
 
 def srgb_to_lab(arr: np.ndarray) -> np.ndarray:
@@ -169,16 +174,39 @@ def colour_transfer(
     mu_s, sd_s = lab_stats(src, alpha)
     mu_d, sd_d = lab_stats(dst)
     sd_s = np.maximum(sd_s, MIN_SIGMA)
-    transferred = (src - mu_s) * (sd_d / sd_s) + mu_d
+    k = np.array([1.0, CHROMA_SIGMA, CHROMA_SIGMA])
+    transferred = (src - mu_s) * (1.0 + k * (sd_d / sd_s - 1.0)) + mu_s + k * (mu_d - mu_s)
     fade = np.clip(strength, 0.0, 1.0) * np.clip(alpha, 0.0, 1.0)[..., None]
     return lab_to_srgb(src + fade * (transferred - src))
 
 
-def unmix_spill(subject: np.ndarray, bg: np.ndarray, alpha: np.ndarray) -> np.ndarray:
-    """Remove background spill from pixels partly covered by the mask (edge decontamination)."""
+def spill_background(original: np.ndarray, alpha: np.ndarray, radius: int) -> np.ndarray:
+    """What the subject was photographed against, estimated just outside the mask.
+
+    The pixels in the feather band are a mix of subject and the **old** background; to unmix them
+    P11 needs that background's colour locally. Confident background pixels (soft alpha ~ 0) are
+    blurred with a normalized blur, so each edge pixel gets the nearby outside colours.
+    """
+    outside = (np.clip(alpha, 0.0, 1.0) < 0.02).astype(np.float32)
+    blurred_weight = np.asarray(
+        Image.fromarray((outside * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(radius)),
+        np.float32,
+    ) / 255.0
+    filled = original * outside[..., None]
+    blurred_colours = np.asarray(
+        Image.fromarray(np.clip(filled, 0, 255).astype(np.uint8)).filter(
+            ImageFilter.GaussianBlur(radius)
+        ),
+        np.float32,
+    )
+    return blurred_colours / np.maximum(blurred_weight, 1e-4)[..., None]
+
+
+def unmix_spill(subject: np.ndarray, old_bg: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """Remove old-background spill from pixels partly covered by the mask (edge decontamination)."""
     a = np.clip(alpha, 0.0, 1.0)[..., None]
     band = (a > 0.1) & (a < 0.95)
-    unmixed = (subject - (1.0 - a) * bg) / np.maximum(a, 0.05)
+    unmixed = (subject - (1.0 - a) * old_bg) / np.maximum(a, 0.05)
     return np.where(band, np.clip(unmixed, 0.0, 255.0), subject)
 
 
@@ -309,7 +337,9 @@ def compose(
 
     if params.colour_match:
         s_rgb = colour_transfer(s_rgb, soft, bg_rgb, params.colour_match_strength)
-    s_rgb = unmix_spill(s_rgb, bg_rgb, soft)
+    if (soft < 0.02).any():
+        old_bg = spill_background(s_rgb, soft, max(8, 2 * params.feather_px))
+        s_rgb = unmix_spill(s_rgb, old_bg, soft)
 
     shadow = None
     if params.shadow:

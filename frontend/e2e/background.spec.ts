@@ -140,3 +140,26 @@ test("Refine opens the mask editor seeded with the auto-mask", async ({ page }) 
   await form.getByRole("button", { name: "Colour / transparent" }).click();
   await expect(form.getByRole("button", { name: "Replace Background" })).toBeEnabled();
 });
+
+test("Describe generates a background and the subject lands on it", async ({ page }) => {
+  await openStudio(page);
+  await page
+    .getByRole("navigation", { name: "Views" })
+    .getByRole("button", { name: "Background" })
+    .click();
+  const form = page.getByRole("form", { name: "Background" });
+  await form.getByLabel("Upload photo").setInputFiles({
+    name: "subject.png",
+    mimeType: "image/png",
+    buffer: await syntheticPng(page, 512, 384, "#631", "#a85"),
+  });
+  await expect(form.getByRole("button", { name: "Refine mask" })).toBeEnabled({
+    timeout: 15_000,
+  });
+  await form.getByLabel("Describe the background").fill("a sunny beach");
+  await form.getByRole("button", { name: "Generate" }).click();
+  await expect(form.getByRole("img", { name: "Background" })).toBeVisible({ timeout: 30_000 });
+  await form.getByRole("button", { name: "Replace Background" }).click();
+  const done = page.getByRole("region", { name: "Background result" });
+  await expect(done.getByRole("img", { name: /New background/ })).toBeVisible();
+});

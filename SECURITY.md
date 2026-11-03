@@ -23,6 +23,7 @@ The security and privacy baseline is spec Amendments S1–S10 in [`docs/P11_SPEC
 Model weights are code-adjacent: pickle-based formats (`.ckpt`, `.pt`, `.pth`, `.bin`) can execute arbitrary code when loaded. P11 (ADR-0021, spec S4):
 - downloads curated models only over HTTPS from the pinned commit named in `models/manifest.toml`, and deletes any file whose size or SHA-256 differs;
 - identifies user-added files by content and refuses pickle formats unless `--allow-pickle` is given for that file (with a warning); `p11 doctor` keeps warning about such files;
+- loads only tensor-only formats: `.safetensors`, `.gguf` and (for curated, hash-pinned entries that exist only in that form, such as the segmentation model) `.onnx` — an ONNX graph holds tensors and cannot execute code the way a pickle can;
 - reads optional tokens only from `~/.config/p11/secrets.toml` with mode `0600`, sends each token only to its own host (never across a redirect to another host) and never logs it.
 Report a manifest entry whose source changed, or a way to load an unverified file, as a vulnerability.
 

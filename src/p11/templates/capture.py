@@ -118,7 +118,7 @@ def capture_template(
                 update={"mask_mode": "auto", "mask_slot": None, "mask_png": None}
             )
             fixed.add(step.mask_slot)
-        elif mask_mode == "fixed" and step.mask_slot in (masks or {}):
+        elif step.mask_slot in (masks or {}):
             png = base64.b64encode((masks or {})[step.mask_slot]).decode()
             steps[i] = step.model_copy(update={"mask_slot": None, "mask_png": png})
             fixed.add(step.mask_slot)
