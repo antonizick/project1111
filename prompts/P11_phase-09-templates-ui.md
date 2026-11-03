@@ -7,6 +7,8 @@
 
 **Phase 04 results (2026-11-02 18:27 CST):** `p11.templates.store.TemplateStore` already does save (slugged file names, same-ID overwrite, `-2` suffixes), folders (≤ 3 levels), search by name/tag/folder, `export`/`import_bytes` (validated and migrated; imports get a new ID unless `keep_id`), and `problems()` for unreadable files. Slots are `Slot(name, kind, label, required, default)`; text slots are referenced as `{{name}}` in prompts. Build the UI on it rather than a second store.
 
+**Phase 07 results (2026-11-02 23:50 CST):** templates CRUD is already served: `GET/POST /api/templates`, `GET/PUT/DELETE /api/templates/{id}`, `GET /api/templates/{id}/export` (attachment), `POST /api/templates/import` (raw JSON body, ≤ 1 MB), `GET /api/templates/folders`; each item is `{id, name, folder, slug, tags, slots, recipe}`. Applying a template is `POST /api/jobs {recipe, bindings, template: <slug>}` (the slug names the output folder and the gallery filter). Image slots take `{"ref": "img-…"}` from `POST /api/uploads` or `{"ref": "gallery/<id>"}` for an earlier output. Use `api()` from `frontend/src/api/session.ts`.
+
 ## Goal
 Any successful result becomes a reusable one-click template in ≤ 3 actions, and templates run with one click (plus one action per unfilled input slot). P11 ships starter templates for Nick's repeated jobs: photoreal wallpapers, software/indie-game logos and 3D animated avatars.
 

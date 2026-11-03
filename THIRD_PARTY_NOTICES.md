@@ -41,6 +41,7 @@ Direct runtime dependencies as locked in Phase 02 (versions and licences read fr
 | nvidia-ml-py (`pynvml` module) | 13.615.71 | BSD-3-Clause | https://pypi.org/project/nvidia-ml-py/ | NVIDIA's NVML binding; loads the driver's `libnvidia-ml` at run time (Phase 05, ADR-0020) |
 | react, react-dom | 19.3.1 | MIT | https://www.npmjs.com/package/react | none |
 | vite | 8.3.5 | MIT | https://www.npmjs.com/package/vite | none |
+| ffmpeg / ffprobe (system package) | 9.0.2 (Arch `2:9.0.2-2`) | GPL-3.0-only (Arch build) | https://ffmpeg.org/ | not bundled: run as separate programs to check and remux uploaded videos (Phase 07, ADR-0022); licence read with `pacman -Qi ffmpeg` 2026-11-02 23:52 CST |
 
 ## Models
 Picked by Phase 03 (ADR-0018) and pinned in `models/manifest.toml` by Phase 06 (ADR-0021). Revision, size, SHA-256 and licence tag re-read from the Hugging Face API, the hash recomputed over the downloaded file and the licence URLs fetched on 2026-11-02 19:42 CST. Weights are never committed or redistributed; P11 downloads them from these repositories at the pinned commit. Phase 16 audits.
@@ -61,6 +62,7 @@ Picked by Phase 03 (ADR-0018) and pinned in `models/manifest.toml` by Phase 06 (
 | pre-commit-hooks | v6.0.0 | MIT | https://github.com/pre-commit/pre-commit-hooks | none |
 | pytest, pytest-asyncio, pytest-cov | 9.2.0 / 1.4.1.post1 / 7.1.0 | MIT / Apache-2.0 / MIT | https://pypi.org/ | dev only |
 | hypothesis | 6.170.14 | MPL-2.0 | https://pypi.org/project/hypothesis/ | dev only (property tests) |
+| httpx2, httpcore2, truststore | 2.16.0 / 2.16.0 / 0.10.5 | BSD-3-Clause / BSD-3-Clause / MIT | https://pypi.org/project/httpx2/ | dev only: Starlette's `TestClient` transport (licences read from PyPI 2026-11-02 23:39 CST; Phase 07) |
 | ruff, mypy, pip-audit | 0.17.3 / 2.4.1 / 2.10.1 | MIT / MIT / Apache-2.0 | https://pypi.org/ | dev only |
 | vitest, jsdom, Testing Library, eslint, typescript-eslint, prettier, typescript | 5.1.0 / 30.1.3 / 16.3.3 / 10.14.0 / 8.72.1 / 3.9.10 / 6.0.3 | MIT (typescript: Apache-2.0) | https://www.npmjs.com/ | dev only |
 | @playwright/test | 1.64.1 | Apache-2.0 | https://www.npmjs.com/package/@playwright/test | dev only; downloads Chromium to `~/.cache/ms-playwright` |

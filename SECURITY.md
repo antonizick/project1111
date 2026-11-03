@@ -25,3 +25,17 @@ Model weights are code-adjacent: pickle-based formats (`.ckpt`, `.pt`, `.pth`, `
 - identifies user-added files by content and refuses pickle formats unless `--allow-pickle` is given for that file (with a warning); `p11 doctor` keeps warning about such files;
 - reads optional tokens only from `~/.config/p11/secrets.toml` with mode `0600`, sends each token only to its own host (never across a redirect to another host) and never logs it.
 Report a manifest entry whose source changed, or a way to load an unverified file, as a vulnerability.
+
+## The local service (Phase 07)
+P11 Studio is a web server on your own machine, and any web page you visit can try to talk to it. It defends itself as follows (ADR-0022, spec S1, S2, S6, S8):
+- It listens on `127.0.0.1` only; the engine (ComfyUI) also listens on `127.0.0.1` and is never reachable from the browser.
+- **DNS rebinding:** requests whose `Host` is not `127.0.0.1:<port>` or `localhost:<port>` are refused.
+- **Cross-site requests:** a request from another origin (`Origin`, `Sec-Fetch-Site`) that would change anything, or that reads `/api`, is refused; the API sends no CORS headers.
+- **Session token:** a new random token per Studio launch, stored `0600` in `$XDG_RUNTIME_DIR/p11/`. `p11 open` passes the browser a one-time launch code (valid 2 minutes) in the URL fragment, never the token. API calls carry the token in a header; the `HttpOnly`, `SameSite=Strict` cookie is accepted for reads only. Other programs running as **your** user can read the token file; that is out of scope (they could read your pictures too).
+- **Content-Security-Policy** `default-src 'self'` (no remote scripts, styles, fonts or frames), `nosniff`, `no-referrer`, no framing.
+- **Uploads** are checked by content, not name: images are decoded and re-saved as PNG without EXIF (GPS included); videos are probed by ffprobe, limited to known containers and codecs, and re-muxed without metadata. Stored names are generated; the browser only ever sees an opaque ID.
+- **Request size limits:** 1 MB for API calls, 64 MB per image, 1 GB per video.
+- **Logs** (`~/.cache/p11/logs/studio.log`, `0600`) never contain the token, launch codes, prompt text or file contents at the default level; `--debug` adds prompt text but still redacts the token.
+- FastAPI's built-in OpenTelemetry hooks are switched off; nothing is sent anywhere.
+
+Report a way to reach the API from a web page, read another user's outputs, get a file outside P11's folders, or find the token in a log as a vulnerability.

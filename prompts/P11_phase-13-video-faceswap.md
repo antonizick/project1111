@@ -7,6 +7,8 @@
 
 **Phase 05 results (2026-11-02 19:28 CST):** use `p11.gpu.telemetry.ThermalGuard(settings.thermal_pause_c, settings.thermal_resume_c)` (defaults 87 / 80 °C, H9; `Settings` enforces resume < pause) fed from `stream(default_sampler())`; `GpuSample.thermal_throttled` reports the thermal clock-event bits. Per-frame runs should go through `run_with_oom_retry`; interrupt latency is ~0.5 s.
 
+**Phase 07 results (2026-11-02 23:50 CST):** videos upload with `POST /api/uploads?kind=video` (ffprobe-checked, container/codec allowlist in `p11/media/validate.py`, metadata-free remux into `~/.local/share/p11/inputs/vid-<hex>.mp4|.mkv`; `seconds`, `width`, `height` and R13 `warnings` come back; `settings.video_warn_seconds` / `video_warn_height` are the 60 s / 1080p limits). The job model already has `paused` and the thermal hook: call `await control.checkpoint(long=True)` (a `p11.jobs.runner.JobControl`) between frame batches; it raises `EngineInterrupted` on cancel and waits in `paused` (with a note) while `ThermalWatch` says the GPU is hot. Jobs left running at a Studio restart become `failed` with `job.interrupted`; the resumable video job must keep its own frame progress to resume from.
+
 ## Goal
 Short joke clips need no scripting. You upload a clip and a face photo, press **Swap**, and get back an MP4 with the original audio. Along the way the job shows clear progress and an ETA, pauses when the laptop runs hot, can be cancelled, and resumes after a crash. It runs on the same face-swap engine and the same NSFW guard as Phase 12.
 

@@ -5,7 +5,7 @@ Skeleton from Phase 01; each phase updates the sections it changes. Canonical re
 ## Components
 ```
 Browser (P11 Studio, React/TS)
-   │  HTTP + WebSocket/SSE, 127.0.0.1 only, token + Host/Origin checks
+   │  HTTP + SSE, 127.0.0.1 only, token + Host/Origin checks (ADR-0022)
    ▼
 Studio API (FastAPI)            src/p11/api
    ▼
@@ -21,6 +21,17 @@ Recipes (`src/p11/recipe`) are pure data compiled to engine graphs; nothing outs
 ## Data locations (spec R8)
 User data follows XDG paths (config, data, cache, state); the exact layout is fixed in Phase 02 (`paths.py`). The advisory GPU lock is `~/.cache/p11/gpu.lock`. Weights, outputs and uploads are never inside the repository.
 
+| Path | What | Phase |
+|---|---|---|
+| `~/Pictures/P11/YYYY-MM-DD/<template\|adhoc>/` | outputs (`0600`) + sidecars, dirs `0700` | 04 |
+| `~/.local/share/p11/gallery.db`, `jobs.db` | gallery index (cache of the sidecars), job table | 04, 07 |
+| `~/.local/share/p11/inputs/` | validated uploads `img-<hex>.png`, `vid-<hex>.mp4/.mkv` + `.json` meta, `0700`/`0600`; `.incoming/` spool | 07 |
+| `$XDG_RUNTIME_DIR/p11/studio.token`, `studio.json` | per-launch session token and the running Studio's pid/port (`0600`) | 07 |
+| `~/.cache/p11/logs/studio.log`, `studio.out` | JSON Studio log (rotated, redacted), stdout of `p11 start` | 07 |
+| `~/.cache/p11/thumbs/` | gallery thumbnails (WebP) | 07 |
+| `~/.cache/p11/fake/` | `p11 serve --fake` sandbox (demo gallery, data, templates) | 07 |
+| `~/.config/p11/templates/` | template store | 04 |
+
 ## Trust boundaries
 - **Browser ↔ Studio API:** untrusted input; Host/Origin/token checks, CSP, upload validation.
 - **Studio API ↔ engine:** loopback only; the engine is never exposed beyond `127.0.0.1`.
@@ -30,15 +41,16 @@ User data follows XDG paths (config, data, cache, state); the exact layout is fi
 ## Package map (Phase 02)
 | Path | Role | Status |
 |---|---|---|
-| `src/p11/cli.py` | Typer app: `version`, `paths`, `serve`, `models …` (Phase 06); stubs `start stop status open doctor update` | real (stubs print the owning phase) |
+| `src/p11/cli.py` | Typer app: `version`, `paths`, `serve`, `start`, `stop`, `status`, `open`, `doctor` (Phase 07), `models …` (Phase 06); stub `update` (Phase 15) | real |
 | `src/p11/paths.py` | XDG config/data/cache/pictures with `P11_*_DIR` overrides; `ensure_private_dir()` makes `0700` dirs | real |
 | `src/p11/config.py` | `Settings` from `~/.config/p11/config.toml` and `P11_*` env; host must be `127.0.0.1` (S1) | real |
 | `src/p11/gpulock.py` | `gpu_lock(timeout, holder)`: `flock` on `~/.cache/p11/gpu.lock`, holder info (pid, name, start) readable by waiters (R24) | real |
-| `src/p11/api/app.py` | `create_app(engine=…)`: `GET /healthz`, serves `src/p11/web/` at `/` when built, keeps the engine on `app.state.engine` | real (middleware arrives in Phase 07) |
+| `src/p11/api/` | Studio API (Phase 07, below): `create_app()`, `SecurityMiddleware`, routes, the `Studio` container | real |
 | `src/p11/{engine,gpu}/` | engine adapter and GPU telemetry (Phase 05, below) | real |
-| `src/p11/{jobs,media}/` | empty packages with docstrings naming the owning phase | skeleton |
+| `src/p11/jobs/`, `src/p11/media/` | job queue, runner, events, persisted jobs; upload validation and the input store (Phase 07, below) | real |
+| `src/p11/lifecycle.py`, `doctor.py`, `logs.py` | background Studio process (`studio.json`), `p11 doctor` checks, JSON log with redaction (Phase 07) | real |
 | `src/p11/{recipe,outputs,templates}/` | recipe core (Phase 04, below) | real |
-| `frontend/` | Vite + React + TS (strict); `vite build` writes to `src/p11/web/` (git-ignored) | placeholder page |
+| `frontend/` | Vite + React + TS (strict); `vite build` writes to `src/p11/web/` (git-ignored); `src/api/session.ts` redeems the launch code (Phase 07) | placeholder page with a working session |
 
 ## Engine install (Phase 03)
 | Path | Role |
@@ -125,4 +137,40 @@ Quality gates: `make check` (see `CONTRIBUTING.md`); CI runs the same target.
 
 **Tests.** `tests/fixtures/model_server.py` is a loopback HTTP server with Range, cut-off connections, redirects and request recording; `Downloader(insecure_hosts=…)` and `parse_manifest(…, loopback_http=True)` are the only ways to use plain http (tests). `tests/net/` holds the one real download (the smallest default entry), run with `P11_NET_TESTS=1`.
 
-_To be detailed in Phase 07 and the Phase 16 threat model._
+## Studio API (Phase 07)
+```
+browser ──HTTP/SSE──► AccessLog ─► SecurityMiddleware ─► FastAPI routes ─► Studio
+                         (Host, Origin/Sec-Fetch-Site, token/cookie,      │
+                          CSP + headers, body caps)                       ├─ JobQueue ─► Runner ─► Engine
+                                                                          ├─ GalleryIndex, JobStore (SQLite)
+                                                                          ├─ InputStore, TemplateStore
+                                                                          └─ EventBus ─► GET /api/events
+```
+`create_app(web_dir, engine, *, settings, session, port, fake, studio_paths, sampler, seed_demo)` builds a `Studio` (`api/studio.py`); its lifespan opens the SQLite stores on the event-loop thread, starts the job worker and (with a GPU) the ≤ 1 Hz GPU publisher, and on shutdown cancels jobs and stops the engine. ADR-0022.
+
+**Security middleware** (`api/security.py`): Host must be `127.0.0.1:<port>` or `localhost:<port>` (421); a foreign `Origin` or cross-site `Sec-Fetch-Site` is refused on state-changing requests and on every `/api` read (403); `/api` needs the session token in `Authorization: Bearer` / `X-P11-Token`, or the `p11_session` cookie for `GET`/`HEAD` only (401); `POST /api/session` (launch code → token) is the one public `/api` route; websockets are refused. Every response gets the CSP (`default-src 'self'; img-src 'self' blob: data:; …; object-src 'none'; frame-ancestors 'none'`), `nosniff`, `no-referrer`, `X-Frame-Options: DENY`, COOP/CORP; `/api` responses are `no-store`. Body caps: 1 MiB, uploads 1 GiB (413). `/healthz` and the static UI need no token.
+
+**Routes** (`api/routes/`; errors are always `{"code", "message", "hint"}`):
+
+| Route | Purpose |
+|---|---|
+| `POST /api/session` · `GET /api/session` · `POST /api/session/launch` | redeem a launch code (sets the cookie, returns the token) · check the session · mint a launch code (`p11 open`) |
+| `POST /api/jobs` · `GET /api/jobs` · `GET /api/jobs/{id}` · `POST /api/jobs/{id}/cancel` | `{recipe, bindings, count 1–16, template?, parent?}` → 201 job (validated by compiling first) · recent jobs · one job · cancel (queued: at once; running: engine interrupt) |
+| `GET /api/events` | SSE: `hello`, `job`, `progress`, `preview`, `image`, `gpu`; IDs increase; `Last-Event-ID` replays |
+| `GET /api/gallery` | `q` (prefix word search), `template`, `favourites`, `since`/`until` (ISO), `limit`/`offset` → `{items, total, limit, offset}` |
+| `GET /api/images/{id}` · `/info` · `/thumb?size=` · `/recipe` | PNG · entry · WebP thumbnail (256/384/512, cached) · run record (sidecar, else PNG chunks) |
+| `POST /api/images/{id}/favourite` · `/export` | `{favourite}` · `{strip_metadata: true}` → PNG download |
+| `POST /api/uploads?kind=image\|mask\|video` · `GET /api/uploads/{id}` · `/info` | raw-body upload → `{id, kind, width, height, sha256, seconds, warnings}` · the stored file · its metadata |
+| `GET/POST /api/templates` · `GET/PUT/DELETE /api/templates/{id}` · `/export` · `POST /api/templates/import` · `GET /api/templates/folders` | template store (Phase 04) |
+| `GET /api/presets` · `GET /api/models` · `GET /api/system` | aspect and style presets · `p11 models list --json` objects · engine health, GPU sample, queue, disk |
+| `GET /api/openapi.json` | the schema (behind the token; no docs UI) |
+
+**Job model** (`jobs/`): `JobStore` (SQLite `jobs.db`) holds `id, state, recipe, bindings, count, template, parent, images, progress, error, note`; states `queued → running ⇄ paused → done | failed | cancelled`. `JobQueue` has one worker: lazy engine start, `Runner.run` per job, idle stop after `engine_idle_stop` s, `lowvram → dynamic` reset after 60 s idle; `mark_interrupted()` at startup. `Runner` resolves seeds, compiles, uploads slot/source/step inputs (`img-…` uploads or `gallery/<id>` images), runs each graph through `run_with_oom_retry`, saves every output (`output_path`, sidecar, `embed_record`, `GalleryIndex.add`, parent chain) and publishes events. `JobControl.checkpoint(long=…)` is the cancel point and the `ThermalWatch` hook (87/80 °C). `jobs/errors.py` maps every typed error to `(HTTP status, JobError)`.
+
+**Uploads** (`media/`): `validate_image` (Pillow decode, PNG/JPEG/WebP, ≤ 40 MP, EXIF transpose, PNG re-encode without EXIF/text; masks → `L`), `check_video`/`probe_video` (ffprobe; mp4/mov or mkv/webm; h264/hevc/vp8/vp9/av1/mpeg4; ≤ 600 s, ≤ 2160p; warnings beyond R13's 60 s/1080p settings), `strip_video_metadata` (stream-copy remux, `-map_metadata -1`). `InputStore` names files `img-<uuid hex>`/`vid-<uuid hex>`.
+
+**CLI lifecycle** (`lifecycle.py`): `p11 serve` writes the token and `studio.json` and removes them on exit; `p11 start` = detached `python -m p11 serve` + `/healthz` wait; `p11 stop` = SIGTERM (graceful: the lifespan stops the engine) then SIGKILL after 30 s, only to a pid whose cmdline is `p11 serve`; `p11 status` reads `/api/system` (exit 3 when not running); `p11 open` mints a launch code and runs `omarchy-launch-webapp <url>` / `<chromium-family> --app=<url>` / `xdg-open` (`$P11_BROWSER` overrides; `--print-url` prints it). `p11 doctor` (`doctor.py`) checks the GPU (`nvidia-smi`), the engine install and pinned version (`comfyui_version.py` vs `engine.lock.toml`), the engine's torch/CUDA/sm arch (skipped by `--quick`), models (`p11.models.check()`), ports, disk and permissions; exit 1 on any error.
+
+**Logging** (`logs.py`): JSON lines, rotated 5 MB × 3, `0600`; uvicorn's access log off; `AccessLog` writes method, path, status, ms; `debug_private` for prompt text (DEBUG only); `register_secret` redacts the token and launch codes everywhere.
+
+_The Phase 16 threat model builds on this section._

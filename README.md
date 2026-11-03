@@ -2,14 +2,15 @@
 
 P11 is a fully local image-generation system for Omarchy Linux, tuned for a laptop with an 8 GB NVIDIA GPU. **P11 Studio** is its own browser form UI (Vite, React, TypeScript) with a Python service (FastAPI, Typer CLI, SQLite) that drives a pinned, headless ComfyUI engine reachable only on `127.0.0.1`. Planned features: photoreal text-to-image at wallpaper resolutions, one-click templates, inpainting, background replacement with your own photos, face-swap, pose and reference control, short-video face-swap, and a curated, hash-pinned model set.
 
-> **Status: pre-release, under construction.** The repository holds the specification, the implementation plan, the project governance files and the Python/React scaffold (CLI, `/healthz`, placeholder page), the pinned engine with its benchmarks, and the recipe core (recipe schema, presets, recipe → engine graph compiler, output layout and metadata, gallery index, template store). There is no installable product yet. Progress is tracked in [`P11_IMPLEMENTATION_PLAN.md`](P11_IMPLEMENTATION_PLAN.md).
+> **Status: pre-release, under construction.** The repository holds the specification, the implementation plan, the project governance files and the Python/React scaffold (CLI, `/healthz`, placeholder page), the pinned engine with its benchmarks, and the recipe core (recipe schema, presets, recipe → engine graph compiler, output layout and metadata, gallery index, template store), the engine adapter, the model manager, and the Studio API with its job queue and `p11 start/stop/status/open/doctor`. The browser UI is still a placeholder page and there is no installer yet. Progress is tracked in [`P11_IMPLEMENTATION_PLAN.md`](P11_IMPLEMENTATION_PLAN.md).
 
 ## Development quick start
 ```bash
 make setup        # uv sync, npm ci, pinned tools (see CONTRIBUTING.md)
 make build        # builds the frontend into src/p11/web/
-uv run p11 serve  # http://127.0.0.1:8111/ , /healthz
-uv run p11 serve --fake  # same, with the FakeEngine (no GPU or ComfyUI needed)
+uv run p11 start && uv run p11 open   # Studio in the background, app window with a one-time session link
+uv run p11 status / stop / doctor     # state, stop, health checks with fix hints
+uv run p11 serve --fake  # foreground, with the FakeEngine and a demo gallery (no GPU or ComfyUI needed)
 uv run p11 models list   # curated models and their state; `p11 models install default` (14.4 GB)
 make check        # all quality gates (no GPU)
 ```
