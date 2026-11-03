@@ -50,7 +50,10 @@ export function ImageActions({
       <button type="button" className="btn" onClick={() => actions.inpaint(image)}>
         Inpaint
       </button>
-      {(["background", "face"] as const).map((k) => (
+      <button type="button" className="btn" onClick={() => actions.background(image)}>
+        Background
+      </button>
+      {(Object.keys(LATER) as (keyof typeof LATER)[]).map((k) => (
         <button
           key={k}
           type="button"

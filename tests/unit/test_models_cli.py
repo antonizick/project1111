@@ -189,4 +189,4 @@ def test_real_manifest_through_cli(tmp_path, monkeypatch):
     r = runner.invoke(app, ["models", "install", "default", "--dry-run", "--json"])
     assert r.exit_code == 0, r.output
     data = json.loads(r.stdout)
-    assert data["total_bytes"] == data["download_bytes"] == 14_407_645_302
+    assert data["total_bytes"] == data["download_bytes"] == 14_631_650_390

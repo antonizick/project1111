@@ -15,6 +15,11 @@ from .registry import Family
 DEFAULT_MODEL = "realvisxl5-lightning"
 QUALITY_MODEL = "juggernautxl9"
 DEFAULT_UPSCALER = "4x-nomos-webphoto-realplksr"
+#: Subject segmentation model for background replacement (Phase 11, ADR-0026).
+DEFAULT_SEGMENTER = "birefnet-lite"
+#: Harmonize (``relight``) denoise per UI preset (Off / Light / Strong), tuned in Phase 11
+#: (``docs/P11_BENCHMARKS.md`` → Background replacement, ADR-0027).
+HARMONIZE_PRESETS: dict[str, float] = {"light": 0.25, "strong": 0.45}
 
 #: Hires-pass denoise per refinement chain (ADR-0010).
 HIRES_DENOISE: dict[str, float] = {"latent": 0.45, "both": 0.3}

@@ -132,5 +132,17 @@ PROVISIONAL_DEFAULT_SET = StaticRegistry(
             "735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75",
             "sd15",
         ),
+        ModelInfo(
+            "birefnet-lite",
+            "segmentation",
+            "birefnet-lite.onnx",
+            "5600024376f572a557870a5eb0afb1e5961636bef4e1e22132025467d0f03333",
+        ),
+        ModelInfo(
+            "birefnet",
+            "segmentation",
+            "birefnet.onnx",
+            "58f621f00f5d756097615970a88a791584600dcf7c45b18a0a6267535a1ebd3c",
+        ),
     ]
 )

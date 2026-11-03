@@ -25,8 +25,9 @@ from p11.engine.recovery import OOM_MESSAGE, run_with_oom_retry
 
 REPO = Path(__file__).resolve().parents[2]
 GOLDEN_ALL = sorted((REPO / "tests/golden/compile").glob("*.json"))
-GOLDEN = [p for p in GOLDEN_ALL if not p.stem.startswith("inpaint__")]
-INPAINT_GOLDEN = [p for p in GOLDEN_ALL if p.stem.startswith("inpaint__")]
+# Goldens whose LoadImage/LoadImageMask placeholders are bound to uploads before running.
+GOLDEN = [p for p in GOLDEN_ALL if not p.stem.startswith(("inpaint__", "background__"))]
+INPAINT_GOLDEN = [p for p in GOLDEN_ALL if p.stem.startswith(("inpaint__", "background__"))]
 
 
 @pytest.fixture
@@ -64,7 +65,7 @@ async def test_golden_graphs_run(fake: FakeEngine, path: Path) -> None:
 
 @pytest.mark.parametrize("path", INPAINT_GOLDEN, ids=lambda p: p.stem)
 async def test_inpaint_golden_graphs_run(fake: FakeEngine, path: Path) -> None:
-    """The inpaint goldens run once their image/mask placeholders are bound to uploads."""
+    """Inpaint and background goldens run once their placeholders are bound to uploads."""
     nodes = json.loads(path.read_text())
     image = await fake.upload(synthetic_png(64, 48), "image")
     mask = await fake.upload(synthetic_png(64, 48), "mask")

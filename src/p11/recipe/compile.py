@@ -97,11 +97,12 @@ class UnsupportedStepError(CompileError):
 class GraphInput:
     """A ``LoadImage`` node the job runner must feed before queueing the graph.
 
-    ``inline`` inputs carry their bytes (a template's fixed inpaint mask); the others name a file.
+    ``inline`` inputs carry their bytes (a template's fixed inpaint mask); ``local`` inputs are fed
+    from the same step's local output (``p11:local:<name>``); the others name a file.
     """
 
     node_id: str
-    source: Literal["slot", "step", "source", "inline"]
+    source: Literal["slot", "step", "source", "inline", "local"]
     placeholder: str
     slot: str | None = None
     step: int | None = None
@@ -150,6 +151,32 @@ class EngineGraph:
         return json.dumps(
             self.nodes, sort_keys=True, separators=(",", ":"), ensure_ascii=False
         ).encode()
+
+
+@dataclass(frozen=True)
+class LocalStep:
+    """Work the job runner does in P11 instead of on the engine (ADR-0027).
+
+    ``replace_background`` segments and composites on the CPU (``p11.media.composite``) and only
+    its optional harmonize pass is an engine graph; ``text_overlay`` (Phase 14) is local only.
+    The runner resolves ``inputs`` exactly like graph inputs, runs the operation named by ``op``
+    with the pure ``params``, and keeps its named byte outputs (``image``, ``mask``) for the
+    ``engine`` tail and for the save path. A step compiles to one item, or to a local step plus
+    its engine tail.
+    """
+
+    step_index: int
+    step_type: str
+    op: str
+    params: Mapping[str, Any]
+    inputs: tuple[GraphInput, ...]
+    models: tuple[str, ...] = ()
+    size: tuple[int, int] | None = None
+    #: Engine pass run on the local outputs (``p11:local:…`` inputs), e.g. the harmonize pass.
+    engine: EngineGraph | None = None
+
+
+PlanItem = EngineGraph | LocalStep
 
 
 # ---------------------------------------------------------------------------------------------
@@ -241,53 +268,69 @@ class CompileContext:
             )
         return info
 
-    def load_image(self, g: GraphBuilder, slot: str | None) -> Ref:
-        """A ``LoadImage`` fed from ``slot``, else the previous step's output, else the source."""
+    def resolve_input(self, slot: str | None) -> GraphInput:
+        """Where an image comes from (no node): ``slot``, the previous step, or the source."""
         if slot is not None:
             bound = self.bindings.get(slot)
             if not isinstance(bound, FileRef):
                 raise SlotBindingError(slot, f"{self.where} needs an image for {slot!r}.")
-            placeholder = f"p11:slot:{slot}"
             kinds = {s.name: s.kind for s in self.recipe.slots}
             kind: Literal["image", "mask"] = "mask" if kinds.get(slot) == "mask" else "image"
-            inp = GraphInput("", "slot", placeholder, slot=slot, file=bound, kind=kind)
-        elif self.previous_step is not None:
-            placeholder = f"p11:step:{self.previous_step}"
-            inp = GraphInput("", "step", placeholder, step=self.previous_step)
-        elif self.recipe.source_image is not None:
-            placeholder = "p11:source"
-            inp = GraphInput("", "source", placeholder, file=self.recipe.source_image)
-        else:
-            raise CompileError(f"{self.where} needs an input image, but none comes before it.")
-        ref = g.node("LoadImage", image=placeholder)
+            return GraphInput("", "slot", f"p11:slot:{slot}", slot=slot, file=bound, kind=kind)
+        if self.previous_step is not None:
+            return GraphInput("", "step", f"p11:step:{self.previous_step}", step=self.previous_step)
+        if self.recipe.source_image is not None:
+            return GraphInput("", "source", "p11:source", file=self.recipe.source_image)
+        raise CompileError(f"{self.where} needs an input image, but none comes before it.")
+
+    def load_image(self, g: GraphBuilder, slot: str | None) -> Ref:
+        """A ``LoadImage`` fed from ``slot``, else the previous step's output, else the source."""
+        inp = self.resolve_input(slot)
+        ref = g.node("LoadImage", image=inp.placeholder)
         g.inputs.append(replace(inp, node_id=ref[0]))
         return ref
 
+    def mask_input(self, slot: str | None, inline: bytes | None = None) -> GraphInput:
+        """Where a mask comes from (no node): ``inline`` bytes or the ``slot``'s file."""
+        if inline is not None:
+            return GraphInput(
+                "", "inline", f"p11:inline:{self.step_index}", data=inline, kind="mask"
+            )
+        if slot is None:
+            raise CompileError(f"{self.where} needs a mask.")
+        bound = self.bindings.get(slot)
+        if not isinstance(bound, FileRef):
+            raise SlotBindingError(slot, f"{self.where}: paint or upload a mask for {slot!r}.")
+        return GraphInput("", "slot", f"p11:slot:{slot}", slot=slot, file=bound, kind="mask")
+
     def load_mask(self, g: GraphBuilder, slot: str | None, inline: bytes | None = None) -> Ref:
         """A ``LoadImageMask`` (red channel of a greyscale PNG) fed from ``slot`` or ``inline``."""
-        if inline is not None:
-            placeholder = f"p11:inline:{self.step_index}"
-            inp = GraphInput("", "inline", placeholder, data=inline, kind="mask")
+        inp = self.mask_input(slot, inline)
+        ref = g.node("LoadImageMask", image=inp.placeholder, channel="red")
+        g.inputs.append(replace(inp, node_id=ref[0]))
+        return ref
+
+    def load_local(self, g: GraphBuilder, name: str, *, mask: bool = False) -> Ref:
+        """A ``LoadImage``/``LoadImageMask`` fed from this step's local output ``name``."""
+        placeholder = f"p11:local:{name}"
+        inp = GraphInput("", "local", placeholder, kind="mask" if mask else "image")
+        if mask:
+            ref = g.node("LoadImageMask", image=placeholder, channel="red")
         else:
-            if slot is None:
-                raise CompileError(f"{self.where} needs a mask.")
-            bound = self.bindings.get(slot)
-            if not isinstance(bound, FileRef):
-                raise SlotBindingError(slot, f"{self.where}: paint or upload a mask for {slot!r}.")
-            placeholder = f"p11:slot:{slot}"
-            inp = GraphInput("", "slot", placeholder, slot=slot, file=bound, kind="mask")
-        ref = g.node("LoadImageMask", image=placeholder, channel="red")
+            ref = g.node("LoadImage", image=placeholder)
         g.inputs.append(replace(inp, node_id=ref[0]))
         return ref
 
 
 StepCompiler = Callable[[Any, CompileContext, GraphBuilder], Ref]
+#: A step that is not one engine graph: local work (``p11.media``) and optionally an engine tail.
+PlanCompiler = Callable[[Any, CompileContext], list[PlanItem]]
 ModifierCompiler = Callable[[Any, CompileContext, GraphBuilder, Conditioning], Conditioning]
 
 _STEP_COMPILERS: dict[str, StepCompiler] = {}
+_PLAN_COMPILERS: dict[str, PlanCompiler] = {}
 _MODIFIERS: dict[str, ModifierCompiler] = {}
 _NOT_YET = {
-    "replace_background": "Phase 11",
     "face_swap": "Phase 12",
     "pose": "Phase 12",
     "reference": "Phase 12",
@@ -302,6 +345,13 @@ def register_step(step_type: str, fn: StepCompiler, *, replace: bool = False) ->
     _STEP_COMPILERS[step_type] = fn
 
 
+def register_plan_step(step_type: str, fn: PlanCompiler, *, replace: bool = False) -> None:
+    """Register a compiler returning plan items (local steps / graphs), not one graph."""
+    if step_type in _PLAN_COMPILERS and not replace:
+        raise ValueError(f"a compiler for {step_type!r} is already registered")
+    _PLAN_COMPILERS[step_type] = fn
+
+
 def register_modifier(step_type: str, fn: ModifierCompiler, *, replace: bool = False) -> None:
     """Register a modifier (pose, reference) that rewrites a ``generate`` graph's conditioning."""
     if step_type in _MODIFIERS and not replace:
@@ -311,6 +361,7 @@ def register_modifier(step_type: str, fn: ModifierCompiler, *, replace: bool = F
 
 def unregister(step_type: str) -> None:
     _STEP_COMPILERS.pop(step_type, None)
+    _PLAN_COMPILERS.pop(step_type, None)
     _MODIFIERS.pop(step_type, None)
 
 
@@ -361,6 +412,22 @@ def resolve_bindings(recipe: Recipe, bindings: Bindings) -> dict[str, str | File
 # Driver
 
 
+def graph_from(g: GraphBuilder, ctx: CompileContext, image: Ref) -> EngineGraph:
+    """Wrap a finished graph builder around its IMAGE output (adds the ``SaveImage`` node)."""
+    out = g.node("SaveImage", images=image, filename_prefix=f"p11/step-{ctx.step_index:02d}")
+    return EngineGraph(
+        ctx.step_index,
+        ctx.recipe.steps[ctx.step_index].type,
+        g.nodes,
+        out[0],
+        tuple(g.inputs),
+        tuple(g.models),
+        ctx.seed,
+        g.size,
+        g.prep,
+    )
+
+
 def compile(
     recipe: Recipe,
     bindings: Bindings,
@@ -368,9 +435,11 @@ def compile(
     *,
     seed: int | None = None,
     run_index: int = 0,
-) -> list[EngineGraph]:
-    """Compile ``recipe`` into engine graphs, one per graph-producing step, in order.
+) -> list[PlanItem]:
+    """Compile ``recipe`` into plan items (engine graphs and local steps), in order.
 
+    A step compiles to one item, or (``replace_background``) to a local step plus its engine tail;
+    each item's output is the input of the next, and the last item of a step is the step's output.
     ``seed`` overrides the recipe's strategy (the job runner resolves random seeds with
     ``resolve_seed`` and passes them here so the run is reproducible).
     """
@@ -379,7 +448,7 @@ def compile(
     if not 0 <= seed <= MAX_SEED:
         raise CompileError(f"Seed {seed} is out of range (0 to {MAX_SEED}).")
     resolved = resolve_bindings(recipe, bindings)
-    graphs: list[EngineGraph] = []
+    graphs: list[PlanItem] = []
     previous: int | None = None
     last_generate: Generate | None = None
     steps = recipe.steps
@@ -394,25 +463,15 @@ def compile(
         ctx = CompileContext(
             recipe, resolved, registry, seed, i, tuple(modifiers), previous, last_generate
         )
-        fn = _STEP_COMPILERS.get(step.type)
-        if fn is None:
-            raise UnsupportedStepError(_unsupported(step.type, ctx))
-        g = GraphBuilder()
-        image = fn(step, ctx, g)
-        out = g.node("SaveImage", images=image, filename_prefix=f"p11/step-{i:02d}")
-        graphs.append(
-            EngineGraph(
-                i,
-                step.type,
-                g.nodes,
-                out[0],
-                tuple(g.inputs),
-                tuple(g.models),
-                seed,
-                g.size,
-                g.prep,
-            )
-        )
+        plan_fn = _PLAN_COMPILERS.get(step.type)
+        if plan_fn is not None:
+            graphs.extend(plan_fn(step, ctx))
+        else:
+            fn = _STEP_COMPILERS.get(step.type)
+            if fn is None:
+                raise UnsupportedStepError(_unsupported(step.type, ctx))
+            g = GraphBuilder()
+            graphs.append(graph_from(g, ctx, fn(step, ctx, g)))
         previous = i
         if isinstance(step, Generate):
             last_generate = step

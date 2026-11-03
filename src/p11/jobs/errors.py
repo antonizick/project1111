@@ -18,8 +18,11 @@ from p11.engine.base import (
     EngineValidation,
 )
 from p11.gpulock import GpuLockTimeout
+from p11.media.composite import CompositeError
+from p11.media.imageio import ImageError
 from p11.media.inpaint import MaskError
 from p11.media.inputs import UnknownInput
+from p11.media.segment import SegmentationError
 from p11.media.validate import UploadRejected
 from p11.recipe.compile import CompileError, SlotBindingError
 from p11.recipe.migrate import RecipeFormatError, RecipeVersionError
@@ -53,6 +56,14 @@ def problem_for(exc: BaseException) -> tuple[int, JobError]:
         return 422, JobError("upload.rejected", str(exc), exc.hint)
     if isinstance(exc, MaskError):
         return 422, JobError("input.mask", str(exc), "Open the image in Inpaint and paint a mask.")
+    if isinstance(exc, SegmentationError):
+        return 422, JobError(
+            "background.segment", str(exc), "Press Refine and paint the mask by hand."
+        )
+    if isinstance(exc, (CompositeError, ImageError)):
+        return 422, JobError(
+            "background.composite", str(exc), "Check the photo, the background and the mask."
+        )
     if isinstance(exc, UnknownInput):
         return 422, JobError("input.missing", str(exc), "Upload the file again.")
     if isinstance(exc, TemplateError):

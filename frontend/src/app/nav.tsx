@@ -20,7 +20,7 @@ export const VIEWS: { id: View; label: string; phase?: string; about: string }[]
   { id: "gallery", label: "Gallery", about: "Everything you made." },
   { id: "templates", label: "Templates", about: "Saved one-click recipes." },
   { id: "inpaint", label: "Inpaint", about: "Repaint part of an image." },
-  { id: "background", label: "Background", phase: "11", about: "Swap the background." },
+  { id: "background", label: "Background", about: "Swap the background." },
   { id: "face", label: "Face & Pose", phase: "12", about: "Face swap, pose and reference." },
   { id: "video", label: "Video", phase: "13", about: "Face swap in short clips." },
   { id: "models", label: "Models", phase: "14", about: "Install and switch models." },

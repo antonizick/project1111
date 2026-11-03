@@ -23,6 +23,23 @@ const json = (body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
+export type PreviewRequest = {
+  image: { ref: string };
+  background?: { ref: string } | null;
+  background_colour?: string | null;
+  mask?: { ref: string } | null;
+  colour_match?: boolean;
+  colour_match_strength?: number;
+  feather_px?: number;
+  fit?: "cover" | "contain";
+  background_x?: number;
+  background_y?: number;
+  subject_scale?: number;
+  subject_x?: number;
+  subject_y?: number;
+  shadow?: boolean;
+};
+
 export type JobRequest = {
   recipe: Recipe;
   bindings?: Record<string, unknown>;
@@ -54,6 +71,7 @@ export function galleryUrl(query: GalleryQuery): string {
 export const client = {
   submitJob: (req: JobRequest) => api<Job>("/api/jobs", json(req)),
   cancelJob: (id: string) => api<Job>(`/api/jobs/${encodeURIComponent(id)}/cancel`, json({})),
+  job: (id: string) => api<Job>(`/api/jobs/${encodeURIComponent(id)}`),
   recentJobs: () => api<Job[]>("/api/jobs?limit=20"),
   gallery: (query: GalleryQuery) => api<GalleryPage>(galleryUrl(query)),
   facets: () => api<Facets>("/api/gallery/facets"),
@@ -100,10 +118,16 @@ export const client = {
     tags: string[];
     seed: "fixed" | "random";
     variable_prompt: boolean;
-    mask?: "slot" | "fixed";
+    mask?: "auto" | "slot" | "fixed";
   }) => api<Template>("/api/templates/from-image", json(body)),
   upload: (file: Blob, kind: "image" | "mask" = "image") =>
     api<Upload>(`/api/uploads?kind=${kind}`, { method: "POST", body: file }),
+  backgroundMask: (image: string, segmentationModel?: string | null) =>
+    apiBlob(
+      "/api/background/mask",
+      json({ image: { ref: image }, segmentation_model: segmentationModel ?? null }),
+    ),
+  backgroundPreview: (body: PreviewRequest) => apiBlob("/api/background/preview", json(body)),
   exportImages: (ids: number[], stripMetadata: boolean) =>
     apiBlob("/api/gallery/export", json({ ids, strip_metadata: stripMetadata })),
 };

@@ -39,6 +39,8 @@ Direct runtime dependencies as locked in Phase 02 (versions and licences read fr
 | websockets | 17.4 | BSD-3-Clause | https://pypi.org/project/websockets/ | none |
 | pillow | 13.0.0 | MIT-CMU (HPND-style) | https://pypi.org/project/pillow/ | none |
 | nvidia-ml-py (`pynvml` module) | 13.615.71 | BSD-3-Clause | https://pypi.org/project/nvidia-ml-py/ | NVIDIA's NVML binding; loads the driver's `libnvidia-ml` at run time (Phase 05, ADR-0020) |
+| onnxruntime | 1.31.1 | MIT | https://pypi.org/project/onnxruntime/ | CPU execution provider only (Phase 11, ADR-0026) |
+| numpy | 2.5.4 | BSD-3-Clause (0BSD, MIT, Zlib, CC0 components per metadata) | https://pypi.org/project/numpy/ | none |
 | react, react-dom | 19.3.1 | MIT | https://www.npmjs.com/package/react | none |
 | vite | 8.3.5 | MIT | https://www.npmjs.com/package/vite | none |
 | ffmpeg / ffprobe (system package) | 9.0.2 (Arch `2:9.0.2-2`) | GPL-3.0-only (Arch build) | https://ffmpeg.org/ | not bundled: run as separate programs to check and remux uploaded videos (Phase 07, ADR-0022); licence read with `pacman -Qi ffmpeg` 2026-11-02 23:52 CST |
@@ -54,6 +56,17 @@ Picked by Phase 03 (ADR-0018) and pinned in `models/manifest.toml` by Phase 06 (
 | 4xNomosWebPhoto RealPLKSR (`4x-nomos-webphoto-realplksr`) | [Phips/4xNomosWebPhoto_RealPLKSR](https://huggingface.co/Phips/4xNomosWebPhoto_RealPLKSR) @ `49d5da19` | `9be0228f98156a100d6636d99b373ed2785b999723f9adc4cca504329ab157f2` | [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) | yes | attribution required; default |
 | Realistic Vision V6.0 B1 noVAE fp16 (`realisticvision6`) | [SG161222/Realistic_Vision_V6.0_B1_noVAE](https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE) @ `9a857a69` | `c48bfd159cd7a6507b128685e963c398fa72399cefafaf603781df50ce836cc7` | [CreativeML OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) | yes | use restrictions; full (SD 1.5) |
 | sd-vae-ft-mse-original 840000 EMA pruned (`vae-ft-mse-840000`) | [stabilityai/sd-vae-ft-mse-original](https://huggingface.co/stabilityai/sd-vae-ft-mse-original) @ `629b3ad3` | `735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75` | [MIT](https://opensource.org/license/mit) | yes | none; full (SD 1.5) |
+
+Phase 11 (ADR-0026) added the segmentation models on 2026-11-03 07:30 CST: revision, size, SHA-256
+and licence tag read from the Hugging Face API, the hash recomputed over the downloaded file
+(`sha256sum`), and the pre/post-processing config read from the repos' `preprocessor_config.json`.
+They are ONNX exports of ZhengPeng7's MIT-licensed BiRefNet (the original is linked from each
+repo's card).
+
+| Name (manifest ID) | Source @ commit | SHA-256 | Licence | Commercial use | Flags / set |
+|---|---|---|---|---|---|
+| BiRefNet Lite subject segmentation (`birefnet-lite`) | [onnx-community/BiRefNet_lite-ONNX](https://huggingface.co/onnx-community/BiRefNet_lite-ONNX) @ `de15b22b` | `5600024376f572a557870a5eb0afb1e5961636bef4e1e22132025467d0f03333` | [MIT](https://opensource.org/license/mit) | yes | none; default |
+| BiRefNet subject segmentation (`birefnet`) | [onnx-community/BiRefNet-ONNX](https://huggingface.co/onnx-community/BiRefNet-ONNX) @ `534d3c82` | `58f621f00f5d756097615970a88a791584600dcf7c45b18a0a6267535a1ebd3c` | [MIT](https://opensource.org/license/mit) | yes | none; full |
 
 ## Development tooling
 | Name | Version | Licence | URL | Flags |

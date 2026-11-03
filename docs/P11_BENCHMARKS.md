@@ -179,6 +179,45 @@ Measured 2026-11-03 05:18 CST on the laptop (power profile `performance` during 
 - **Mask editor (Playwright, Chromium on the laptop):** 2560×1440 photo, one stroke of 241 pointer moves with a large brush: draw 0.24 ms average / 4.9 ms max per move; frames median and p95 16.7 ms (60 fps).
 - **Acceptance gpu test** (`tests/gpu/test_inpaint_gpu.py`): each preset on a 1920×1080 result, pixels outside the blend band byte-identical, child in the gallery, a template saved with the mask kept re-runs.
 
+## Background replacement (Phase 11, ADR-0026, ADR-0027)
+Measured 2026-11-03 on the laptop. Script: `scripts/bench/background_tune.py` (`subjects`, `segment`, `composite`, `harmonize`), material in `~/.cache/p11/bench/background/` (not in git). The ten P11-generated 1024x1024 subjects (fixed seeds 2100+, synthetic prompts, no personal photos): four portraits and six products (mug, sneakers, plant, laptop, statue, chair); the ten backgrounds are the Phase 10 source photos. Segmentation and compositing run on the CPU (ADR-0026); the harmonize runs through the Studio API on the pinned engine (power profile `performance` during them, restored to `power-saver`; AC power).
+
+**Segmentation (CPU, i7-9750H, six ONNX threads, 1024x1024 input):**
+
+| Model | File | Mean s | Min s | Max s | Masks vs `birefnet-lite` (IoU mean / min) |
+|---|---|---|---|---|---|
+| `birefnet-lite` (default) | 224 MB | 9.7 | 8.7 | 11.9 | 1.000 |
+| `birefnet` (full) | 973 MB | 19.7 | 17.9 | 25.1 | 0.995 / 0.985 |
+
+- The two models produce essentially the same masks on this material (IoU 0.995), so the lite model is the default: half the time, a quarter of the disk, MIT licence both.
+- **Mask quality:** on a synthetic product fixture with an exact ground truth the lite model reaches **IoU 0.979** (`tests/gpu/test_background_gpu.py`, threshold 0.85). Visually (contact grids `grids/`, and the composite grids below) all ten subjects cut out cleanly, including curly hair and chair spindles. A chroma-key ground truth from generated green-screen images was tried and rejected as a metric: the generator renders green *rooms* (walls, floors, shadows), so the key measures the render, not the mask.
+- VRAM: **0 MiB** — the model runs on the CPU, so segmentation and the engine are never resident together (R5).
+- Rejected candidates (measured on 5 probe images, 2026-11-03 06:50-07:10 CST): `briaai/RMBG-1.4` ONNX (1.1-1.7 s but non-commercial per its README/licence, and it selected nearly a whole scene on one probe); `studioludens/birefnet-lite-512` (2.5 s, empty mask on an interior scene); `briaai/RMBG-2.0` (CC-BY-NC-4.0 and gated; not pinnable, documented as an optional extra).
+
+**Compositing (CPU, per 1024x1024 subject):** segmentation 7.2-7.6 s + composite 0.2-0.8 s (colour match at strength > 0 adds the LAB transfer). The stage's preview runs the same composite.
+
+**Colour match tuning (10 pairs, `grids/*-colour.jpg`):** strength 0 keeps the subject untouched but leaves it lit for another scene; the first formula (full LAB mean/std transfer) was **rejected**: at 1.0 it dragged a red mug to the background's dominant hue (brown), at 0.5 it muted it. The shipped formula transfers lightness (L) in full and only **35 %** of the background's tint statistics (mean and spread) on the chroma channels (`CHROMA_SIGMA`), which keeps a saturated subject's identity while the light matches. **Pick: on by default, strength 1.0** (`colour_match_strength`).
+
+**Edge (halo) tuning, 100 % crops (`~/.cache/p11/phase11/seam-*.jpg`):** three findings, all fixed before the picks.
+- Unmixing the edge against the **new** background (first version) left a white rim on the mug; the spill to remove is the **old** background, now estimated locally from confident background pixels just outside the matte (`spill_background`, normalized blur).
+- A plain Gaussian feather spreads alpha **outside** the matte, so a translucent band of the old scene showed around the mug. The feather now works inward: binarize at 50 %, erode by `feather/2`, blur by `feather/4`, capped by the matte itself (alpha ≈ 2 % at the matte's edge). Eroding by the full feather ate the mug's handle; half keeps it.
+- **Result at the defaults (feather 8 px, colour match 1.0):** the mug's body and handle and the portrait's hair edge show no halo at 100 %. Remaining: a few specks of the old wall where the matte keeps soft hair wisps, and thin chair spindles lose some opacity (follow-up; Edge feather 0 keeps them).
+
+**Memory:** ONNX Runtime's CPU arena kept ~12 GB resident after a 1024² BiRefNet-lite run (measured max RSS 11.8 GB); with `enable_cpu_mem_arena = False` the peak is 6.6 GB during a run and is released after it, at the same speed (7.2–7.7 s warm). The Studio uses the arena-free setting.
+
+**Harmonize (relight) tuning** (10 pairs x Light 0.25 / Strong 0.45, through the Studio API on the pinned engine, power profile `performance` then restored to `power-saver`, AC; seed 77):
+
+| Harmonize | Wall s (median) | Engine s (median) | Peak VRAM | Peak GPU temp |
+|---|---|---|---|---|
+| Light 0.25 | 20.2 | 18.9 | 7.7 GB | 68 °C |
+| Strong 0.45 | 16.3 | 14.8 | 7.7 GB | 68 °C |
+
+- 20/20 runs finished, **no OOM** (peak whole-card VRAM 7,736 MiB with the desktop, dynamic VRAM); the first run includes the cold model load (36.6 s wall). Times include the CPU segmentation (~8–10 s) inside the job; the engine pass over the seam crop is ~6–10 s. Light runs measured slower than Strong only because each subject's first job paid the segmentation and upload; the pass itself has the same steps.
+- **Picks:** Harmonize **Light 0.25** by default (unifies the light along the seam without repainting the subject), **Strong 0.45** as the option, Off = local composite only (~8–11 s total, no engine). Colour match **on, strength 1.0**; Edge feather **8 px**.
+- **Acceptance budget:** one Apply on the defaults (auto-mask + colour match + Light harmonize) on a 1024² subject ≈ **20 s** warm (≤ 37 s from a cold engine); recorded by `tests/gpu/test_background_gpu.py`.
+
+**Action count (Playwright, `e2e/background.spec.ts`, FakeEngine):** open result -> Background -> choose photo -> Apply -> Download = **4 actions** (Appendix B allows 5).
+
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
 - **Quality model:** Juggernaut XL v9, DPM++ 2M Karras, 30 steps, CFG 4.5, baked VAE. 38.6 s native, ~41 s per wallpaper.
