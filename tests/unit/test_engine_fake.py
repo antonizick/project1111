@@ -24,7 +24,9 @@ from p11.engine.fake import KNOWN_NODES, FakeConfig, FakeEngine
 from p11.engine.recovery import OOM_MESSAGE, run_with_oom_retry
 
 REPO = Path(__file__).resolve().parents[2]
-GOLDEN = sorted((REPO / "tests/golden/compile").glob("*.json"))
+GOLDEN_ALL = sorted((REPO / "tests/golden/compile").glob("*.json"))
+GOLDEN = [p for p in GOLDEN_ALL if not p.stem.startswith("inpaint__")]
+INPAINT_GOLDEN = [p for p in GOLDEN_ALL if p.stem.startswith("inpaint__")]
 
 
 @pytest.fixture
@@ -35,7 +37,8 @@ async def fake() -> FakeEngine:
 
 
 def test_known_nodes_cover_the_compiler() -> None:
-    source = (REPO / "src/p11/recipe/compile.py").read_text()
+    sources = [REPO / "src/p11/recipe/compile.py", *(REPO / "src/p11/recipe/steps").glob("*.py")]
+    source = "\n".join(p.read_text() for p in sources)
     used = set(re.findall(r'g\.node\(\s*"([A-Za-z0-9]+)"', source))
     used |= set(re.findall(r'_tiled\(\s*g,\s*"([A-Za-z0-9]+)"', source))
     assert used, "compiler node names not found"
@@ -57,6 +60,24 @@ async def test_golden_graphs_run(fake: FakeEngine, path: Path) -> None:
     else:
         latent = next(v for v in nodes.values() if v["class_type"] == "EmptyLatentImage")
         assert (w, h) == (latent["inputs"]["width"], latent["inputs"]["height"])
+
+
+@pytest.mark.parametrize("path", INPAINT_GOLDEN, ids=lambda p: p.stem)
+async def test_inpaint_golden_graphs_run(fake: FakeEngine, path: Path) -> None:
+    """The inpaint goldens run once their image/mask placeholders are bound to uploads."""
+    nodes = json.loads(path.read_text())
+    image = await fake.upload(synthetic_png(64, 48), "image")
+    mask = await fake.upload(synthetic_png(64, 48), "mask")
+    for node in nodes.values():
+        value = node["inputs"].get("image")
+        if node["class_type"] == "LoadImage" and str(value).startswith("p11:"):
+            node["inputs"]["image"] = image.name
+        if node["class_type"] == "LoadImageMask":
+            node["inputs"]["image"] = mask.name
+    result = await fake.run(nodes)
+    (out,) = result.images
+    with Image.open(io.BytesIO(out.data)) as img:
+        assert img.size == (64, 48)
 
 
 async def test_output_is_deterministic_per_seed(fake: FakeEngine) -> None:

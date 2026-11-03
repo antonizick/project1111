@@ -47,9 +47,9 @@ User data follows XDG paths (config, data, cache, state); the exact layout is fi
 | `src/p11/gpulock.py` | `gpu_lock(timeout, holder)`: `flock` on `~/.cache/p11/gpu.lock`, holder info (pid, name, start) readable by waiters (R24) | real |
 | `src/p11/api/` | Studio API (Phase 07, below): `create_app()`, `SecurityMiddleware`, routes, the `Studio` container | real |
 | `src/p11/{engine,gpu}/` | engine adapter and GPU telemetry (Phase 05, below) | real |
-| `src/p11/jobs/`, `src/p11/media/` | job queue, runner, events, persisted jobs; upload validation and the input store (Phase 07, below) | real |
+| `src/p11/jobs/`, `src/p11/media/` | job queue, runner, events, persisted jobs; upload validation and the input store (Phase 07, below); inpaint mask prep and paste-back (Phase 10) | real |
 | `src/p11/lifecycle.py`, `doctor.py`, `logs.py` | background Studio process (`studio.json`), `p11 doctor` checks, JSON log with redaction (Phase 07) | real |
-| `src/p11/{recipe,outputs,templates}/` | recipe core (Phase 04, below) | real |
+| `src/p11/{recipe,outputs,templates}/` | recipe core (Phase 04, below); `recipe/steps/` step compilers of later phases (inpaint, Phase 10) | real |
 | `frontend/` | Vite + React + TS (strict); `vite build` writes to `src/p11/web/` (git-ignored); `src/api/session.ts` redeems the launch code (Phase 07) | placeholder page with a working session |
 
 ## Engine install (Phase 03)
@@ -208,3 +208,17 @@ p11 serve start ─► install_starters(templates/starter/*.json) ─► <config
 - **Starters** (`src/p11/templates/starter.py`): the six recipes live in `templates/starter/` (repo root, like `models/manifest.toml`; `$P11_STARTER_TEMPLATES` overrides). A marker file in the template store remembers installed IDs, so deleted starters stay deleted and edited ones are not overwritten. `GET /api/templates` includes `last_image` (newest gallery image whose template slug matches) for the card thumbnail.
 - **Frontend** `features/templates/`: `slots.ts` (pure: missing slots, bindings, remembered inputs in `localStorage`, recents, fuzzy score, placeholder defaults), `ui.tsx` (`TemplateUiProvider`: one place that mounts the Save, Run and Palette dialogs and submits runs; Generate follows template-run jobs through `useTemplateRuns`), `TemplatesView`, `SaveTemplateDialog`, `RunDialog` (picker and drag-and-drop upload through `POST /api/uploads`), `Palette` (Ctrl+K), `TemplateBar` (Generate view chips). `api()` returns `null` for 204 responses.
 - **Action counts** (Playwright on the FakeEngine, Appendix B): Save as Template 2, re-run 1, run with one image slot 3.
+
+## Inpainting and the mask editor (Phase 10, ADR-0025)
+```
+Inpaint view ─► MaskEditor.exportMask() (greyscale PNG at image size) ─► POST /api/uploads?kind=mask
+             └► POST /api/jobs {recipe: [inpaint], bindings: {mask}, source_image: gallery/<id> | img-…, parent}
+Runner ─► compile ─► EngineGraph(prep=MaskPrep) ─► media.inpaint.prepare(image, mask) ─► engine (working image + soft mask)
+       └► media.inpaint.stitch(result) ─► full-size PNG, unmasked pixels = original ─► gallery child (parent_id)
+```
+- **Step compiler** `src/p11/recipe/steps/inpaint.py` (registered on import of `p11.recipe.compile`): checkpoint (the step's, else the previous generate's, else the default) + its VAE, prompts (empty prompt falls back to the previous generate's), `LoadImage` (slot, previous step or `source_image`), `LoadImageMask` (red channel; from the `mask` slot or the step's inline `mask_png`), `InpaintModelConditioning` (noise mask on), `KSampler` titled `inpaint` with the preset's denoise (`presets.INPAINT_PRESETS`), `VAEDecode`, `ImageCompositeMasked` over the input with the same mask. Core nodes only (S3); all were already in `FakeEngine.KNOWN_NODES`.
+- **`MaskPrep`** (`p11.recipe.compile`): pure data on `EngineGraph.prep` naming the image and mask placeholders and the grow/blur/crop/padding/work-size settings. The runner (`p11.jobs.runner._bind`) calls `p11.media.inpaint.prepare` before upload and `stitch` on each output. `prepare` resizes the painted mask to the image, grows it (box blur + threshold) and blurs it (Gaussian) at full resolution, then with `crop` cuts the soft mask's box padded by `padding_px` and scales it so small crops reach `INPAINT_WORK_PIXELS` (1 MP, at most 4×) and big ones fit `INPAINT_MAX_PIXELS` (2560×1440); without `crop` the whole image is used at a multiple of 8. `stitch` scales the result back and blends it over the **original** with the soft mask, so pixels where the soft mask is 0 are byte-identical. An empty mask is refused at submit (`input.mask`, 422).
+- **Inline inputs:** `GraphInput.source == "inline"` carries bytes (a template's fixed mask); `GraphInput.kind` tells the runner to upload as `image` or `mask`.
+- **Templates:** `POST /api/templates/from-image {…, mask: slot|fixed}`; `fixed` compacts the run's mask (`compact_mask`, greyscale, ≤ 1024 px long side) into the step's `mask_png` and drops the slot; `slot` keeps a `mask` slot (the RunDialog uploads it as `kind=mask`).
+- **Frontend:** `features/mask-editor/` (`model.ts` pure history, brush, view, keys; `render.ts` canvas dabs, dirty-box compositing, replay, invert, export; `MaskEditor.tsx`), `features/inpaint/` (`recipe.ts` pure form → recipe, `InpaintView.tsx`). The editor keeps an image-sized mask canvas under a CSS transform (zoom/pan never redraw it); each pointer move draws dabs on a stroke layer and recomposites only their box (snapshot + layer at the stroke's opacity), so opacity does not build up inside a stroke; undo replays the history after the last clear. `NavProvider.edit(view, image)` hands an image to an editing view (Phases 11 and 12 reuse it and the editor).
+- **Measured:** Playwright on a 2560×1440 photo: 241 pointer moves, draw 0.24 ms average / 4.9 ms max, frames median and p95 16.7 ms (60 fps). Engine timings and preset tuning: `docs/P11_BENCHMARKS.md` → Inpainting.

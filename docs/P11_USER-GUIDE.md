@@ -86,6 +86,24 @@ A template is a saved recipe you can run again with one click.
 
 **Starter templates** are added to your templates folder (`~/.config/p11/templates/starter/`) the first time P11 Studio starts: *Wallpaper photoreal 16:9 1080p* and *1440p*, *Software logo dark*, *Software logo light*, *Indie game logo* and *3D animated avatar (bobblehead)*. Each runs in one click and has a text input you can change. Until the text overlay arrives (Phase 14) the logo templates make the mark without text; the avatar's face photo input is optional and is used once face swap arrives (Phase 12). If you delete a starter it does not come back. To undo everything: delete the folder `~/.config/p11/templates/` (including `.starter-installed.json`, which makes the starters install again).
 
+## 5. Inpainting and the mask editor (written in Phase 10)
+Inpainting repaints the part of an image you paint over and leaves the rest untouched.
+
+**Fix a result in four actions:** press **Inpaint** under a result (or in the gallery detail view), paint over the part to change with one stroke, press **Apply**, then **Download** (or **Save as Template**). The prompt starts as the image's own prompt; change it to say what should be there ("a red wool scarf"). To start from your own photo, open **Inpaint** in the left nav and choose **Upload photo** (PNG, JPEG or WebP; location data is removed on upload).
+
+**Strength** (pick one):
+- **Subtle fix** keeps the shapes and fixes details: skin, small artefacts, a smoother patch.
+- **Change** (the default) changes what is there but keeps the layout: an expression, a colour, a material.
+- **Replace** paints something new in the area: a different object, a new sky.
+
+**Only masked area at full resolution** (on by default) paints a box around your mask at the model's working size and pastes it back, so small fixes keep their detail and run faster (about 11–15 s for a face on a 1920×1080 image instead of about 30 s for the whole frame). Turn it off to repaint with the whole image in view.
+
+**Mask editor:** **Brush** (<kbd>B</kbd>) and **Eraser** (<kbd>E</kbd>), **Size** (<kbd>[</kbd> smaller, <kbd>]</kbd> bigger), **Hardness** (soft or hard edge), **Opacity** (a lighter mask changes the area less), **Feather** (how softly the new part blends in; the preview shows it), **Invert** (<kbd>I</kbd>: paint the part to keep instead), **Clear**, **Undo** (<kbd>Ctrl</kbd>+<kbd>Z</kbd>), **Redo** (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>) and **Show mask** (<kbd>H</kbd>). Zoom with the mouse wheel or a touchpad pinch, pan by holding <kbd>Space</kbd> and dragging (or with the middle mouse button). A pen's pressure makes the brush thinner when you press lightly. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> applies.
+
+**Advanced:** an exact **Denoise** (overrides the strength buttons), **Mask blur**, **Padding** around the mask (more context for the model), **Steps** and a fixed **Seed**.
+
+**After applying:** the result is saved as a child of the original in the gallery. **Keep editing this result** loads it into the editor for another fix. **Save as Template** asks whether to **Keep this mask in the template** (the mask shape is stored in the template; the run asks only for the image) or **Ask for a mask each time** (the run asks for a mask image, white = repaint). The photo itself is never stored in a template.
+
 ## 9. Models (written in Phase 06)
 P11 ships a list of tested models (`models/manifest.toml`), not the models themselves. Each one is downloaded from its original host and checked against a pinned SHA-256 before P11 uses it.
 
