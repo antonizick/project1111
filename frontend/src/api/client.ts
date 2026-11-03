@@ -5,9 +5,13 @@ import { ApiError, api, storedToken, type Problem } from "./session";
 import type {
   Facets,
   GalleryPage,
+  FontInfo,
   ImageEntry,
   Job,
   ModelInfo,
+  ModelLicenceRow,
+  ModelOperation,
+  ModelPlan,
   Presets,
   Recipe,
   RunRecord,
@@ -15,6 +19,7 @@ import type {
   Template,
   TrashInfo,
   Upload,
+  TextOverlayStep,
   VideoJob,
   VideoRequest,
 } from "./types";
@@ -140,6 +145,41 @@ export const client = {
   videoFrame: (ref: string, time = 0) => apiBlob("/api/video/frame", json({ ref, time })),
   videoDetect: (ref: string, time = 0) =>
     api<FaceDetection>("/api/video/detect", json({ ref, time })),
+  // Text overlay (Phase 14): bundled fonts and a live preview.
+  fonts: () => api<{ fonts: FontInfo[] }>("/api/text/fonts"),
+  textPreview: (body: {
+    image?: { ref: string } | null;
+    overlay: TextOverlayStep;
+    width?: number;
+    height?: number;
+  }) => apiBlob("/api/text/preview", json(body)),
+  logoExport: (id: number, body: { transparent: boolean; sizes: number[] }) =>
+    apiBlob(`/api/images/${id}/logo-export`, json(body)),
+  // Models page (Phase 14).
+  modelPlan: (target: string) => api<ModelPlan>("/api/models/plan", json({ target })),
+  modelInstall: (target: string, acceptLicences: boolean) =>
+    api<ModelOperation>("/api/models/install", json({ target, accept_licences: acceptLicences })),
+  modelOperations: () => api<ModelOperation[]>("/api/models/operations"),
+  modelVerify: (ids: string[]) =>
+    api<{ ok: boolean; models: ModelInfo[] }>("/api/models/verify", json({ ids })), // fmt: skip
+  modelSetEnabled: (id: string, enabled: boolean) =>
+    api<{ id: string; enabled: boolean }>(
+      `/api/models/${encodeURIComponent(id)}/enabled`,
+      json({ enabled }),
+    ),
+  modelRemove: (id: string, deleteFile: boolean) =>
+    api<{ id: string; message: string }>(
+      `/api/models/${encodeURIComponent(id)}?delete_file=${deleteFile}`,
+      { method: "DELETE" },
+    ),
+  modelAdd: (body: {
+    source: string;
+    kind?: string | null;
+    model_id?: string | null;
+    allow_pickle?: boolean;
+    link?: boolean;
+  }) => api<ModelInfo>("/api/models/add", json(body)),
+  modelLicences: () => api<{ licences: ModelLicenceRow[] }>("/api/models/licences"),
   submitVideo: (req: VideoRequest) => api<VideoJob>("/api/video/jobs", json(req)),
   videoJobs: () => api<VideoJob[]>("/api/video/jobs?limit=20"),
   videoJob: (id: string) => api<VideoJob>(`/api/video/jobs/${encodeURIComponent(id)}`),

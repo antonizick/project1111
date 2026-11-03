@@ -323,3 +323,10 @@ time estimate and require `confirm_limits`; the hard caps of `p11.media.validate
 finished MP4 is written to the R7 layout with a JSON sidecar (`VideoRecord`: source, settings,
 frames, timings) and served by `/api/video/jobs/{id}/file` with Range support so a `<video>` player
 can seek; it does not enter the image gallery index.
+
+## Text overlay, logo exports and the Models page (Phase 14, ADR-0035)
+- **Text overlay.** `recipe/steps/text_overlay.py` registers a plan step that returns one `LocalStep(op="text_overlay")` taking the previous step's image (nothing when the text is empty or `also_prompt_model` is set). `jobs/runner.py::_run_local` calls `p11.media.text.run_text_overlay`; `media/text.py` loads a bundled font (`assets/fonts/fonts.json`, override with `P11_FONTS_DIR`), fits the block to the printable box by binary search, places it by anchor or `x`/`y` and draws shadow, outline and gradient with Pillow. `POST /api/text/preview` runs the same `render_overlay`, so the editor shows what the job saves. Errors (`TextError`) map to `text.invalid`.
+- **Logo pack.** `media/logo.py`: cut-out (segmentation from Phase 11, else a border-colour key), square LANCZOS resizes on a transparent canvas, `favicon.ico`; `POST /api/images/{id}/logo-export` returns a ZIP.
+- **Models page.** `api/routes/models.py` wraps `ModelManager` (plan, install, verify, add, enable, remove, licences). Installs run in a worker thread, one at a time, and publish `models` events; `models-changed` tells the page to re-read `/api/models`. The UI is `frontend/src/features/models/ModelsView.tsx`; the store keeps `modelOps` and `modelsRev`.
+- **Optional steps.** `_Step.skippable_if_unbound` (face swap): `compile()` drops a step whose optional image slot is empty; `previous` only moves when a step produced a plan item.
+- **Upscale.** `upscaleRecipe(…, options)` builds `scale` or `width`+`height` and `chain` `model` (Speed) or `latent` (Quality); Generate's Speed/Quality toggle sets `Generate.quality`, which picks the preset's `quality_chain`.

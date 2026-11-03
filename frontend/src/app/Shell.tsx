@@ -8,6 +8,7 @@ import { GenerateView } from "../features/generate/GenerateView";
 import { BackgroundView } from "../features/background/BackgroundView";
 import { FaceView } from "../features/face/FaceView";
 import { InpaintView } from "../features/inpaint/InpaintView";
+import { ModelsView } from "../features/models/ModelsView";
 import { TemplatesView } from "../features/templates/TemplatesView";
 import { VideoView } from "../features/video/VideoView";
 import { Dialog } from "../components/Dialog";
@@ -26,6 +27,7 @@ const BUILT: ReadonlySet<View> = new Set([
   "background",
   "face",
   "video",
+  "models",
 ]);
 const THEME_KEY = "p11.theme";
 
@@ -139,6 +141,7 @@ export function Shell({ version, fake }: { version: string; fake: boolean }) {
         <BackgroundView active={view === "background"} />
         <FaceView active={view === "face"} />
         <VideoView active={view === "video"} />
+        <ModelsView active={view === "models"} />
         {!BUILT.has(view) && <Placeholder view={view} />}
       </main>
       <StatusBar />

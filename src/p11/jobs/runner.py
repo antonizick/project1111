@@ -35,6 +35,7 @@ from p11.engine.base import (
 from p11.engine.base import bind_inputs as bind_graph_inputs
 from p11.engine.recovery import run_with_oom_retry
 from p11.media import composite as composite_media
+from p11.media import text as text_media
 from p11.media.control import Controls
 from p11.media.faces import FaceKit, run_face_restore, run_face_swap
 from p11.media.imageio import open_rgb
@@ -361,6 +362,8 @@ class Runner:
             return run_face_swap(item.params, data, self.faces)
         if item.op == "face_restore":
             return run_face_restore(item.params, data, self.faces)
+        if item.op == "text_overlay":
+            return text_media.run_text_overlay(item.params, data)
         raise ValueError(f"Unknown local step {item.op!r}.")
 
     def _record(

@@ -113,3 +113,16 @@ Code read at the source to implement these paths (not bundled): InsightFace's
 huggingface/controlnet_aux `dwpose/util.py` (Apache-2.0) for the OpenPose drawing convention,
 and the model cards for the NSFW classifiers. P11's own `engine/custom_nodes/p11_ipadapter/` is
 part of this project (MIT, see `LICENSE`).
+
+## Bundled fonts (Phase 14, text overlay)
+Fonts in `assets/fonts/` are redistributed under the SIL Open Font License 1.1 (licence texts beside them as `OFL-*.txt`; commercial use and bundling allowed, the fonts may not be sold on their own). Source: the Google Fonts repository (`github.com/google/fonts`, `ofl/<family>/`), fetched and checked 2026-11-03 17:00 CST; SHA-256 values are in `assets/fonts/fonts.json` and checked by a test.
+
+| Font | File | Source | Licence |
+|---|---|---|---|
+| Inter | `inter-var.ttf` | [google/fonts ofl/inter](https://github.com/google/fonts/tree/main/ofl/inter) | OFL-1.1 (`OFL-inter.txt`) |
+| Space Grotesk | `space-grotesk-var.ttf` | [google/fonts ofl/spacegrotesk](https://github.com/google/fonts/tree/main/ofl/spacegrotesk) | OFL-1.1 (`OFL-spacegrotesk.txt`) |
+| Playfair Display | `playfair-display-var.ttf` | [google/fonts ofl/playfairdisplay](https://github.com/google/fonts/tree/main/ofl/playfairdisplay) | OFL-1.1 (`OFL-playfairdisplay.txt`) |
+| Bebas Neue | `bebas-neue.ttf` | [google/fonts ofl/bebasneue](https://github.com/google/fonts/tree/main/ofl/bebasneue) | OFL-1.1 (`OFL-bebasneue.txt`) |
+| JetBrains Mono | `jetbrains-mono-var.ttf` | [google/fonts ofl/jetbrainsmono](https://github.com/google/fonts/tree/main/ofl/jetbrainsmono) | OFL-1.1 (`OFL-jetbrainsmono.txt`) |
+
+No LoRA was added in Phase 14.

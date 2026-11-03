@@ -21,6 +21,18 @@
       "chain": null,
       "quality": false,
       "batch_size": 1
+    },
+    {
+      "type": "face_swap",
+      "face_slot": "face",
+      "image_slot": null,
+      "source_face_index": 0,
+      "target_face_index": 0,
+      "swapper_model": null,
+      "blend": 1.0,
+      "restore": true,
+      "restore_model": null,
+      "restore_visibility": 1.0
     }
   ],
   "slots": [
@@ -34,7 +46,7 @@
     {
       "name": "face",
       "kind": "face_image",
-      "label": "Face photo (used once face swap arrives in Phase 12)",
+      "label": "Face photo (optional)",
       "required": false,
       "default": null
     }

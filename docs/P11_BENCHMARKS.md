@@ -335,6 +335,16 @@ flickers and smoothing is a mild trade (steadier face, slightly laggy on motion)
 default** and optional, as the prompt asked. The smoothing run cost no extra time (78.6 s warm vs
 199.4 s for the first run, which loaded the face models).
 
+## Upscale Speed and Quality (Phase 14, ADR-0010, ADR-0035)
+Measured 2026-11-03 17:25 CST by `tests/gpu/test_quality_upscale_gpu.py` on the reference laptop (RTX 2070 Max-Q, performance profile on AC, restored afterwards; RealVisXL V5.0 Lightning, seed 2222, one warm-up run per case, engine in default dynamic-VRAM mode). Raw times in `~/.cache/p11/bench/quality/times.jsonl` (not committed).
+
+| Output | Speed (`model` chain) | Quality (`latent` chain) | OOM |
+|---|---:|---:|---|
+| 1920 x 1080 | 15.8 s | 34.9 s | none |
+| 2560 x 1440 | 16.5 s | 76.6 s | none |
+
+Quality at 2560x1440 is the slow case (tiled VAE decode of the refinement pass); it stays within the ~7 GB budget. Phase 03's `both` chain (55 / 88 s) was not re-run; `latent` remains the Quality chain on time and memory. Not measured in Phase 14: the by-eye `latent` versus `both` comparison, a 10-prompt defaults review and avatar-preset consistency across seeds (follow-ups).
+
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
 - **Quality model:** Juggernaut XL v9, DPM++ 2M Karras, 30 steps, CFG 4.5, baked VAE. 38.6 s native, ~41 s per wallpaper.

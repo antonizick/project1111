@@ -13,7 +13,7 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0007 | 2026-11-02 13:16 CST | Templates are versioned P11 recipes compiled to engine graphs | Accepted | 00 |
 | ADR-0008 | 2026-11-02 13:16 CST | uv-managed CPython, separate from host Python 3.14 | Accepted (P11 side Phase 02, 2026-11-02 15:14 CST; engine side Phase 03, 2026-11-02 17:56 CST) | 00, 02, 03 |
 | ADR-0009 | 2026-11-02 13:16 CST | Turing defaults: fp16, SDPA, fp16-safe SDXL VAE, sm_75-capable torch | Accepted (2026-11-02 17:56 CST) | 00, 03 |
-| ADR-0010 | 2026-11-02 13:16 CST | Wallpaper presets = native bucket + upscale | Accepted: `model` chain default, refinement pass = Quality (2026-11-02 17:56 CST) | 00, 03 |
+| ADR-0010 | 2026-11-02 13:16 CST | Wallpaper presets = native bucket + upscale | Accepted: `model` chain default, refinement pass = Quality (2026-11-02 17:56 CST); `latent` confirmed as the Quality chain (2026-11-03 17:45 CST) | 00, 03 |
 | ADR-0011 | 2026-11-02 13:16 CST | Face-swap engine: ReActor node vs FaceFusion | Accepted (decided in ADR-0028) | 00 |
 | ADR-0012 | 2026-11-02 13:16 CST | Installer: clone + `./install.sh`, no driver installs | Accepted | 00 |
 | ADR-0013 | 2026-11-02 13:16 CST | Local-only security posture | Accepted | 00 |
@@ -38,6 +38,7 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0032 | 2026-11-03 11:05 CST | Additive schema changes for face, pose and reference | Accepted | 12 |
 | ADR-0033 | 2026-11-03 14:08 CST | Video face-swap: CPU face path per frame, ffmpeg extract/stitch, resumable job rows | Accepted | 13 |
 | ADR-0034 | 2026-11-03 14:08 CST | The S5 guard on video: every swapped frame plus a sampled pre-pass, no switch | Accepted | 13 |
+| ADR-0035 | 2026-11-03 17:45 CST | Text overlay in Pillow, logo exports, Models page operations, optional-step skipping | Accepted | 14 |
 
 ---
 
@@ -418,3 +419,18 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 - **A sampled pre-pass refuses the whole clip before any swapping**: about one frame per second plus every detected scene change (a 32x32 thumbnail difference) goes through `check_target` first, so a bad clip fails in seconds instead of after an hour of CPU work. A refusal stops the job and deletes its scratch frames (S6).
 - **No switch** exists anywhere (the module constants of `p11/media/nsfw.py` are the only thresholds); the guard fails closed when a classifier is missing.
 **Consequences.** The guard costs about 1.4 s per frame on the CPU (two classifier runs), measured in the benchmarks — the recorded cost of covering every frame. **Risk, stated:** two classifiers at fixed thresholds can still miss a frame (the residual risk Phase 12 recorded for still images applies to frames too), and a clip that passes the sampled pre-pass can contain an unsafe moment between samples — which the per-frame check then catches at swap time. Sampling exists only for fail-fast behaviour; it never replaces the per-frame check.
+
+## ADR-0035: Text overlay in Pillow, logo exports, Models page operations, optional-step skipping
+**Recorded.** 2026-11-03 17:45 CST (Phase 14)
+**Status.** Accepted
+**Context.** R23: diffusion models spell logos badly, so exact text is drawn by a deterministic step. Phase 11's driver (ADR-0027) already takes local steps. Phase 14 also needs a Models page over the Phase 06 manager and logo helpers.
+**Options considered.** Text: (a) draw in Pillow as a `LocalStep`, (b) a ComfyUI text node (custom node, S3), (c) draw in the browser. Fonts: (d) bundle five OFL families, (e) system fonts. Models page: (f) mirror `p11 models` as API routes with event-stream progress, (g) shell out to the CLI. Optional inputs: (h) skip a step whose optional image slot is empty, (i) require the slot.
+**Decision.**
+- **(a)** `text_overlay` compiles to a tail-less `LocalStep` (`recipe/steps/text_overlay.py`) and `p11.media.text` draws it at full resolution (auto-fit by binary search to the printable box, multi-line, alignment, 9-way anchor or a dragged `x`/`y`, letter spacing, outline, soft shadow, vertical gradient). `TextOverlay` grows additively (`weight`, `colour2`, `align`, `x`, `y`, `letter_spacing`): no schema bump. An empty optional text slot, or "let the model try the text" (`also_prompt_model`), compiles to no item; the compiler's `previous` pointer only advances when a step produced an item.
+- **(d)** Five Google Fonts families under the SIL OFL 1.1 in `assets/fonts/` (Inter, Space Grotesk, Playfair Display, Bebas Neue, JetBrains Mono), each with its licence text and a `fonts.json` entry holding source, SHA-256 and check timestamp (2026-11-03 17:00 CST); a test checks hashes and licence files.
+- **(f)** `/api/models/plan|install|verify|add|licences|operations`, `POST /api/models/{id}/enabled` and `DELETE /api/models/{id}`. Install runs in a worker thread and publishes `models` events (label, bytes done/total); one install at a time. The acknowledgement dialog shows each licence and the commercial flag, and the request carries `accept_licences`.
+- **(h)** `FaceSwap` is `skippable_if_unbound`: when its image slots name an optional slot the run left empty, the step is dropped (this is how the avatar starter's optional face works).
+- Logo pack (`POST /api/images/{id}/logo-export`): transparent cut-out through Phase 11's segmentation, else a flat-colour key from the border colour; square PNGs at 512/256/128/64/32 and `favicon.ico` in one ZIP.
+- A test-only hook, `P11_ALLOW_LOOPBACK_MANIFEST=1`, lets the manifest and downloader accept `http://127.0.0.1` so the Playwright Models walkthrough installs a 22-byte fixture from a local server. It cannot allow any other host.
+**Quality chain (ADR-0010).** Measured on the laptop (warm, performance profile, `tests/gpu/test_quality_upscale_gpu.py`): Speed 15.8 s at 1920x1080 and 16.5 s at 2560x1440; Quality (`latent`) 34.9 s and 76.6 s, no OOM. `latent` stays the Quality chain: it is the faster of the two refinement chains in Phase 03's measurements (`both` was 55 / 88 s) and fits the VRAM budget. I did not redo a by-eye `latent` versus `both` comparison in this phase, so the choice rests on time and memory plus Phase 03's contact sheet.
+**Consequences.** Logo starters carry a `logo_text` slot and lose the `mark-only` tag; existing users keep their old copies because of the starter marker (user guide). Phase 16 re-runs the action counts. Left as follow-ups: 3D-avatar prompt/LoRA tuning and the 10-prompt defaults review (Phase 14 Phase Log).

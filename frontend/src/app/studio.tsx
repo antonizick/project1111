@@ -10,6 +10,7 @@ import type {
   ImageEntry,
   Job,
   ModelInfo,
+  ModelOperation,
   Presets,
   ProgressEvent,
   SystemInfo,
@@ -28,6 +29,10 @@ export type StudioState = {
   system: SystemInfo | null;
   presets: Presets | null;
   models: ModelInfo[] | null;
+  /** Model installs/adds running in the service, keyed by operation id (Phase 14). */
+  modelOps: Record<string, ModelOperation>;
+  /** Bumped when the model folder changed (install done, add, remove, enable). */
+  modelsRev: number;
   /** Model of the latest job submitted from this tab (status bar). */
   currentModel: string | null;
 };
@@ -43,6 +48,8 @@ export const initialState: StudioState = {
   system: null,
   presets: null,
   models: null,
+  modelOps: {},
+  modelsRev: 0,
   currentModel: null,
 };
 
@@ -154,6 +161,12 @@ function reduceEvent(state: StudioState, { type, data }: StudioEvent): StudioSta
       return withoutImage(state, (data as { image: number }).image);
     case "gpu":
       return { ...state, gpu: data as GpuSample };
+    case "models": {
+      const op = data as ModelOperation;
+      return { ...state, modelOps: { ...state.modelOps, [op.id]: op } };
+    }
+    case "models-changed":
+      return { ...state, modelsRev: state.modelsRev + 1 };
   }
 }
 

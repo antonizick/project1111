@@ -4,7 +4,15 @@
 // session) this opens a new one with a growing delay. The HttpOnly cookie authenticates it.
 
 export type StudioEventType =
-  "hello" | "job" | "progress" | "preview" | "image" | "gpu" | "deleted";
+  | "hello"
+  | "job"
+  | "progress"
+  | "preview"
+  | "image"
+  | "gpu"
+  | "deleted"
+  | "models"
+  | "models-changed";
 export const EVENT_TYPES: readonly StudioEventType[] = [
   "hello",
   "job",
@@ -13,6 +21,8 @@ export const EVENT_TYPES: readonly StudioEventType[] = [
   "image",
   "gpu",
   "deleted",
+  "models",
+  "models-changed",
 ];
 
 export type StudioEvent = { type: StudioEventType; data: unknown };

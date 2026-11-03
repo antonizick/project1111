@@ -19,6 +19,7 @@ from p11.recipe.compile import (
     resolve_seed,
 )
 from p11.recipe.model import (
+    FaceSwap,
     FileRef,
     FixedSeed,
     Generate,
@@ -438,10 +439,26 @@ def test_compile_seed_handling() -> None:
 # Extension point
 
 
-def test_text_overlay_is_unsupported_until_phase_14() -> None:
-    """Phase 12 compiles face_swap, pose and reference; only text_overlay is left for Phase 14."""
-    with pytest.raises(UnsupportedStepError, match="Phase 14"):
-        compile(recipe(Generate(prompt="x"), TextOverlay(text="Hi")), {}, REG)
+def test_text_overlay_compiles_to_a_local_step() -> None:
+    """Phase 14 draws exact text in P11: a tail-less LocalStep after the image it draws on."""
+    from p11.recipe.compile import LocalStep
+
+    items = compile(recipe(Generate(prompt="x"), TextOverlay(text="Hi {{name}}"),
+                           slots=(Slot(name="name", kind="text", default="there"),)),
+                    {"name": "there"}, REG)  # fmt: skip
+    assert [type(i) for i in items] == [c.EngineGraph, LocalStep]
+    local = items[1]
+    assert isinstance(local, LocalStep)
+    assert local.op == "text_overlay"
+    assert local.params["text"] == "Hi there"
+    assert local.inputs[0].source == "step" and local.inputs[0].step == 0
+
+
+def test_text_overlay_let_the_model_try_skips_the_step() -> None:
+    items = compile(
+        recipe(Generate(prompt="x"), TextOverlay(text="Hi", also_prompt_model=True)), {}, REG
+    )
+    assert len(items) == 1 and items[0].step_type == "generate"
 
 
 def test_register_step_and_modifier(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -483,3 +500,17 @@ def test_register_step_and_modifier(monkeypatch: pytest.MonkeyPatch) -> None:
     c.unregister("pose")
     with pytest.raises(UnsupportedStepError):
         compile(r, {"pose": FileRef(ref="p.png"), "mask": FileRef(ref="m.png")}, REG)
+
+
+def test_optional_face_slot_skips_the_swap() -> None:
+    """The avatar starter's optional face: leave it empty and the swap is skipped, not an error."""
+    items = compile(
+        recipe(
+            Generate(prompt="an astronaut"),
+            FaceSwap(face_slot="face"),
+            slots=(Slot(name="face", kind="face_image", required=False),),
+        ),
+        {},
+        REG,
+    )
+    assert [i.step_type for i in items] == ["generate"]

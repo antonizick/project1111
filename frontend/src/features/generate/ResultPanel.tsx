@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { ImageEntry } from "../../api/types";
 import { ZoomPan } from "../../components/ZoomPan";
 import { LATER, useImageActions } from "../actions";
+import { TextOverlayDialog } from "../text/TextOverlayDialog";
+import { UpscaleDialog } from "./UpscaleDialog";
 
 export function ImageMeta({ image }: { image: ImageEntry }) {
   return (
@@ -32,6 +34,8 @@ export function ImageActions({
   batch?: number;
 }) {
   const [strip, setStrip] = useState(true);
+  const [upscaling, setUpscaling] = useState(false);
+  const [texting, setTexting] = useState(false);
   return (
     <div className="actions" role="group" aria-label="Image actions">
       <button
@@ -44,8 +48,11 @@ export function ImageActions({
       <button type="button" className="btn" onClick={() => actions.variations(image, "prompt")}>
         Tweak prompt
       </button>
-      <button type="button" className="btn" onClick={() => actions.upscale(image)}>
-        Upscale ×2
+      <button type="button" className="btn" onClick={() => setUpscaling(true)}>
+        Upscale…
+      </button>
+      <button type="button" className="btn" onClick={() => setTexting(true)}>
+        Add text / Logo
       </button>
       <button type="button" className="btn" onClick={() => actions.inpaint(image)}>
         Inpaint
@@ -82,6 +89,16 @@ export function ImageActions({
       >
         {image.favourite ? "★ Favourite" : "☆ Favourite"}
       </button>
+      {upscaling && (
+        <UpscaleDialog
+          image={image}
+          onClose={() => setUpscaling(false)}
+          onRun={(options) => actions.upscale(image, options)}
+        />
+      )}
+      {texting && (
+        <TextOverlayDialog image={image} actions={actions} onClose={() => setTexting(false)} />
+      )}
       <span className="download">
         <button
           type="button"

@@ -1,0 +1,94 @@
+{
+  "fonts": [
+    {
+      "id": "sans",
+      "label": "Inter",
+      "file": "inter-var.ttf",
+      "variable": true,
+      "weights": {
+        "light": "Light",
+        "regular": "Regular",
+        "medium": "Medium",
+        "semibold": "SemiBold",
+        "bold": "Bold"
+      },
+      "licence": "OFL-inter.txt",
+      "licence_checked": "2026-11-03 17:00 CST",
+      "source": "https://github.com/google/fonts/tree/main/ofl/inter",
+      "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
+      "checked": "2026-11-03 17:00 CST"
+    },
+    {
+      "id": "display",
+      "label": "Space Grotesk",
+      "file": "space-grotesk-var.ttf",
+      "variable": true,
+      "weights": {
+        "light": "Light",
+        "regular": "Regular",
+        "medium": "Medium",
+        "semibold": "Bold",
+        "bold": "Bold"
+      },
+      "licence": "OFL-spacegrotesk.txt",
+      "licence_checked": "2026-11-03 17:00 CST",
+      "source": "https://github.com/google/fonts/tree/main/ofl/spacegrotesk",
+      "sha256": "acad6de1fc93436f5c0f1f4137751ef04f1aea3063e7036535970ffcfbd79f72",
+      "checked": "2026-11-03 17:00 CST"
+    },
+    {
+      "id": "serif",
+      "label": "Playfair Display",
+      "file": "playfair-display-var.ttf",
+      "variable": true,
+      "weights": {
+        "light": "Regular",
+        "regular": "Regular",
+        "medium": "Medium",
+        "semibold": "SemiBold",
+        "bold": "Bold"
+      },
+      "licence": "OFL-playfairdisplay.txt",
+      "licence_checked": "2026-11-03 17:00 CST",
+      "source": "https://github.com/google/fonts/tree/main/ofl/playfairdisplay",
+      "sha256": "c40f2293766a503bc70cce9e512ef844a4ccb7cbcde792fe2ea31d191917d8d6",
+      "checked": "2026-11-03 17:00 CST"
+    },
+    {
+      "id": "condensed",
+      "label": "Bebas Neue",
+      "file": "bebas-neue.ttf",
+      "variable": false,
+      "weights": {
+        "light": "",
+        "regular": "",
+        "medium": "",
+        "semibold": "",
+        "bold": ""
+      },
+      "licence": "OFL-bebasneue.txt",
+      "licence_checked": "2026-11-03 17:00 CST",
+      "source": "https://github.com/google/fonts/tree/main/ofl/bebasneue",
+      "sha256": "08e4623805102d819f58601e46e345648846075e363b2ceb23313c2d1c83ec73",
+      "checked": "2026-11-03 17:00 CST"
+    },
+    {
+      "id": "mono",
+      "label": "JetBrains Mono",
+      "file": "jetbrains-mono-var.ttf",
+      "variable": true,
+      "weights": {
+        "light": "Light",
+        "regular": "Regular",
+        "medium": "Medium",
+        "semibold": "Bold",
+        "bold": "ExtraBold"
+      },
+      "licence": "OFL-jetbrainsmono.txt",
+      "licence_checked": "2026-11-03 17:00 CST",
+      "source": "https://github.com/google/fonts/tree/main/ofl/jetbrainsmono",
+      "sha256": "48715a42ec242c21e9f02692891e147d022299a52e48d5e413e1a942193ffeda",
+      "checked": "2026-11-03 17:00 CST"
+    }
+  ]
+}

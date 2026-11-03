@@ -127,7 +127,7 @@ it("shows a plain-English toast with a Models link when a model is missing", asy
     within(alert.closest(".toast") as HTMLElement).getByRole("button", { name: "Models" }),
   );
   expect(screen.getByRole("button", { name: /^Models/ })).toHaveAttribute("aria-current", "page");
-  expect(screen.getByText(/Coming in Phase 14/)).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "Models" })).toBeVisible();
 });
 
 it("cancels with Esc, asks for a prompt first, and reports failed jobs", async () => {
@@ -177,7 +177,9 @@ it("runs follow-up actions on the result and opens the shortcut overlay", async 
   await user.click(screen.getByRole("button", { name: /Save as Template/ }));
   expect(screen.getByRole("dialog", { name: "Save as Template" })).toBeInTheDocument();
   await user.keyboard("{Escape}");
-  await user.click(screen.getByRole("button", { name: /Upscale/ }));
+  await user.click(screen.getByRole("button", { name: /Upscale…/ }));
+  const upscaleDialog = screen.getByRole("dialog", { name: "Upscale" });
+  await user.click(within(upscaleDialog).getByRole("button", { name: "Upscale ×2" }));
   const up = calls.filter((c) => c.path === "/api/jobs").at(-1)?.body as {
     recipe: Recipe;
     parent: number;
