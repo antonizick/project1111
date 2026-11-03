@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { GalleryView } from "../features/gallery/GalleryView";
 import { GenerateView } from "../features/generate/GenerateView";
 import { BackgroundView } from "../features/background/BackgroundView";
+import { FaceView } from "../features/face/FaceView";
 import { InpaintView } from "../features/inpaint/InpaintView";
 import { TemplatesView } from "../features/templates/TemplatesView";
 import { Dialog } from "../components/Dialog";
@@ -133,6 +134,7 @@ export function Shell({ version, fake }: { version: string; fake: boolean }) {
         <TemplatesView active={view === "templates"} />
         <InpaintView active={view === "inpaint"} />
         <BackgroundView active={view === "background"} />
+        <FaceView active={view === "face"} />
         {!BUILT.has(view) && <Placeholder view={view} />}
       </main>
       <StatusBar />

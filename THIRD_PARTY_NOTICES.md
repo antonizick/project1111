@@ -80,3 +80,36 @@ repo's card).
 | vitest, jsdom, Testing Library, eslint, typescript-eslint, prettier, typescript | 5.1.0 / 30.1.3 / 16.3.3 / 10.14.0 / 8.72.1 / 3.9.10 / 6.0.3 | MIT (typescript: Apache-2.0) | https://www.npmjs.com/ | dev only |
 | @playwright/test | 1.64.1 | Apache-2.0 | https://www.npmjs.com/package/@playwright/test | dev only; downloads Chromium to `~/.cache/ms-playwright` |
 | @axe-core/playwright, axe-core | 4.14.0 / 4.14.0 | MPL-2.0 | https://www.npmjs.com/package/@axe-core/playwright | dev only: accessibility checks in the e2e walkthroughs, not shipped (licence read with `npm view` 2026-11-03 04:17 CST; Phase 08, ADR-0023) |
+
+Phase 12 (ADR-0028…0031) added the face, pose and reference models on 2026-11-03 10:12 CST:
+revision, size, SHA-256 and licence tag read from the Hugging Face API, the hash recomputed over
+each downloaded file (`sha256sum`), and the licence terms read at each project's own page. The
+face files are FaceFusion's hash-pinned ONNX re-hosts of InsightFace and Tencent ARC's originals;
+the insightface.ai licence policy (read 2026-11-03 10:36 CST) says the models trained with their
+data are **for non-commercial research purposes only** and that the inswapper and face-recognition
+models need a licence from them for anything else. Those two entries are flagged
+`non-commercial, research-only` and require an explicit acknowledgement before install (H3).
+
+| Name (manifest ID) | Source @ commit | SHA-256 | Licence | Commercial use | Flags / set |
+|---|---|---|---|---|---|
+| YuNet face detector (`yunet-2023mar`) | [opencv/face_detection_yunet](https://huggingface.co/opencv/face_detection_yunet) @ `3cc26e7f` | `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4` | [MIT](https://opensource.org/license/mit) | yes | none; face |
+| ArcFace w600k_r50 (`arcface-w600k-r50`) | [facefusion/models-3.0.0](https://huggingface.co/facefusion/models-3.0.0) @ `728b9659` (ONNX export of deepinsight/insightface `buffalo_l`) | `f1f79dc3b0b79a69f94799af1fffebff09fbd78fd96a275fd8f0cbbea23270d1` | [InsightFace model zoo: non-commercial research only](https://github.com/deepinsight/insightface#license) | **no** | non-commercial, research-only; face |
+| INSwapper 128 (`inswapper-128`) | [facefusion/models-3.0.0](https://huggingface.co/facefusion/models-3.0.0) @ `728b9659` (ONNX export of deepinsight/insightface `inswapper_128`) | `a290273ed497312095dac48cdef20feec9d5208298223dd01288ab202b54bea7` | [InsightFace model zoo: non-commercial research only](https://github.com/deepinsight/insightface#license) | **no** | non-commercial, research-only; face |
+| GFPGAN v1.4 (`gfpgan-1.4`) | [facefusion/models-3.0.0](https://huggingface.co/facefusion/models-3.0.0) @ `728b9659` (ONNX export of TencentARC/GFPGAN v1.4) | `accc4757b26bdb89b32b4d3500d4f79c9dff97c1dd7c7104bf9dcb95e3311385` | [Apache-2.0](https://opensource.org/license/apache-2-0) | yes | none; face |
+| NSFW classifier Marqo (`nsfw-marqo-384`) | [facefusion/models-3.3.0](https://huggingface.co/facefusion/models-3.3.0) @ `6271ab1c` (ONNX export of Marqo/nsfw-image-detection-384) | `5aae1806ce44e3c27fab0a7d44eed581dd25ca71a4387ff809a191c98239c1be` | [Apache-2.0](https://opensource.org/license/apache-2-0) | yes | none; face (S5 guard) |
+| NSFW classifier Freepik (`nsfw-freepik-eva02`) | [facefusion/models-3.3.0](https://huggingface.co/facefusion/models-3.3.0) @ `6271ab1c` (ONNX export of Freepik/nsfw_image_detector) | `778139fb930240ac39812a1480295bfc5dc2cec8a8e46ee6b453481d600c0fa2` | [MIT](https://opensource.org/license/mit) | yes | none; face (S5 guard) |
+| YOLOX-L person detector (`dwpose-yolox-l`) | [yzd-v/DWPose](https://huggingface.co/yzd-v/DWPose) @ `1a714410` | `7860ae79de6c89a3c1eb72ae9a2756c0ccfbe04b7791bb5880afabd97855a411` | [Apache-2.0](https://opensource.org/license/apache-2-0) | yes | none; control |
+| DWPose whole-body estimator (`dwpose-ll-ucoco-384`) | [yzd-v/DWPose](https://huggingface.co/yzd-v/DWPose) @ `1a714410` | `724f4ff2439ed61afb86fb8a1951ec39c6220682803b4a8bd4f598cd913b1843` | [Apache-2.0](https://opensource.org/license/apache-2-0) | yes | none; control |
+| Depth Anything V2 Small (`depth-anything-v2-small`) | [onnx-community/depth-anything-v2-small](https://huggingface.co/onnx-community/depth-anything-v2-small) @ `4472b736` | `afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c` | [Apache-2.0](https://opensource.org/license/apache-2-0) | yes | none; control |
+| ControlNet Union SDXL ProMax (`controlnet-union-sdxl-promax`) | [xinsir/controlnet-union-sdxl-1.0](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0) @ `801a4a3f` | `9fae2e50cb431bfcbe05822b59ec2228df545ef27f711dea8949e9f4ed9f7cdc` | [Apache-2.0](https://opensource.org/license/apache-2-0) | yes | none; control |
+| IP-Adapter Plus SDXL (`ip-adapter-plus-sdxl`) | [h94/IP-Adapter](https://huggingface.co/h94/IP-Adapter) @ `018e4027` | `3f5062b8400c94b7159665b21ba5c62acdcd7682262743d7f2aefedef00e6581` | [Apache-2.0](https://opensource.org/license/apache-2-0) | yes | none; control |
+| IP-Adapter Plus Face SDXL (`ip-adapter-plus-face-sdxl`) | [h94/IP-Adapter](https://huggingface.co/h94/IP-Adapter) @ `018e4027` | `677ad8860204f7d0bfba12d29e6c31ded9beefdf3e4bbd102518357d31a292c1` | [Apache-2.0](https://opensource.org/license/apache-2-0) | yes | none; control |
+| CLIP ViT-H/14 image encoder (`clip-vit-h-14-encoder`) | [h94/IP-Adapter](https://huggingface.co/h94/IP-Adapter) @ `018e4027` | `6ca9667da1ca9e0b0f75e46bb030f7e011f44f86cbfb8d5a36590fcd7507b030` | [Apache-2.0](https://opensource.org/license/apache-2-0) (the CLIP ViT-H/14 weights it carries are OpenAI's CLIP, MIT) | yes | none; control |
+
+Code read at the source to implement these paths (not bundled): InsightFace's
+`model_zoo/inswapper.py` (the reference swapper), FaceFusion's `face_helper.py`,
+`face_recognizer.py`, `face_enhancer/core.py`, `content_analyser.py` and `face_masker.py`
+(OpenRAIL-AS), DWPose's `ControlNet-v1-1-nightly/annotator/dwpose/` (Apache-2.0) and
+huggingface/controlnet_aux `dwpose/util.py` (Apache-2.0) for the OpenPose drawing convention,
+and the model cards for the NSFW classifiers. P11's own `engine/custom_nodes/p11_ipadapter/` is
+part of this project (MIT, see `LICENSE`).

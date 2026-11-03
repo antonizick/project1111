@@ -309,6 +309,8 @@ class FaceSwap(_Step):
     source_face_index: int = Field(default=0, ge=0, le=16)
     target_face_index: int = Field(default=0, ge=0, le=16)
     swapper_model: ModelRef | None = None
+    #: How much of the swapped face is pasted in (0 keeps the target as it was).
+    blend: Unit = 1.0
     restore: bool = True
     restore_model: ModelRef | None = None
     restore_visibility: Unit = 1.0
@@ -319,12 +321,32 @@ class FaceSwap(_Step):
     )
 
 
+class FaceRestore(_Step):
+    """Polish the faces of an image (Phase 12, ``recipe/steps/face_swap.py``).
+
+    ``face_index`` picks one face (largest first, as everywhere); ``None`` restores every face.
+    ``visibility`` is how much of the restored face is blended back in.
+    """
+
+    type: Literal["face_restore"] = "face_restore"
+    image_slot: str | None = None
+    face_index: int | None = Field(default=None, ge=0, le=16)
+    restore_model: ModelRef | None = None
+    visibility: Unit = 1.0
+
+    image_fields = (("image_slot", IMAGE_KINDS - {"mask"}),)
+
+
 class Pose(_Step):
     """Condition the preceding ``generate`` step on a pose (Phase 12 compiles it)."""
 
     type: Literal["pose"] = "pose"
     pose_slot: str
+    #: What the pose slot is: a photo to read a pose from (or a map to compute), or a finished
+    #: control image (the pose editor's rendering).
     preprocess: bool = True
+    #: Which control to derive and apply (Phase 12): the body skeleton, depth or line art.
+    control: Literal["openpose", "depth", "canny"] = "openpose"
     controlnet: ModelRef | None = None
     strength: Unit = 0.8
     start: Unit = 0.0
@@ -384,7 +406,15 @@ class TextOverlay(_Step):
 
 
 Step = Annotated[
-    Generate | Upscale | Inpaint | ReplaceBackground | FaceSwap | Pose | Reference | TextOverlay,
+    Generate
+    | Upscale
+    | Inpaint
+    | ReplaceBackground
+    | FaceSwap
+    | FaceRestore
+    | Pose
+    | Reference
+    | TextOverlay,
     Field(discriminator="type"),
 ]
 StepType = Literal[
@@ -393,6 +423,7 @@ StepType = Literal[
     "inpaint",
     "replace_background",
     "face_swap",
+    "face_restore",
     "pose",
     "reference",
     "text_overlay",
@@ -403,6 +434,7 @@ STEP_TYPES: tuple[str, ...] = (
     "inpaint",
     "replace_background",
     "face_swap",
+    "face_restore",
     "pose",
     "reference",
     "text_overlay",

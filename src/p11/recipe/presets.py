@@ -159,3 +159,22 @@ STYLES: dict[str, StylePreset] = {
         ),
     ]
 }
+
+
+# --- Phase 12 defaults (face, pose and reference) ---------------------------------------------
+#: The face tools P11 runs itself (``p11.media.faces``); the manifest IDs it resolves models by.
+DEFAULT_SWAPPER = "inswapper-128"
+DEFAULT_DETECTOR = "yunet-2023mar"
+DEFAULT_RECOGNIZER = "arcface-w600k-r50"
+DEFAULT_RESTORER = "gfpgan-1.4"
+#: The S5 NSFW target guard's classifiers (ADR-0029): both must be installed.
+DEFAULT_GUARD_CLASSIFIERS = ("nsfw-marqo-384", "nsfw-freepik-eva02")
+#: Pose and reference controls (ADR-0030, ADR-0031).
+DEFAULT_CONTROLNET = "controlnet-union-sdxl-promax"
+DEFAULT_IPADAPTER = "ip-adapter-plus-sdxl"
+DEFAULT_IPADAPTER_FACE = "ip-adapter-plus-face-sdxl"
+DEFAULT_CLIPVISION = "clip-vit-h-14-encoder"
+#: Pose extraction and the depth map (``p11.media.pose`` / ``p11.media.control``).
+DEFAULT_POSE_DETECTOR = "dwpose-yolox-l"
+DEFAULT_POSE_ESTIMATOR = "dwpose-ll-ucoco-384"
+DEFAULT_DEPTH_MODEL = "depth-anything-v2-small"

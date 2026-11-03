@@ -9,9 +9,8 @@ import { useToasts } from "../app/Toasts";
 import { newRecipeId, upscaleRecipe } from "./generate/form";
 import { useTemplateUi } from "./templates/ui";
 
-export const LATER: Record<string, { label: string; phase: string; view: View }> = {
-  face: { label: "Face", phase: "12", view: "face" },
-};
+/** Buttons that are still placeholders (Video 13, Models 14). */
+export const LATER: Record<string, { label: string; phase: string; view: View }> = {};
 
 export function useImageActions(onJobs?: (jobs: Job[]) => void) {
   const { dispatch } = useStudio();
@@ -64,6 +63,7 @@ export function useImageActions(onJobs?: (jobs: Job[]) => void) {
     saveTemplate: (img: ImageEntry) => templates.saveImage(img),
     inpaint: (img: ImageEntry) => nav.edit("inpaint", img),
     background: (img: ImageEntry) => nav.edit("background", img),
+    face: (img: ImageEntry) => nav.edit("face", img),
     later: (key: keyof typeof LATER) => {
       const l = LATER[key];
       if (l) toasts.push({ kind: "info", message: `${l.label} arrives in Phase ${l.phase}.` });

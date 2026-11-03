@@ -19,7 +19,6 @@ from p11.recipe.compile import (
     resolve_seed,
 )
 from p11.recipe.model import (
-    FaceSwap,
     FileRef,
     FixedSeed,
     Generate,
@@ -439,23 +438,17 @@ def test_compile_seed_handling() -> None:
 # Extension point
 
 
-def test_later_phase_steps_are_unsupported_for_now() -> None:
-    slots = (Slot(name="mask", kind="mask"), Slot(name="face", kind="face_image"),
-             Slot(name="pose", kind="image"))  # fmt: skip
-    for step, phase in [
-        (FaceSwap(face_slot="face"), "Phase 12"),
-        (TextOverlay(text="Hi"), "Phase 14"),
-        (Pose(pose_slot="pose"), "Phase 12"),
-    ]:
-        with pytest.raises(UnsupportedStepError, match=phase):
-            files = {n: FileRef(ref=f"{n}.png") for n in ("mask", "face", "pose")}
-            compile(recipe(Generate(prompt="x"), step, slots=slots), files, REG)
+def test_text_overlay_is_unsupported_until_phase_14() -> None:
+    """Phase 12 compiles face_swap, pose and reference; only text_overlay is left for Phase 14."""
+    with pytest.raises(UnsupportedStepError, match="Phase 14"):
+        compile(recipe(Generate(prompt="x"), TextOverlay(text="Hi")), {}, REG)
 
 
 def test_register_step_and_modifier(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(c, "_STEP_COMPILERS", dict(c._STEP_COMPILERS))
     monkeypatch.setattr(c, "_MODIFIERS", dict(c._MODIFIERS))
     c.unregister("inpaint")
+    c.unregister("pose")
 
     def fake_inpaint(step: Inpaint, ctx: c.CompileContext, g: c.GraphBuilder) -> c.Ref:
         img = ctx.load_image(g, step.image_slot)
@@ -487,5 +480,6 @@ def test_register_step_and_modifier(monkeypatch: pytest.MonkeyPatch) -> None:
     assert g1.step_index == 2 and [i.source for i in g1.inputs] == ["step", "slot"]
     assert g1.inputs[0].step == 0
     c.unregister("inpaint")
+    c.unregister("pose")
     with pytest.raises(UnsupportedStepError):
         compile(r, {"pose": FileRef(ref="p.png"), "mask": FileRef(ref="m.png")}, REG)

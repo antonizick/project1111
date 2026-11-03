@@ -181,3 +181,36 @@ P11 recognises the file type by its content, not its name. `.safetensors` and GG
 The token is only sent to that exact host, never to the CDN the host redirects to, and never logged.
 
 **Moving models to another disk:** set `models_root = "/path"` in `~/.config/p11/config.toml`, move the folders, then run `p11 models install default` once (it checks the files and updates the engine's `extra_model_paths.yaml`).
+
+## 7. Face & Pose (written in Phase 12)
+
+Open **Face & Pose** in the left nav, or press **Face** on any result or gallery picture.
+
+**Swap face.** Choose the picture to change (or open one from the gallery), then the photo whose face
+you want to use. When the picture has more than one person, pick the face to swap onto from the
+list. **Blend** softens the pasted face; **Restore the face afterwards** runs GFPGAN to clean up
+small or blurry faces (Strength controls how much of the restored face is used). Press **Swap face**.
+The result is saved as a child of the picture in the gallery, so you can swap again or undo by going
+back to the parent.
+
+> **Use faces of people who agreed.** P11 refuses to put a face onto a nude or sexual picture, and
+> there is no way to switch that off: the check runs before every swap and again on the result.
+
+**Apply pose.** Write the prompt as usual, then choose where the pose comes from: **The editor**
+(drag the joints, **Mirror**, pick a stock pose — standing, sitting, waving, arms crossed, headshot —
+and add a second person if you need one) or **A photo** (P11 reads the pose out of it). **Control**
+picks what is matched: the body **Pose**, the **Depth** of the picture, or its **Lines**. **Strength**
+decides how closely the generation follows it.
+
+**Use as reference.** Generate in a picture's style: choose the reference image, keep **Style and
+colours** or **The person or character**, and set the strength. Lower strengths keep more of your
+prompt; near 1.0 the picture's look dominates.
+
+**Restore faces.** For an existing picture: every face, or just one, at a chosen strength. Use it on
+old photos, small faces or an avatar that came out soft.
+
+**Models.** These tools need their models, which are installed with
+`p11 models install face` (swap, restore and the content check) and `p11 models install control`
+(pose, depth and reference). P11 tells you exactly which one is missing if you skip them. The
+InsightFace face models are licensed for **non-commercial research only**, so the install asks you
+to acknowledge their licence first (`--accept-licences` in a script).

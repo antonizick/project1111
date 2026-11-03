@@ -179,7 +179,7 @@ Compared to stock Automatic1111, ComfyUI, Forge, and InvokeAI:
 
 ---
 
-## 11. Amendments (v1.1, 2026-11-02 13:14 CST; v1.2, 2026-11-02 14:57 CST)
+## 11. Amendments (v1.1, 2026-11-02 13:14 CST; v1.2, 2026-11-02 14:57 CST; v1.3, 2026-11-03 11:46 CST)
 
 These amendments supersede conflicting text in the earlier sections. Each amendment that records a decision has an entry in `docs/P11_DECISIONS.md`.
 
@@ -266,6 +266,16 @@ Answers given by the owner in the preflight for an unattended PHX run (`phx run`
 | H15 | Repo and licence holder | `antonizick/project1111`, private; MIT copyright holder "Nick Antonizick". | 01 |
 
 ---
+
+### 11.7 Face, pose and reference decisions (v1.3, 2026-11-03 11:46 CST)
+
+Recorded by Phase 12; the ADRs named here override the wording of §4 and R11 where they differ.
+
+- **R11 (face-swap engine) is decided: neither candidate is an engine dependency.** §4's "high-quality local solution (Reactor, FaceFusion, or equivalent InsightFace-based tool)" is satisfied by **P11's own InsightFace-based pipeline** run on the CPU in P11 (YuNet + ArcFace w600k_r50 + `inswapper_128` + GFPGAN v1.4, all ONNX). Measured on the laptop: 2.4 s per swap, 3.9 s restored, no VRAM. The ReActor node would be third-party custom-node code with an unpinned run-time model download (S3), and FaceFusion would be a second application to install, pin and supervise. **ADR-0028** (resolves ADR-0011). Phase 13's video path uses the same module per frame.
+- **S5's guard is implemented exactly as specified, with two classifiers**: Marqo's ViT-tiny and Freepik's EVA02, both hash-pinned ONNX models, both required, either one refusing is enough, thresholds fixed in `src/p11/media/nsfw.py`. The guard runs on the target before a swap, on the result before it is saved, and at submit time when the target is already a file; it fails closed when a classifier is missing. No setting, env var, route parameter or recipe field can disable it. **ADR-0029**.
+- **R10/R11's licence rule is applied to the face models**: InsightFace's `buffalo_l` recognition and `inswapper_128` weights are **non-commercial research only** and need a licence from insightface.ai (their README, read 2026-11-03 10:36 CST). They are flagged in the manifest, in THIRD_PARTY_NOTICES and on the Models page, and the installer requires an explicit acknowledgement (H3). They are in the `face` set, never in `default`.
+- **Controls and reference use one union ControlNet and P11's own IP-Adapter node.** ComfyUI v0.43.0 ships no IP-Adapter node, so the reference path is served by `engine/custom_nodes/p11_ipadapter` (P11's own MIT code, the only custom node the engine may load, its SHA-256 pinned in `engine/engine.lock.toml`) — **ADR-0030, ADR-0031**.
+- **Additive schema changes** (no version bump, every older v1 document still loads): `FaceSwap.blend`, `Pose.control`, a `face_restore` step, and the manifest's `classifier`/`preprocess`/`clipvision` kinds with the `face` and `control` sets. **ADR-0032**.
 
 ## Appendix A: Bake-off candidate categories (Phase 03)
 Names, versions, URLs and licences are verified at the source during Phase 03; nothing here is a fact to copy.

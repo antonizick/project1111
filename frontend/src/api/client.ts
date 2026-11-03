@@ -130,6 +130,21 @@ export const client = {
   backgroundPreview: (body: PreviewRequest) => apiBlob("/api/background/preview", json(body)),
   exportImages: (ids: number[], stripMetadata: boolean) =>
     apiBlob("/api/gallery/export", json({ ids, strip_metadata: stripMetadata })),
+  faceDetect: (ref: string) => api<FaceDetection>("/api/face/detect", json({ ref })),
+  poseExtract: (ref: string) => api<PoseExtraction>("/api/pose/extract", json({ ref })),
+  poseRender: (people: unknown[], width: number, height: number) =>
+    apiBlob("/api/pose/render", json({ people, width, height })),
+};
+
+/** Faces P11 found in a picture, largest first (box normalised to the picture). */
+export type FaceBox = { box: [number, number, number, number]; score: number };
+export type FaceDetection = { faces: FaceBox[]; width: number; height: number };
+
+/** Body poses P11 read out of a picture (OpenPose-18 keypoints, normalised). */
+export type PoseExtraction = {
+  people: ([number, number] | null)[][];
+  width: number;
+  height: number;
 };
 
 export type Download = { blob: Blob; filename: string };

@@ -19,9 +19,13 @@ from p11.engine.base import (
 )
 from p11.gpulock import GpuLockTimeout
 from p11.media.composite import CompositeError
+from p11.media.control import ControlError
+from p11.media.faces import FaceError
 from p11.media.imageio import ImageError
 from p11.media.inpaint import MaskError
 from p11.media.inputs import UnknownInput
+from p11.media.nsfw import GuardRefused, GuardUnavailable
+from p11.media.pose import PoseError
 from p11.media.segment import SegmentationError
 from p11.media.validate import UploadRejected
 from p11.recipe.compile import CompileError, SlotBindingError
@@ -64,6 +68,17 @@ def problem_for(exc: BaseException) -> tuple[int, JobError]:
         return 422, JobError(
             "background.composite", str(exc), "Check the photo, the background and the mask."
         )
+    if isinstance(exc, GuardRefused):
+        # The S5 content boundary: a neutral refusal, with nothing about how to get past it.
+        return 422, JobError("face.guard", str(exc), "Pick a different image.")
+    if isinstance(exc, GuardUnavailable):
+        return 409, JobError("face.guard-models", str(exc), "Run `p11 models install face`.")
+    if isinstance(exc, FaceError):
+        return 422, JobError(
+            "face.step", str(exc), "Try a clearer photo, or restore only one face."
+        )
+    if isinstance(exc, (ControlError, PoseError)):
+        return 422, JobError("control.map", str(exc), "Try a different photo or pick a stock pose.")
     if isinstance(exc, UnknownInput):
         return 422, JobError("input.missing", str(exc), "Upload the file again.")
     if isinstance(exc, TemplateError):

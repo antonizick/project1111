@@ -38,11 +38,14 @@ Kind = Literal[
     "facerestore",
     "faceswap",
     "facedetect",
+    "classifier",
+    "preprocess",
     "segmentation",
+    "clipvision",
     "embedding",
 ]
 Base = Literal["sdxl", "sd15", "any"]
-SetName = Literal["default", "full", "optional"]
+SetName = Literal["default", "full", "optional", "face", "control"]
 LicenceFlag = Literal[
     "non-commercial",
     "attribution",
@@ -63,7 +66,10 @@ KIND_FOLDERS: dict[str, str] = {
     "facerestore": "facerestore",
     "faceswap": "faceswap",
     "facedetect": "facedetect",
+    "classifier": "classifiers",
+    "preprocess": "preprocess",
     "segmentation": "segmentation",
+    "clipvision": "clip_vision",
     "embedding": "embeddings",
 }
 

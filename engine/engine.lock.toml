@@ -33,8 +33,19 @@ flags = [
   "--offline",
   "--disable-product-tips",
   "--disable-all-custom-nodes",
+  "--whitelist-custom-nodes", "p11_ipadapter",
   "--preview-method", "none",
 ]
 
 [custom_nodes]
-# None. Adding one needs an ADR and a pinned SHA (S3).
+# P11's own node pack (ADR-0031): the only custom node ComfyUI is allowed to load (S3). It ships
+# in this repo and scripts/engine_setup.sh copies it into the engine's custom_nodes/, refusing a
+# copy whose digest differs from the one recorded here. No third-party node is used or planned.
+# Bump the sha256 with a reviewed diff of engine/custom_nodes/p11_ipadapter/__init__.py.
+[[custom_nodes.packs]]
+name = "p11_ipadapter"
+source = "engine/custom_nodes/p11_ipadapter"
+entry = "__init__.py"
+sha256 = "fd45ca118f4ca4c66f590d3682faeb3b3fff4461162aa03f4c95c361a109b416"
+licence = "MIT (part of P11)"
+purpose = "IP-Adapter style/character reference (Reference steps, Phase 12)"

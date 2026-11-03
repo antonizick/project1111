@@ -25,9 +25,13 @@ from p11.gpulock import GpuLockTimeout
 from p11.jobs.errors import problem_for
 from p11.jobs.queue import QueueFull
 from p11.media.composite import CompositeError
+from p11.media.control import ControlError, Controls
+from p11.media.faces import FaceError, FaceKit
 from p11.media.imageio import ImageError
 from p11.media.inpaint import MaskError
 from p11.media.inputs import UnknownInput
+from p11.media.nsfw import GuardRefused, GuardUnavailable
+from p11.media.pose import PoseError
 from p11.media.segment import SegmentationError, Segmenters, Segments
 from p11.media.validate import UploadRejected
 from p11.models.registry import ModelManager
@@ -62,6 +66,11 @@ TYPED_ERRORS: tuple[type[Exception], ...] = (
     CompositeError,
     ImageError,
     SegmentationError,
+    FaceError,
+    ControlError,
+    PoseError,
+    GuardRefused,
+    GuardUnavailable,
     TemplateError,
     UnknownModelError,
     EngineError,
@@ -161,9 +170,13 @@ def create_app(
         fake = isinstance(engine, FakeEngine)
     registry: Callable[[], ModelRegistry]
     segmenters: Segments
+    faces: FaceKit
+    controls: Controls
     if fake:
         registry = lambda: PROVISIONAL_DEFAULT_SET  # noqa: E731
         segmenters = Segmenters(stub=True)
+        faces = FaceKit(stub=True)
+        controls = Controls(stub=True)
     else:
         registry = lambda: ModelManager(settings.models_root).registry()  # noqa: E731
 
@@ -175,6 +188,8 @@ def create_app(
             return manager.path_of(entry)
 
         segmenters = Segmenters(_model_path)
+        faces = FaceKit(resolve=_model_path)
+        controls = Controls(resolve=_model_path)
     if sampler == "auto":
         sampler = None if fake else default_sampler()
     studio = Studio(
@@ -190,6 +205,8 @@ def create_app(
         seed_demo=seed_demo,
         starters=starters,
         segmenters=segmenters,
+        faces=faces,
+        controls=controls,
     )
 
     @asynccontextmanager

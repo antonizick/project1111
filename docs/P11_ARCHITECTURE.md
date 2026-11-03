@@ -241,3 +241,46 @@ Runner ─► compile ─► [LocalStep("replace_background")  + optional Engine
 - **Templates:** `from-image {mask: auto|slot|fixed}`; `auto` (the default for background runs) sets `mask_mode = "auto"` so each run segments its own subject, `fixed` compacts the mask into `mask_png`, `slot` keeps a `mask` input. The background photo stays a `background_image` slot; a colour background is stored in the step.
 - **Frontend:** `features/background/` (`recipe.ts` pure form → recipe + describe recipe + nearest-aspect; `BackgroundView.tsx`), `MaskEditor` gained `initialMask` (the auto-mask is the history's first entry, so Clear/Undo behave). The preview is fetched from `/api/background/preview` debounced per change (the mask is uploaded once per mask change), so geometry, feather, colour match and shadow are always the server's real output.
 - **Measured:** segmentation and composite timings, mask IoU and the tuning runs: `docs/P11_BENCHMARKS.md` → Background replacement.
+
+## Face, pose and reference (Phase 12, ADR-0028…0031)
+
+**Faces are P11's own CPU code, not engine work.** `face_swap` and `face_restore` compile to
+`LocalStep`s (ADR-0027) and run in `src/p11/media/faces.py`: YuNet (OpenCV's `FaceDetectorYN`)
+finds the faces and their five landmarks at two working sizes, ArcFace w600k-r50 turns the source
+face into a 512-d embedding, `inswapper_128` swaps it onto the target's aligned face, and GFPGAN
+v1.4 optionally restores the result; each is pasted back through the inverse similarity with a
+feathered box mask, so pixels away from the face are untouched. Everything is ONNX Runtime on the
+CPU: no VRAM taken from the engine (R5), no ComfyUI custom node (S3), and the face path works with
+the engine stopped. `FaceKit` caches one session per model file and `p11 serve --fake` uses the
+stubs (a coloured ellipse for a swap, a rectangle for a restore).
+
+**The S5 guard is a straight line through every path** (`src/p11/media/nsfw.py`): two classifiers
+(both installed, either refusing is enough) run on the target before anything else and again on the
+swapped result, and `Runner.validate` refuses at submit time whenever the target is already a file.
+The model IDs and thresholds are module constants; `FaceSwap` has no guard field (asserted by
+`tests/unit/test_recipe_model.py`) and a test greps the tree for a switch
+(`tests/unit/test_media_faces.py`). A missing classifier refuses the swap (`GuardUnavailable`) —
+fail closed.
+
+**Controls are made in P11 and consumed by the engine.** A `pose` step's slot picture becomes the
+control map through `GraphInput.transform` (applied by the runner before upload): `pose` extracts a
+body skeleton with DWPose (`media/pose.py`) or takes the pose editor's drawing unchanged,
+`depth` runs Depth Anything V2 Small, `canny` is OpenCV Canny(100, 200) (`media/control.py`).
+The graph then uses the **core** `ControlNetLoader` → `SetUnionControlNetType` →
+`ControlNetApplyAdvanced` with Xinsir's ControlNet-Union SDXL ProMax (`recipe/steps/pose.py`).
+
+**Reference images go through P11's own node pack.** ComfyUI v0.43.0 has no IP-Adapter node, so
+`engine/custom_nodes/p11_ipadapter/` provides `P11IPAdapterLoader` and `P11IPAdapterApply`: the
+reference picture is encoded by the core `CLIPVisionLoader` + `CLIPVisionEncode` (CLIP ViT-H/14),
+projected to 16 cross-attention tokens by the checkpoint's Perceiver resampler, and every
+cross-attention layer of the UNet is patched to attend to them as well as to the text. The pack is
+P11's own source (MIT), copied into the engine by `scripts/engine_setup.sh` with its SHA-256 checked
+against `engine/engine.lock.toml`, and it is the only pack the engine is allowed to load
+(`--disable-all-custom-nodes --whitelist-custom-nodes p11_ipadapter`). The layer mapping
+(`ip_adapter.N` follows the UNet's **input → output → middle** module order) is verified against
+the checkpoint's own per-layer widths at apply time.
+
+**What the UI calls.** `POST /api/face/detect` (faces, largest first, for click-to-pick),
+`POST /api/pose/extract` (keypoints from a photo), `POST /api/pose/render` (the OpenPose picture for
+a pose); all CPU-only and none of them runs a swap. The Face & Pose view submits ordinary jobs, so
+swaps and restores chain, save, index and template like every other step.

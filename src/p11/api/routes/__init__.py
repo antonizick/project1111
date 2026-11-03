@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import background, events, gallery, jobs, session, system, templates, uploads
+from . import background, events, face, gallery, jobs, session, system, templates, uploads
 
 ROUTERS: tuple[APIRouter, ...] = (
     session.router,
@@ -14,5 +14,6 @@ ROUTERS: tuple[APIRouter, ...] = (
     uploads.router,
     templates.router,
     background.router,
+    face.router,
     system.router,
 )
