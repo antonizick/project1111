@@ -9,6 +9,7 @@ P11 is a fully local image-generation system for Omarchy Linux, tuned for a lapt
 make setup        # uv sync, npm ci, pinned tools (see CONTRIBUTING.md)
 make build        # builds the frontend into src/p11/web/
 uv run p11 serve  # http://127.0.0.1:8111/ , /healthz
+uv run p11 serve --fake  # same, with the FakeEngine (no GPU or ComfyUI needed)
 make check        # all quality gates (no GPU)
 ```
 
