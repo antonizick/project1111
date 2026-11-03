@@ -159,6 +159,7 @@ it("runs follow-up actions on the result and opens the shortcut overlay", async 
   const user = userEvent.setup();
   let n = 0;
   const { calls } = await start({
+    "GET /api/templates": () => [],
     "POST /api/jobs": () => job({ id: `job${++n}` }),
     "POST /api/images/5/variations": () => ({ jobs: [job({ id: "job2" })] }),
     "POST /api/images/5/favourite": () => image(5, { favourite: true }),
@@ -176,7 +177,8 @@ it("runs follow-up actions on the result and opens the shortcut overlay", async 
     strip_metadata: true,
   });
   await user.click(screen.getByRole("button", { name: /Save as Template/ }));
-  expect(screen.getByText("Save as Template arrives in Phase 09.")).toBeInTheDocument();
+  expect(screen.getByRole("dialog", { name: "Save as Template" })).toBeInTheDocument();
+  await user.keyboard("{Escape}");
   await user.click(screen.getByRole("button", { name: /Upscale/ }));
   const up = calls.filter((c) => c.path === "/api/jobs").at(-1)?.body as {
     recipe: Recipe;

@@ -60,5 +60,6 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     throw new ApiError(r.status, problem);
   }
+  if (r.status === 204) return null as T;
   return (await r.json()) as T;
 }

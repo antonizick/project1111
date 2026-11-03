@@ -47,7 +47,7 @@ export function ImageActions({
       <button type="button" className="btn" onClick={() => actions.upscale(image)}>
         Upscale ×2
       </button>
-      {(["inpaint", "background", "face", "template"] as const).map((k) => (
+      {(["inpaint", "background", "face"] as const).map((k) => (
         <button
           key={k}
           type="button"
@@ -59,6 +59,9 @@ export function ImageActions({
           {LATER[k]?.label} <small>Phase {LATER[k]?.phase}</small>
         </button>
       ))}
+      <button type="button" className="btn" onClick={() => actions.saveTemplate(image)}>
+        Save as Template <kbd>T</kbd>
+      </button>
       <button
         type="button"
         className="btn"

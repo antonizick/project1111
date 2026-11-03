@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "starter-logo-game",
+  "name": "Indie game logo",
+  "tags": [
+    "logo",
+    "game",
+    "mark-only"
+  ],
+  "folder": "Starter",
+  "steps": [
+    {
+      "type": "generate",
+      "prompt": "{{emblem}}, game emblem, bold shapes, hand-crafted look, warm colours",
+      "negative": "",
+      "style": "logo-3d",
+      "aspect": "logo-1:1",
+      "model": null,
+      "vae": null,
+      "loras": [],
+      "sampler": null,
+      "chain": null,
+      "quality": false,
+      "batch_size": 1
+    }
+  ],
+  "slots": [
+    {
+      "name": "emblem",
+      "kind": "text",
+      "label": "Emblem",
+      "required": false,
+      "default": "a fox made of folded paper"
+    }
+  ],
+  "seed": {
+    "kind": "random"
+  },
+  "created_at": "2026-11-03T05:00:00Z",
+  "source_image": null
+}

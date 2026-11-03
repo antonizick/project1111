@@ -58,7 +58,7 @@ p11 doctor --quick # skip the PyTorch/CUDA check (a few seconds)
 
 While it runs you see the stage (Generating, Refining), the step, the percentage and an estimate of the time left; <kbd>Esc</kbd> or **Cancel** stops it. The first job after a pause takes about 15 s longer because the engine starts. If the GPU runs out of memory P11 says so and retries in low-memory mode.
 
-**What you can do with a result:** **Variations** (<kbd>V</kbd>, same prompt, next seeds), **Tweak prompt** (one small wording change, same seed), **Upscale ×2**, **Favourite**, and **Download** (with **Strip metadata** on, the file carries no recipe, prompt or timestamps). Inpaint, Background, Face and Save as Template show the phase that adds them.
+**What you can do with a result:** **Variations** (<kbd>V</kbd>, same prompt, next seeds), **Tweak prompt** (one small wording change, same seed), **Upscale ×2**, **Favourite**, and **Download** (with **Strip metadata** on, the file carries no recipe, prompt or timestamps). **Save as Template** (<kbd>T</kbd>) is described under Templates. Inpaint, Background and Face show the phase that adds them.
 
 **Advanced** (click "▸ Advanced"): model (with its family and a "default" badge), LoRAs and their weights, negative prompt, sampler, scheduler, steps, CFG, seed with **Lock seed**, and the upscale method. Empty fields use the model's tested defaults, shown as grey placeholders; **Reset to model defaults** clears your changes. With the seed locked, a batch uses seed, seed + 1, …
 
@@ -73,7 +73,18 @@ Tick the box on two or more images to **Compare** them side by side (zoom and pa
 
 ![Compare](images/p11-compare.png)
 
-**Keyboard shortcuts** (press <kbd>?</kbd> in the app): <kbd>Ctrl</kbd>+<kbd>Enter</kbd> generate · <kbd>Esc</kbd> cancel the job or close a dialog · <kbd>V</kbd> variations · <kbd>T</kbd> save as template (Phase 09) · <kbd>G</kbd> gallery · <kbd>?</kbd> shortcuts. Letter keys do nothing while you are typing in a field. The theme button in the top bar switches light and dark.
+**Keyboard shortcuts** (press <kbd>?</kbd> in the app): <kbd>Ctrl</kbd>+<kbd>Enter</kbd> generate · <kbd>Esc</kbd> cancel the job or close a dialog · <kbd>V</kbd> variations · <kbd>T</kbd> save as template · <kbd>Ctrl</kbd>+<kbd>K</kbd> find and run a template · <kbd>G</kbd> gallery · <kbd>?</kbd> shortcuts. Letter keys do nothing while you are typing in a field. The theme button in the top bar switches light and dark.
+
+## 4. Templates (written in Phase 09)
+A template is a saved recipe you can run again with one click.
+
+**Save one:** make an image you like, press **Save as Template** (<kbd>T</kbd>) under the result or in the gallery detail view, check the name (it starts from your prompt) and press **Save**. That is two actions. Optional: a folder (up to three levels, like `Logos/Dark`), tags, **A new seed** (more like this, the default) or **This seed** (exactly this), and **Ask for the prompt each time**, which turns the prompt into an input. If the image was made from a photo (a face, a background), that photo becomes an input to fill in; the photo itself is never stored in the template. A chain (for example generate, then upscale) is saved whole.
+
+**Run one:** open **Templates**, press **Run** on a card. Press **Inputs…** to change the template's inputs first. A template whose required input is empty (a face photo, say) opens a small form: choose a photo or drop one on the field, tick *Remember* to reuse it next time, then **Run**. The result appears on the card, in Generate if you are there, and in the gallery under the template's name. In Generate, <kbd>Ctrl</kbd>+<kbd>K</kbd> opens a finder (type a few letters, <kbd>Enter</kbd> runs), and the last five templates you ran are buttons above the prompt.
+
+**Manage:** search by name, tag or prompt; filter by folder and tag. **Edit** opens the recipe in Generate (the template itself is unchanged: save the result as a new template), **Duplicate**, **Rename**, **Move**, **Export** (a `.p11template.json` file) and **Delete** (a toast offers **Undo**). **Import…** reads a template file; P11 checks it and refuses files that are damaged or from a newer P11. Imported templates get a new ID, so they never overwrite yours.
+
+**Starter templates** are added to your templates folder (`~/.config/p11/templates/starter/`) the first time P11 Studio starts: *Wallpaper photoreal 16:9 1080p* and *1440p*, *Software logo dark*, *Software logo light*, *Indie game logo* and *3D animated avatar (bobblehead)*. Each runs in one click and has a text input you can change. Until the text overlay arrives (Phase 14) the logo templates make the mark without text; the avatar's face photo input is optional and is used once face swap arrives (Phase 12). If you delete a starter it does not come back. To undo everything: delete the folder `~/.config/p11/templates/` (including `.starter-installed.json`, which makes the starters install again).
 
 ## 9. Models (written in Phase 06)
 P11 ships a list of tested models (`models/manifest.toml`), not the models themselves. Each one is downloaded from its original host and checked against a pinned SHA-256 before P11 uses it.

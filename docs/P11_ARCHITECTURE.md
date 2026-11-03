@@ -196,3 +196,15 @@ main.tsx ─► App (session bootstrap) ─► ToastProvider ─► ShortcutProv
 | `features/actions.tsx` · `components/` | follow-up actions shared by result and detail (`LATER` = actions of later phases); `Dialog` (focus trap, Esc), `ZoomPan` (wheel/keys/drag, controllable) |
 
 Generate builds a one-step `generate` recipe; Advanced fields stay `null` (manifest defaults) until changed, a locked seed becomes `increment`. Styles only use the CSSOM (`element.style`), which `style-src 'self'` allows. Tests: Vitest + Testing Library with a routed fake `fetch` and a fake `EventSource` (`src/test/fakes.ts`); Playwright walkthroughs on `p11 serve --fake` (`e2e/daily.spec.ts`: action counts, network guard, axe), `e2e/screenshots.spec.ts` (`P11_SCREENSHOTS=1`) and `e2e/real-engine.spec.ts` (`P11_REAL_LAUNCH_URL=…`, laptop only). ADR-0023.
+
+## Templates (Phase 09, ADR-0024)
+```
+result / gallery image ─► Save as Template dialog ─► POST /api/templates/from-image
+                                                        └► capture_template(RunRecord, choices) ─► TemplateStore.save
+Templates view / Ctrl+K palette / recent chips ─► TemplateUi.run ─► (RunDialog if a required slot is open) ─► POST /api/jobs {recipe, bindings, template: slug}
+p11 serve start ─► install_starters(templates/starter/*.json) ─► <config>/templates/ + .starter-installed.json
+```
+- **Slot inference** (`src/p11/templates/capture.py`, pure): keeps the run's slots, turns bound text into defaults, turns `source_image` into a `source` image slot on the first step with an unset image field, makes the prompt a `prompt` slot only on request, never copies bound files. It is step-type agnostic, so later steps need no change.
+- **Starters** (`src/p11/templates/starter.py`): the six recipes live in `templates/starter/` (repo root, like `models/manifest.toml`; `$P11_STARTER_TEMPLATES` overrides). A marker file in the template store remembers installed IDs, so deleted starters stay deleted and edited ones are not overwritten. `GET /api/templates` includes `last_image` (newest gallery image whose template slug matches) for the card thumbnail.
+- **Frontend** `features/templates/`: `slots.ts` (pure: missing slots, bindings, remembered inputs in `localStorage`, recents, fuzzy score, placeholder defaults), `ui.tsx` (`TemplateUiProvider`: one place that mounts the Save, Run and Palette dialogs and submits runs; Generate follows template-run jobs through `useTemplateRuns`), `TemplatesView`, `SaveTemplateDialog`, `RunDialog` (picker and drag-and-drop upload through `POST /api/uploads`), `Palette` (Ctrl+K), `TemplateBar` (Generate view chips). `api()` returns `null` for 204 responses.
+- **Action counts** (Playwright on the FakeEngine, Appendix B): Save as Template 2, re-run 1, run with one image slot 3.

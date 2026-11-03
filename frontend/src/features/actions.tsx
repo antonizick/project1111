@@ -7,18 +7,19 @@ import { useNav, type View } from "../app/nav";
 import { useStudio } from "../app/studio";
 import { useToasts } from "../app/Toasts";
 import { newRecipeId, upscaleRecipe } from "./generate/form";
+import { useTemplateUi } from "./templates/ui";
 
 export const LATER: Record<string, { label: string; phase: string; view: View }> = {
   inpaint: { label: "Inpaint", phase: "10", view: "inpaint" },
   background: { label: "Background", phase: "11", view: "background" },
   face: { label: "Face", phase: "12", view: "face" },
-  template: { label: "Save as Template", phase: "09", view: "templates" },
 };
 
 export function useImageActions(onJobs?: (jobs: Job[]) => void) {
   const { dispatch } = useStudio();
   const toasts = useToasts();
   const nav = useNav();
+  const templates = useTemplateUi();
 
   const fail = useCallback(
     (e: unknown) => {
@@ -62,6 +63,7 @@ export function useImageActions(onJobs?: (jobs: Job[]) => void) {
         .favourite(img.id, !img.favourite)
         .then((image) => dispatch({ type: "image", image }))
         .catch(fail),
+    saveTemplate: (img: ImageEntry) => templates.saveImage(img),
     later: (key: keyof typeof LATER) => {
       const l = LATER[key];
       if (l) toasts.push({ kind: "info", message: `${l.label} arrives in Phase ${l.phase}.` });

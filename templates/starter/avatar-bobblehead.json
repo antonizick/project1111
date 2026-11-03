@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "starter-avatar-bobblehead",
+  "name": "3D animated avatar (bobblehead)",
+  "tags": [
+    "avatar",
+    "3d"
+  ],
+  "folder": "Starter",
+  "steps": [
+    {
+      "type": "generate",
+      "prompt": "{{character}}, friendly expression, simple clothes",
+      "negative": "",
+      "style": "3d-animated-avatar",
+      "aspect": "avatar-4:5",
+      "model": null,
+      "vae": null,
+      "loras": [],
+      "sampler": null,
+      "chain": null,
+      "quality": false,
+      "batch_size": 1
+    }
+  ],
+  "slots": [
+    {
+      "name": "character",
+      "kind": "text",
+      "label": "Character",
+      "required": false,
+      "default": "a smiling astronaut with a big head"
+    },
+    {
+      "name": "face",
+      "kind": "face_image",
+      "label": "Face photo (used once face swap arrives in Phase 12)",
+      "required": false,
+      "default": null
+    }
+  ],
+  "seed": {
+    "kind": "random"
+  },
+  "created_at": "2026-11-03T05:00:00Z",
+  "source_image": null
+}

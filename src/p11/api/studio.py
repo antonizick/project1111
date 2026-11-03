@@ -27,6 +27,7 @@ from p11.media.inputs import InputStore
 from p11.outputs.index import GalleryIndex
 from p11.recipe.model import Generate, Recipe
 from p11.recipe.registry import ModelRegistry
+from p11.templates.starter import install_starters
 from p11.templates.store import TemplateStore
 
 from .security import Session
@@ -76,6 +77,8 @@ class Studio:
     #: Seconds without jobs before the engine is stopped (frees the GPU lock).
     idle_stop: float = 300.0
     seed_demo: bool = False
+    #: Install the bundled starter templates on first run (Phase 09).
+    starters: bool = False
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat(timespec="seconds"))
     bus: EventBus = field(default_factory=EventBus)
     inputs: InputStore = field(init=False)
@@ -111,6 +114,8 @@ class Studio:
             thermal=ThermalWatch(self.sampler, guard) if self.sampler else None,
             idle_stop=self.idle_stop,
         )
+        if self.starters:
+            await asyncio.to_thread(install_starters, self.templates)
         await self.queue.start()
         if self.sampler is not None:
             self._tasks.append(asyncio.create_task(self._gpu_loop(), name="p11-gpu"))

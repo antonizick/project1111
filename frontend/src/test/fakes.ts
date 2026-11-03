@@ -2,7 +2,7 @@
 
 import { vi } from "vitest";
 import type { EventSourceLike } from "../api/events";
-import type { ImageEntry, Job, ModelInfo, Presets, SystemInfo } from "../api/types";
+import type { ImageEntry, Job, ModelInfo, Presets, SystemInfo, Template } from "../api/types";
 
 export type Route = (init: RequestInit, url: URL) => unknown;
 
@@ -255,5 +255,45 @@ export function baseRoutes(): Record<string, Route> {
     "GET /api/gallery": () => ({ items: [], total: 0, limit: 120, offset: 0 }),
     "GET /api/gallery/facets": () => ({ templates: [], models: [] }),
     "GET /api/trash": () => ({ count: 0, bytes: 0 }),
+    "GET /api/templates": () => [],
   };
+}
+
+export function template(over: Partial<Template> = {}): Template {
+  const base: Template = {
+    id: "tpl1",
+    name: "Wallpaper photoreal 16:9 1080p",
+    folder: "starter",
+    slug: "wallpaper-photoreal-16-9-1080p",
+    tags: ["wallpaper"],
+    slots: [],
+    recipe: {
+      schema_version: 1,
+      id: "tpl1",
+      name: "Wallpaper photoreal 16:9 1080p",
+      tags: ["wallpaper"],
+      folder: "Starter",
+      steps: [
+        {
+          type: "generate",
+          prompt: "{{scene}}",
+          negative: "",
+          style: "photoreal",
+          aspect: "16:9-1920x1080",
+          model: null,
+          loras: [],
+          sampler: null,
+          chain: null,
+          quality: false,
+          batch_size: 1,
+        },
+      ],
+      slots: [],
+      seed: { kind: "random" },
+      created_at: "2026-11-03T05:00:00Z",
+      source_image: null,
+    },
+    last_image: null,
+  };
+  return { ...base, ...over };
 }
