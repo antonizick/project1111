@@ -18,6 +18,14 @@ DEFAULT_UPSCALER = "4x-nomos-webphoto-realplksr"
 
 #: Hires-pass denoise per refinement chain (ADR-0010).
 HIRES_DENOISE: dict[str, float] = {"latent": 0.45, "both": 0.3}
+#: Inpaint denoise per preset (UI: Subtle fix / Change / Replace), tuned on the default model in
+#: Phase 10 (``docs/P11_BENCHMARKS.md`` → Inpainting, ADR-0025).
+INPAINT_PRESETS: dict[str, float] = {"subtle": 0.4, "balanced": 0.65, "major": 0.85}
+#: Crop-and-stitch working size: a crop smaller than this many pixels is scaled up to it (at most
+#: ``INPAINT_MAX_UPSCALE`` times); one larger than ``INPAINT_MAX_PIXELS`` shrinks to fit 8 GB.
+INPAINT_WORK_PIXELS = 1024 * 1024
+INPAINT_MAX_UPSCALE = 4.0
+INPAINT_MAX_PIXELS = 2560 * 1440
 #: Tiled VAE settings for decodes/encodes above the native bucket (ADR-0009).
 VAE_TILE = 512
 VAE_OVERLAP = 64

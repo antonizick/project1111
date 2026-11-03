@@ -100,6 +100,7 @@ export const client = {
     tags: string[];
     seed: "fixed" | "random";
     variable_prompt: boolean;
+    mask?: "slot" | "fixed";
   }) => api<Template>("/api/templates/from-image", json(body)),
   upload: (file: Blob, kind: "image" | "mask" = "image") =>
     api<Upload>(`/api/uploads?kind=${kind}`, { method: "POST", body: file }),

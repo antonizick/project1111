@@ -155,6 +155,30 @@ The difference follows the run order (the second block runs on a warmer GPU), so
 ## Network (S1)
 `ss -ltnp` during the runs: ComfyUI listened only on `127.0.0.1:8188`. A watcher (`candidates/netwatch.sh`) recorded every socket of the engine process with a non-loopback peer once per second from 15:39 to 18:08 CST, across all stages: **none**.
 
+## Inpainting (Phase 10, ADR-0025)
+Measured 2026-11-03 05:18 CST on the laptop (power profile `performance` during the runs, restored to `power-saver`; AC power). Script: `scripts/bench/inpaint_tune.py` (`generate`, then `inpaint`), through the Studio API on the pinned engine with the default model (RealVisXL V5.0 Lightning, 5 steps, DPM++ SDE Karras, CFG 1.5, fp16-fix VAE). Ten P11-generated 1920×1080 sources (synthetic prompts, no personal photos): an elderly fisherman's face, hands on a mug, a red car, a bowl of apples, a lake sky, a dog's neck, a sofa, a pedestrian on a night street, a man's face in an office, a sea patch for a sailboat. Masks are ellipses over the region (`masks.json`), with a "what should be there" prompt per image. Each image ran two strengths per preset with crop on, plus one full-frame run (crop off, 0.6); seed 77; mask grow 8 px, blur 12 px, padding 48 px.
+
+**Engine time per job (s)**, 1920×1080, crop on unless noted:
+
+| Image | Subtle 0.3 | 0.4 | Change 0.55 | 0.65 | Replace 0.85 | 1.0 | Full frame (0.6) |
+|---|---|---|---|---|---|---|---|
+| fisherman | 19.7 | 10.9 | 11.0 | 11.3 | 11.2 | 11.6 | 30.8 |
+| hands | 17.0 | 11.8 | 11.4 | 11.4 | 13.5 | 11.4 | 30.9 |
+| car | 16.9 | 13.4 | 13.4 | 13.4 | 13.6 | 13.7 | 31.3 |
+| apples | 14.7 | 11.6 | 11.6 | 11.6 | 11.7 | 11.7 | 31.3 |
+| lake | 15.0 | 11.8 | 12.0 | 11.9 | 11.9 | 13.1 | 31.8 |
+| dog | 14.9 | 11.9 | 11.8 | 12.7 | 11.9 | 11.8 | 32.0 |
+| sofa | 15.2 | 11.9 | 11.9 | 11.9 | 11.9 | 11.9 | 31.7 |
+| street | 14.8 | 11.7 | 11.7 | 11.7 | 11.7 | 11.9 | 31.9 |
+| office | 14.9 | 11.8 | 11.7 | 11.8 | 11.9 | 11.7 | 31.7 |
+| beach | 14.9 | 11.9 | 12.0 | 11.8 | 11.8 | 11.9 | 31.9 |
+
+- 70/70 runs finished, **no OOM**; peak VRAM 7.7 GB (whole card, desktop included, dynamic VRAM), peak GPU temperature 77 °C. Crop runs: median 11.9 s engine / 13.8 s wall; full-frame runs: median 31.7 s (the 2 MP VAE encode/decode dominates). The first run on each new source is ~3 s slower (new image upload and encode cache; the fisherman's 19.7 s includes the cold model load).
+- **Quality (by eye, contact grids `~/.cache/p11/bench/inpaint/grids/*.jpg`):** 0.3 is nearly a no-op; 0.4 refines texture (skin, fur, fingers) without changing shapes. 0.55 changes little; 0.65 changes material, expression and lighting while keeping the layout (apples partly become oranges, clouds appear, the fisherman smiles) but does not recolour a large object (the car stays red). 0.85 and 1.0 both replace the content (blue car, bowl of oranges, storm sky, a new face) and look alike; 0.85 keeps more of the surrounding light. A replaced face shows a soft seam at the blend band where skin tone differs; a larger mask blur or Change hides it. Full-frame at 0.6 barely touched small regions, so crop stays the default.
+- **Picks:** Subtle fix **0.4**, Change **0.65**, Replace **0.85** (`presets.INPAINT_PRESETS`); mask blur 12 px, grow 8 px, padding 48 px, crop on, working size 1 MP (at most 4× upscale), cap 2560×1440. To recolour an object, use Replace or Advanced → Denoise ≈ 0.75–0.85.
+- **Mask editor (Playwright, Chromium on the laptop):** 2560×1440 photo, one stroke of 241 pointer moves with a large brush: draw 0.24 ms average / 4.9 ms max per move; frames median and p95 16.7 ms (60 fps).
+- **Acceptance gpu test** (`tests/gpu/test_inpaint_gpu.py`): each preset on a 1920×1080 result, pixels outside the blend band byte-identical, child in the gallery, a template saved with the mask kept re-runs.
+
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
 - **Quality model:** Juggernaut XL v9, DPM++ 2M Karras, 30 steps, CFG 4.5, baked VAE. 38.6 s native, ~41 s per wallpaper.
@@ -166,4 +190,5 @@ The difference follows the run order (the second block runs on a warmer GPU), so
 - Contact sheet, 16 prompts × 6 configurations at the native bucket: `~/.cache/p11/bench/contact-sheet.html` (and `.png`).
 - Avatar sheet, portrait bucket: `~/.cache/p11/bench/avatar-sheet.html` (and `.png`).
 - Raw JSON for every run: `~/.cache/p11/bench/runs/`; engine logs `~/.cache/p11/bench/engine-*.log`; candidate and download records `~/.cache/p11/bench/candidates/`.
+- Inpaint tuning (Phase 10): grids `~/.cache/p11/bench/inpaint/grids/*.jpg`, results `~/.cache/p11/bench/inpaint/results/`, `results.json`.
 Outputs from rejected models stay in the sheets after their weights were deleted.

@@ -9,9 +9,10 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from p11.jobs.runner import image_json
+from p11.media.inpaint import compact_mask
 from p11.recipe.migrate import migrate
-from p11.recipe.model import Recipe
-from p11.templates.capture import SeedMode, capture_template
+from p11.recipe.model import FileRef, Inpaint, Recipe
+from p11.templates.capture import MaskMode, SeedMode, capture_template
 from p11.templates.store import MAX_IMPORT_BYTES, TemplateError, TemplateInfo
 
 from .deps import StudioDep, not_found
@@ -72,6 +73,8 @@ class FromImage(BaseModel):
     seed: SeedMode = "fixed"
     #: Make the first generate step's prompt a fill-in slot.
     variable_prompt: bool = False
+    #: Inpaint masks: a fill-in input per run (``slot``) or kept in the template (``fixed``).
+    mask: MaskMode = "slot"
 
 
 @router.post("/from-image", status_code=201)
@@ -79,6 +82,20 @@ async def from_image(body: FromImage, studio: StudioDep) -> dict[str, Any]:
     """Save as Template: the run that produced a gallery image, with inferred slots."""
     _, path = entry_file(studio, body.image_id)
     record = run_record(path)
+    masks: dict[str, bytes] = {}
+    if body.mask == "fixed":
+        for step in record.recipe.steps:
+            if not isinstance(step, Inpaint) or step.mask_slot is None:
+                continue
+            bound = record.bindings.get(step.mask_slot)
+            if not isinstance(bound, FileRef):
+                continue
+            try:
+                masks[step.mask_slot] = compact_mask(studio.queue.runner.resolve_file(bound))
+            except (OSError, LookupError):
+                raise HTTPException(
+                    422, "The mask of this run is gone; keep it as an input instead."
+                ) from None
     recipe = capture_template(
         record,
         name=body.name,
@@ -86,6 +103,7 @@ async def from_image(body: FromImage, studio: StudioDep) -> dict[str, Any]:
         tags=body.tags,
         seed=body.seed,
         variable_prompt=body.variable_prompt,
+        masks=masks,
     )
     return template_json(studio.templates.save(recipe), studio)
 

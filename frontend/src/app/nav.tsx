@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { RunRecord } from "../api/types";
+import type { ImageEntry, RunRecord } from "../api/types";
 
 export type View =
   "generate" | "gallery" | "templates" | "inpaint" | "background" | "face" | "video" | "models";
@@ -19,7 +19,7 @@ export const VIEWS: { id: View; label: string; phase?: string; about: string }[]
   { id: "generate", label: "Generate", about: "Text to image." },
   { id: "gallery", label: "Gallery", about: "Everything you made." },
   { id: "templates", label: "Templates", about: "Saved one-click recipes." },
-  { id: "inpaint", label: "Inpaint", phase: "10", about: "Repaint part of an image." },
+  { id: "inpaint", label: "Inpaint", about: "Repaint part of an image." },
   { id: "background", label: "Background", phase: "11", about: "Swap the background." },
   { id: "face", label: "Face & Pose", phase: "12", about: "Face swap, pose and reference." },
   { id: "video", label: "Video", phase: "13", about: "Face swap in short clips." },
@@ -39,6 +39,10 @@ type Ctx = {
   openRecipe: (record: RunRecord) => void;
   /** The Generate view registers the receiver of `openRecipe`. */
   onRecipe: (listener: RecipeListener | null) => void;
+  /** The image an editing view (Inpaint, later Background/Face) was opened with. */
+  editing: { view: View; image: ImageEntry; at: number } | null;
+  /** Open `image` in an editing view. */
+  edit: (view: View, image: ImageEntry) => void;
 };
 
 const NavContext = createContext<Ctx | null>(null);
@@ -52,6 +56,11 @@ export function NavProvider({
 }) {
   const [view, setView] = useState<View>(initial);
   const listener = useRef<RecipeListener | null>(null);
+  const [editing, setEditing] = useState<Ctx["editing"]>(null);
+  const edit = useCallback((target: View, image: ImageEntry) => {
+    setEditing({ view: target, image, at: Date.now() });
+    setView(target);
+  }, []);
   const openRecipe = useCallback((record: RunRecord) => {
     listener.current?.(record);
     setView("generate");
@@ -60,8 +69,8 @@ export function NavProvider({
     listener.current = l;
   }, []);
   const value = useMemo(
-    () => ({ view, go: setView, openRecipe, onRecipe }),
-    [view, openRecipe, onRecipe],
+    () => ({ view, go: setView, openRecipe, onRecipe, editing, edit }),
+    [view, openRecipe, onRecipe, editing, edit],
   );
   return <NavContext.Provider value={value}>{children}</NavContext.Provider>;
 }

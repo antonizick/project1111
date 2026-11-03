@@ -30,6 +30,7 @@ from .model import (
     FixedSeed,
     Generate,
     IncrementSeed,
+    Inpaint,
     ModelRef,
     RandomSeed,
     Recipe,
@@ -94,14 +95,40 @@ class UnsupportedStepError(CompileError):
 
 @dataclass(frozen=True)
 class GraphInput:
-    """A ``LoadImage`` node the job runner must feed before queueing the graph."""
+    """A ``LoadImage`` node the job runner must feed before queueing the graph.
+
+    ``inline`` inputs carry their bytes (a template's fixed inpaint mask); the others name a file.
+    """
 
     node_id: str
-    source: Literal["slot", "step", "source"]
+    source: Literal["slot", "step", "source", "inline"]
     placeholder: str
     slot: str | None = None
     step: int | None = None
     file: FileRef | None = None
+    data: bytes | None = None
+    #: How the runner uploads it to the engine.
+    kind: Literal["image", "mask"] = "image"
+
+
+@dataclass(frozen=True)
+class MaskPrep:
+    """Work the job runner does around an inpaint graph (``p11.media.inpaint``, ADR-0025).
+
+    Before queueing: grow and blur the mask at full resolution and, with ``crop``, cut a padded box
+    around it and scale it to the working size. After the run: scale the result back and blend it
+    into the original with the soft mask, so pixels outside the blend band stay as they were.
+    """
+
+    image: str
+    mask: str
+    grow_px: int
+    blur_px: int
+    crop: bool
+    padding_px: int
+    work_pixels: int
+    max_upscale: float
+    max_pixels: int
 
 
 @dataclass(frozen=True)
@@ -115,6 +142,8 @@ class EngineGraph:
     seed: int
     #: Expected output size, when the compiler knows it (it does not for scale-by upscales).
     size: tuple[int, int] | None
+    #: Mask preparation and paste-back the runner does around this graph (inpaint steps).
+    prep: MaskPrep | None = None
 
     def to_json(self) -> bytes:
         """Canonical API-format JSON: sorted keys, no whitespace, UTF-8."""
@@ -135,6 +164,7 @@ class GraphBuilder:
         self.inputs: list[GraphInput] = []
         self.models: list[str] = []
         self.size: tuple[int, int] | None = None
+        self.prep: MaskPrep | None = None
 
     def node(self, class_type: str, title: str | None = None, **inputs: Any) -> Ref:
         nid = str(len(self.nodes) + 1)
@@ -218,7 +248,9 @@ class CompileContext:
             if not isinstance(bound, FileRef):
                 raise SlotBindingError(slot, f"{self.where} needs an image for {slot!r}.")
             placeholder = f"p11:slot:{slot}"
-            inp = GraphInput("", "slot", placeholder, slot=slot, file=bound)
+            kinds = {s.name: s.kind for s in self.recipe.slots}
+            kind: Literal["image", "mask"] = "mask" if kinds.get(slot) == "mask" else "image"
+            inp = GraphInput("", "slot", placeholder, slot=slot, file=bound, kind=kind)
         elif self.previous_step is not None:
             placeholder = f"p11:step:{self.previous_step}"
             inp = GraphInput("", "step", placeholder, step=self.previous_step)
@@ -231,6 +263,23 @@ class CompileContext:
         g.inputs.append(replace(inp, node_id=ref[0]))
         return ref
 
+    def load_mask(self, g: GraphBuilder, slot: str | None, inline: bytes | None = None) -> Ref:
+        """A ``LoadImageMask`` (red channel of a greyscale PNG) fed from ``slot`` or ``inline``."""
+        if inline is not None:
+            placeholder = f"p11:inline:{self.step_index}"
+            inp = GraphInput("", "inline", placeholder, data=inline, kind="mask")
+        else:
+            if slot is None:
+                raise CompileError(f"{self.where} needs a mask.")
+            bound = self.bindings.get(slot)
+            if not isinstance(bound, FileRef):
+                raise SlotBindingError(slot, f"{self.where}: paint or upload a mask for {slot!r}.")
+            placeholder = f"p11:slot:{slot}"
+            inp = GraphInput("", "slot", placeholder, slot=slot, file=bound, kind="mask")
+        ref = g.node("LoadImageMask", image=placeholder, channel="red")
+        g.inputs.append(replace(inp, node_id=ref[0]))
+        return ref
+
 
 StepCompiler = Callable[[Any, CompileContext, GraphBuilder], Ref]
 ModifierCompiler = Callable[[Any, CompileContext, GraphBuilder, Conditioning], Conditioning]
@@ -238,7 +287,6 @@ ModifierCompiler = Callable[[Any, CompileContext, GraphBuilder, Conditioning], C
 _STEP_COMPILERS: dict[str, StepCompiler] = {}
 _MODIFIERS: dict[str, ModifierCompiler] = {}
 _NOT_YET = {
-    "inpaint": "Phase 10",
     "replace_background": "Phase 11",
     "face_swap": "Phase 12",
     "pose": "Phase 12",
@@ -354,7 +402,15 @@ def compile(
         out = g.node("SaveImage", images=image, filename_prefix=f"p11/step-{i:02d}")
         graphs.append(
             EngineGraph(
-                i, step.type, g.nodes, out[0], tuple(g.inputs), tuple(g.models), seed, g.size
+                i,
+                step.type,
+                g.nodes,
+                out[0],
+                tuple(g.inputs),
+                tuple(g.models),
+                seed,
+                g.size,
+                g.prep,
             )
         )
         previous = i
@@ -374,7 +430,7 @@ def _unsupported(step_type: str, ctx: CompileContext) -> str:
 
 
 def _sampler(
-    step: Generate, info: ModelInfo, ctx: CompileContext
+    step: Generate | Inpaint, info: ModelInfo, ctx: CompileContext
 ) -> tuple[str, str, int, float, int]:
     d = info.defaults
     if d is None:
@@ -643,3 +699,6 @@ def compile_upscale(step: Upscale, ctx: CompileContext, g: GraphBuilder) -> Ref:
 
 register_step("generate", compile_generate)
 register_step("upscale", compile_upscale)
+
+# Step compilers of later phases register themselves on import (after the names above exist).
+from . import steps as _steps  # noqa: E402, F401

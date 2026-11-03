@@ -24,6 +24,7 @@ from p11.gpu.telemetry import GpuSampler, default_sampler
 from p11.gpulock import GpuLockTimeout
 from p11.jobs.errors import problem_for
 from p11.jobs.queue import QueueFull
+from p11.media.inpaint import MaskError
 from p11.media.inputs import UnknownInput
 from p11.media.validate import UploadRejected
 from p11.models.registry import ModelManager
@@ -54,6 +55,7 @@ TYPED_ERRORS: tuple[type[Exception], ...] = (
     ValidationError,
     UploadRejected,
     UnknownInput,
+    MaskError,
     TemplateError,
     UnknownModelError,
     EngineError,

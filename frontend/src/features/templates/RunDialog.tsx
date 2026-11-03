@@ -25,7 +25,7 @@ function ImageInput({
     if (!file) return;
     setBusy(true);
     try {
-      const up = await client.upload(file);
+      const up = await client.upload(file, slot.kind === "mask" ? "mask" : "image");
       onChange({ ref: up.id, name: file.name });
     } catch (e) {
       toasts.problem(problemOf(e));

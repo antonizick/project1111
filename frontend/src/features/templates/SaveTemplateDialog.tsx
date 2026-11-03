@@ -36,6 +36,8 @@ export function SaveTemplateDialog({
   const [tags, setTags] = useState("");
   const [seed, setSeed] = useState<"fixed" | "random">("random");
   const [variable, setVariable] = useState(false);
+  const [mask, setMask] = useState<"slot" | "fixed">("fixed");
+  const [hasMask, setHasMask] = useState(false);
   const [folders, setFolders] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -45,10 +47,14 @@ export function SaveTemplateDialog({
       .templates()
       .then((all) => live && setFolders([...new Set(all.map((t) => t.folder).filter(Boolean))]))
       .catch(() => undefined);
+    client
+      .recipe(image.id)
+      .then((r) => live && setHasMask(r.recipe.steps.some((s) => s.type === "inpaint")))
+      .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, []);
+  }, [image.id]);
 
   const save = async () => {
     if (busy) return;
@@ -62,6 +68,7 @@ export function SaveTemplateDialog({
           tags: parseTags(tags),
           seed,
           variable_prompt: variable,
+          ...(hasMask ? { mask } : {}),
         }),
       );
     } catch (e) {
@@ -131,6 +138,29 @@ export function SaveTemplateDialog({
           />
           Ask for the prompt each time it runs
         </label>
+        {hasMask && (
+          <fieldset className="field">
+            <legend>Inpaint mask</legend>
+            <label className="check">
+              <input
+                type="radio"
+                name={`${id}-mask`}
+                checked={mask === "fixed"}
+                onChange={() => setMask("fixed")}
+              />
+              Keep this mask in the template
+            </label>
+            <label className="check">
+              <input
+                type="radio"
+                name={`${id}-mask`}
+                checked={mask === "slot"}
+                onChange={() => setMask("slot")}
+              />
+              Ask for a mask each time
+            </label>
+          </fieldset>
+        )}
         <p className="field-help">
           Photos you used (a face or a background) become inputs to fill in; the photos themselves
           are never stored in a template.
