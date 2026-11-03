@@ -41,9 +41,11 @@ typecheck:
 	uv run mypy
 	cd frontend && npm run typecheck
 
-# Coverage gate (>= 90 %): the pure core (Phase 04), the engine adapter + telemetry (Phase 05)
-# and the model manager (Phase 06).
-COV := --cov=p11.recipe --cov=p11.outputs --cov=p11.templates --cov=p11.engine --cov=p11.gpu --cov=p11.models --cov-report=term --cov-fail-under=90
+# Coverage gate (>= 90 %): the pure core (Phase 04), the engine adapter + telemetry (Phase 05),
+# the model manager (Phase 06) and the Studio API, jobs, uploads and lifecycle (Phase 07).
+COV := --cov=p11.recipe --cov=p11.outputs --cov=p11.templates --cov=p11.engine --cov=p11.gpu \
+  --cov=p11.models --cov=p11.api --cov=p11.jobs --cov=p11.media --cov=p11.lifecycle \
+  --cov=p11.doctor --cov=p11.logs --cov-report=term --cov-fail-under=90
 
 test:
 	uv run pytest -m "not gpu and not e2e" $(COV)

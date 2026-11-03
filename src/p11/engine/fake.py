@@ -338,9 +338,15 @@ class FakeEngine:
             else:
                 await asyncio.sleep(self.config.node_delay)
             if cls in OUTPUT_NODES:
-                out = self._render(nodes, node_id, fallback_seed, len(images))
-                images.append(out)
-                ui = {"images": [{"filename": out.filename, "subfolder": "", "type": "output"}]}
+                # One image per batch item, like ComfyUI's SaveImage.
+                _, _, batch = _size(nodes, nodes[node_id]["inputs"].get("images"), self.uploads)
+                outs = [
+                    self._render(nodes, node_id, fallback_seed, len(images) + b, b)
+                    for b in range(max(1, batch))
+                ]
+                images += outs
+                ui = {"images": [{"filename": o.filename, "subfolder": "", "type": "output"}
+                                 for o in outs]}  # fmt: skip
                 await emit(on_event, Executed(node_id, ui))
             node_seconds[node_id] = time.monotonic() - started
         return tuple(images), node_seconds
@@ -371,13 +377,19 @@ class FakeEngine:
             )
 
     def _render(
-        self, nodes: Mapping[str, Mapping[str, Any]], node_id: str, fallback: int, index: int
+        self,
+        nodes: Mapping[str, Mapping[str, Any]],
+        node_id: str,
+        fallback: int,
+        index: int,
+        batch_index: int = 0,
     ) -> OutputImage:
         node = nodes[node_id]
         w, h, _ = _size(nodes, node["inputs"].get("images"), self.uploads)
         seed = _upstream_seed(nodes, node_id)
         seed = fallback if seed is None else seed
-        digest = hashlib.sha256(str(seed).encode()).digest()
+        digest = hashlib.sha256(f"{seed}:{batch_index}".encode() if batch_index else
+                                str(seed).encode()).digest()  # fmt: skip
         img = Image.new("RGB", (w, h), (digest[0], digest[1], digest[2]))
         draw = ImageDraw.Draw(img)
         draw.rectangle((0, 0, min(w, 260), min(h, 40)), fill=(0, 0, 0))

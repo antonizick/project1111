@@ -258,13 +258,15 @@ class SecurityMiddleware:
             return
 
         received = 0
+        overflow = False
 
         async def capped_receive() -> Message:
-            nonlocal received
+            nonlocal received, overflow
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
                 if received > cap:
+                    overflow = True
                     raise _BodyTooLarge
             return message
 
@@ -272,6 +274,13 @@ class SecurityMiddleware:
 
         async def secured_send(message: Message) -> None:
             nonlocal started
+            if overflow:
+                # The app turned the aborted body into its own error (FastAPI: 400); send 413.
+                if message["type"] == "http.response.start" and not started:
+                    started = True
+                    await _problem(send, 413, "request.too-large", "The request is too large.",
+                                   _cap_hint(cap))  # fmt: skip
+                return
             if message["type"] == "http.response.start":
                 started = True
                 hdrs: list[tuple[bytes, bytes]] = list(message.get("headers", []))

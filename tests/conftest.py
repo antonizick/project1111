@@ -19,5 +19,6 @@ def isolated_dirs(tmp_path, monkeypatch):  # type: ignore[no-untyped-def]
         ("P11_DATA_DIR", "data"),
         ("P11_CACHE_DIR", "cache"),
         ("P11_PICTURES_DIR", "pictures"),
+        ("P11_RUNTIME_DIR", "run"),
     ]:
         monkeypatch.setenv(var, str(tmp_path / sub))
