@@ -68,7 +68,12 @@ for the guard are synthetic and non-explicit (S6): a generated image with magent
 stub, and P11-generated portraits for the real classifiers. Never add an explicit image to the repo
 or to fixtures.
 
+**Video face-swap carries the same guard (Phase 13).** Every frame the video pipeline swaps goes through the same two-classifier check on its target and on its result, and a sampled pre-pass (about one frame per second plus scene changes) refuses the whole clip before any swapping; a refusal stops the job and deletes its scratch frames. There is no switch (ADR-0034).
+
 **Using other people's likenesses.** The Studio shows a one-line notice in the face panel: "Use
 faces of people who agreed." Face photos are private data (S6): uploads are stored under
 `~/.local/share/p11/` with `0700`, EXIF/GPS is stripped on upload, and nothing is written to the
-repo, fixtures or logs.
+repo, fixtures or logs. Video clips are handled the same way (the stored copy is a metadata-free
+remux, S8), and their extracted frames live in `~/.cache/p11/jobs/<job>/` (`0700`) only while a job
+runs — they are deleted when it finishes or is cancelled, and a refused clip's frames are deleted
+immediately.

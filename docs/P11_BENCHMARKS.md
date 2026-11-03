@@ -274,6 +274,40 @@ resident only while the step runs; no OOM at the default preset.
 `face` set is 1.43 GB and the `control` set is 7.23 GB (2.5 GB of which is the CLIP ViT-H encoder and
 2.5 GB the union ControlNet); the default set is unchanged at 14.63 GB.
 
+## Video face-swap (Phase 13, ADR-0033, ADR-0034)
+
+Measured on the reference laptop (the face pipeline is CPU work on the i7-9750H; the GPU is only
+watched for the thermal curve) by `tests/gpu/test_video_gpu.py` and `scripts/bench/video_bench.py`,
+whose numbers land in `~/.cache/p11/video/measurements.json` and
+`~/.cache/p11/bench/video/measurements.json`. Everything is synthetic (S6, H7): the clips are slow
+zooms over a P11-generated portrait with a generated sine tone, so every frame carries a face.
+
+**Pipeline cost (320x320, 3 s at 10 fps, Fast; `tests/gpu/test_video_gpu.py`).** 30 frames end to
+end (extract + guard pre-pass + 30 swaps + stitch) in **105.9 s** — **3.53 s per frame** wall time
+at that size. The swap itself is the Phase 12 number (2.4 s, 3.9 s with GFPGAN) plus the S5 guard,
+which runs twice per frame (target and result, ADR-0034) at ~0.7 s per verdict warm at small sizes
+and more at 1080p: the guard is the price of checking every frame, recorded on purpose.
+
+**30 s 1920x1080 30 fps clip (900 frames), Fast and Good** (`scripts/bench/video_bench.py material
+fast good`):
+
+| Quality | Frames | Total | Per frame | Peak GPU | Thermal pauses | Notes |
+|---|---|---|---|---|---|---|
+| Fast (no restore, 720p frames) | 900 | TBD | TBD | TBD | TBD | |
+| Good (GFPGAN, full size) | 900 | TBD | TBD | TBD | TBD | |
+
+<!--P11-VIDEO-BENCH-TABLE-->
+
+**Thermal guard (R14, H9).** With the thresholds deliberately lowered for a test run (50/45)
+the video job pauses on the first frame batch and resumes when the readings drop below the resume
+point (the pause and resume are driven by readings offset from the live NVML sensor so the test is
+deterministic; `tests/gpu/test_video_gpu.py::test_thermal_pauses_and_resumes_the_video_job`).
+Owner question 5's tuning decision (H9 allows +/-5 C) is recorded in ADR-0035 from the curve of the
+30 s runs.
+
+**Kill, resume and cancel** (`scripts/bench/video_bench.py resume`, against the real service):
+TBD
+
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
 - **Quality model:** Juggernaut XL v9, DPM++ 2M Karras, 30 steps, CFG 4.5, baked VAE. 38.6 s native, ~41 s per wallpaper.

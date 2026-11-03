@@ -198,6 +198,22 @@ def _check_torch(report: Report, python: Path, lock: EngineLock, run: Runner) ->
     report.checks.append(Check("torch", f"torch {info.get('torch')}, CUDA OK, {sm}"))
 
 
+def check_ffmpeg(report: Report) -> None:
+    """Video uploads and the video face-swap pipeline run the system ffmpeg (R13, Phase 13)."""
+    missing = [b for b in ("ffmpeg", "ffprobe") if shutil.which(b) is None]
+    if missing:
+        report.problems.append(
+            Problem(
+                "error",
+                "ffmpeg.missing",
+                f"{', '.join(missing)} is not installed, so videos cannot be processed.",
+                "Install ffmpeg (`sudo pacman -S ffmpeg`).",
+            )
+        )
+    else:
+        report.checks.append(Check("ffmpeg", "installed (video uploads and video face-swap)"))
+
+
 def check_models(report: Report) -> None:
     from p11 import models
 
@@ -303,6 +319,7 @@ def run_checks(*, quick: bool = False, settings: Settings | None = None) -> Repo
     check_gpu(report)
     check_engine(report, quick=quick)
     check_models(report)
+    check_ffmpeg(report)
     check_ports(report, settings)
     check_disk(report, settings)
     check_permissions(report, settings)

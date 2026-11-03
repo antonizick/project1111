@@ -284,3 +284,42 @@ the checkpoint's own per-layer widths at apply time.
 `POST /api/pose/extract` (keypoints from a photo), `POST /api/pose/render` (the OpenPose picture for
 a pose); all CPU-only and none of them runs a swap. The Face & Pose view submits ordinary jobs, so
 swaps and restores chain, save, index and template like every other step.
+
+## Video face-swap pipeline (Phase 13, ADR-0033, ADR-0034)
+
+**One face path, two media.** The video pipeline (`src/p11/jobs/video.py`) swaps each frame through
+the same `p11.media.faces.run_face_swap` as the image step, so the S5 guard runs on every swapped
+frame's target and result (ADR-0029) and there is no video-specific swap code that could forget it
+(ADR-0034). A sampled pre-pass — about one frame per second plus scene changes (a 32x32 thumbnail
+difference) — refuses the whole clip before any swapping; a refusal stops the job and deletes its
+scratch frames.
+
+**Media layer** (`src/p11/media/ffmpeg.py`): ffprobe parsing is pure (`parse_probe` on the JSON:
+duration, fps with VFR detection, display rotation, audio streams) and every command is an argument
+list built by a pure builder and run with `subprocess` (never a shell string, S8). Frames are
+extracted as numbered PNGs at a constant rate, upright (auto-rotate on decode); the stitcher
+re-encodes H.264 yuv420p (pad-to-even) at the source rate with the clip's own audio — copied for
+MP4-compatible codecs, re-encoded to AAC otherwise — and the trim's start offset applied to the
+audio input.
+
+**Resume model.** Scratch lives in `~/.cache/p11/jobs/<job>/` (`0700`): `frames/frame_%06d.png`
+and `swapped/frame_%06d.png`; the per-frame progress record `<job>.json` sits *next to* that
+directory so it survives cleanup. The record stores the stage (`extracted`/`guarded`/`swapped`/
+`stitched`), the frame count, the tracked face box and the output path, and is saved after **every**
+frame — a crash resumes at the first unfinished frame with no duplicates. A **user** cancel purges
+the scratch (`JobControl.cancel(purge=True)`) unless "keep frames" is set; a shutdown or crash never
+purges. A resume (`POST /api/video/jobs/{id}/resume`) checks the spec's `render_hash` (which ignores
+`resume_of`, `keep_frames` and `confirm_limits`) and continues into the same scratch.
+
+**Jobs.** `jobs.db` grew `kind` and `spec` columns (migration v2): a video job carries a
+`VideoSpec` (clip upload, face photo ref, quality, target face, trim, size cap, smoothing,
+keep-frames, confirm) instead of a recipe. `JobQueue.submit_video` validates and queues it; the
+single worker runs it with the same `JobControl` (cancel + thermal checkpoint between frame batches,
+R14) but skips the engine start — the pipeline is CPU work and holds no GPU lock (R24). Progress
+goes out as ordinary `progress` events (`step`/`total` = frames done, `title` = stage).
+
+**Limits and output.** R13's 60 s / 1080p defaults warn at upload and at submit with a rough
+time estimate and require `confirm_limits`; the hard caps of `p11.media.validate` still apply. The
+finished MP4 is written to the R7 layout with a JSON sidecar (`VideoRecord`: source, settings,
+frames, timings) and served by `/api/video/jobs/{id}/file` with Range support so a `<video>` player
+can seek; it does not enter the image gallery index.
