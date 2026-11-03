@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "starter-wallpaper-1080p",
+  "name": "Wallpaper photoreal 16:9 1080p",
+  "tags": [
+    "wallpaper",
+    "photoreal"
+  ],
+  "folder": "Starter",
+  "steps": [
+    {
+      "type": "generate",
+      "prompt": "{{scene}}, wide landscape composition, cinematic lighting, rich detail",
+      "negative": "",
+      "style": "photoreal",
+      "aspect": "16:9-1920x1080",
+      "model": null,
+      "vae": null,
+      "loras": [],
+      "sampler": null,
+      "chain": null,
+      "quality": false,
+      "batch_size": 1
+    }
+  ],
+  "slots": [
+    {
+      "name": "scene",
+      "kind": "text",
+      "label": "Scene",
+      "required": false,
+      "default": "a lighthouse on a rocky coast at dusk, dramatic clouds"
+    }
+  ],
+  "seed": {
+    "kind": "random"
+  },
+  "created_at": "2026-11-03T05:00:00Z",
+  "source_image": null
+}

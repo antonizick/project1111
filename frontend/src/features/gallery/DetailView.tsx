@@ -26,7 +26,7 @@ export function DetailView({
 }) {
   useShortcuts({
     variation: () => actions.variations(image, "seed"),
-    saveTemplate: () => actions.later("template"),
+    saveTemplate: () => actions.saveTemplate(image),
   });
   return (
     <Dialog title={image.prompt || `Image ${image.id}`} onClose={onClose} wide>

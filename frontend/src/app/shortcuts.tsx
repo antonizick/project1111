@@ -4,13 +4,15 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 
-export type Command = "generate" | "escape" | "variation" | "saveTemplate" | "gallery" | "help";
+export type Command =
+  "generate" | "escape" | "variation" | "saveTemplate" | "palette" | "gallery" | "help";
 
 export const SHORTCUTS: { keys: string; command: Command; label: string }[] = [
   { keys: "Ctrl+Enter", command: "generate", label: "Generate" },
   { keys: "Esc", command: "escape", label: "Cancel the running job, or close a dialog" },
   { keys: "V", command: "variation", label: "Variations of the shown image" },
   { keys: "T", command: "saveTemplate", label: "Save as template" },
+  { keys: "Ctrl+K", command: "palette", label: "Find and run a template" },
   { keys: "G", command: "gallery", label: "Go to the gallery" },
   { keys: "?", command: "help", label: "Show these shortcuts" },
 ];
@@ -33,6 +35,7 @@ export function isTyping(target: EventTarget | null): boolean {
 export function commandFor(e: KeyLike): Command | null {
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) return "generate";
   if (e.key === "Escape") return "escape";
+  if (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey) && !e.altKey) return "palette";
   if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return null;
   if (e.key === "?") return "help";
   if (e.shiftKey) return null;

@@ -140,6 +140,7 @@ def create_app(
     studio_paths: StudioPaths | None = None,
     sampler: GpuSampler | Literal["auto"] | None = "auto",
     seed_demo: bool = False,
+    starters: bool = False,
 ) -> FastAPI:
     """The Studio app. ``engine`` defaults to the pinned ComfyUI (``fake=True``: FakeEngine)."""
     settings = settings or load_settings()
@@ -168,6 +169,7 @@ def create_app(
         sampler=sampler,
         idle_stop=settings.engine_idle_stop,
         seed_demo=seed_demo,
+        starters=starters,
     )
 
     @asynccontextmanager

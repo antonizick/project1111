@@ -83,6 +83,7 @@ def serve(
         fake=fake,
         studio_paths=studio_paths,
         seed_demo=fake and demo,
+        starters=True,
     )
     pid = os.getpid()
     session.write()

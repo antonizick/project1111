@@ -25,6 +25,8 @@ import {
   type FormState,
 } from "./form";
 import { ResultPanel } from "./ResultPanel";
+import { TemplateBar } from "../templates/TemplateBar";
+import { useTemplateRuns } from "../templates/ui";
 
 export function stageLabel(title: string | null | undefined, job: Job): string {
   if (job.state === "queued") return "Waiting in the queue";
@@ -68,6 +70,7 @@ export function GenerateView({ active }: { active: boolean }) {
     setFollowed((f) => [...f, ...jobs.map((j) => j.id)].slice(-20));
   }, []);
   const actions = useImageActions(follow);
+  useTemplateRuns(follow);
 
   // "Open as recipe" from the gallery.
   useRecipeReceiver((record) => {
@@ -151,7 +154,7 @@ export function GenerateView({ active }: { active: boolean }) {
       generate: () => void generate(),
       escape: running ? cancel : undefined,
       variation: shown ? () => actions.variations(shown, "seed", form.count) : undefined,
-      saveTemplate: () => actions.later("template"),
+      saveTemplate: shown ? () => actions.saveTemplate(shown) : undefined,
     },
     active,
   );
@@ -184,6 +187,7 @@ export function GenerateView({ active }: { active: boolean }) {
           void generate();
         }}
       >
+        <TemplateBar />
         <div className="field">
           <label htmlFor="prompt">Prompt</label>
           <textarea

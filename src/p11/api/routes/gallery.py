@@ -123,7 +123,7 @@ async def facets(studio: StudioDep) -> dict[str, list[str]]:
 @router.post("/gallery/export")
 async def bulk_export(body: BulkExport, studio: StudioDep) -> Response:
     """Several images as one ZIP (stored, PNGs are compressed already)."""
-    files = [(image_id, _entry_file(studio, image_id)[1]) for image_id in dict.fromkeys(body.ids)]
+    files = [(image_id, entry_file(studio, image_id)[1]) for image_id in dict.fromkeys(body.ids)]
 
     def build() -> bytes:
         buf = io.BytesIO()
@@ -169,7 +169,7 @@ async def empty_trash(studio: StudioDep) -> dict[str, int]:
     return {"count": 0, "bytes": 0}
 
 
-def _entry_file(studio: StudioDep, image_id: int) -> tuple[ImageEntry, Path]:
+def entry_file(studio: StudioDep, image_id: int) -> tuple[ImageEntry, Path]:
     entry = studio.gallery.get(image_id)
     if entry is None:
         raise not_found("Image")
@@ -182,13 +182,13 @@ def _entry_file(studio: StudioDep, image_id: int) -> tuple[ImageEntry, Path]:
 
 @router.get("/images/{image_id}", response_class=FileResponse)
 async def image(image_id: int, studio: StudioDep) -> FileResponse:
-    _, path = _entry_file(studio, image_id)
+    _, path = entry_file(studio, image_id)
     return FileResponse(path, media_type="image/png")
 
 
 @router.get("/images/{image_id}/info", response_model=ImageOut)
 async def image_info(image_id: int, studio: StudioDep) -> dict[str, Any]:
-    entry, _ = _entry_file(studio, image_id)
+    entry, _ = entry_file(studio, image_id)
     return image_json(entry)
 
 
@@ -215,7 +215,7 @@ def _thumbnail(src: Path, size: int) -> Path:
 async def thumb(
     image_id: int, studio: StudioDep, size: int = Query(384, ge=64, le=512)
 ) -> FileResponse:
-    _, path = _entry_file(studio, image_id)
+    _, path = entry_file(studio, image_id)
     size = min(THUMB_SIZES, key=lambda s: abs(s - size))
     out = await asyncio.to_thread(_thumbnail, path, size)
     return FileResponse(out, media_type="image/webp")
@@ -223,7 +223,7 @@ async def thumb(
 
 @router.post("/images/{image_id}/favourite", response_model=ImageOut)
 async def favourite(image_id: int, body: Favourite, studio: StudioDep) -> dict[str, Any]:
-    _entry_file(studio, image_id)
+    entry_file(studio, image_id)
     studio.gallery.set_favourite(image_id, body.favourite)
     entry = studio.gallery.get(image_id)
     assert entry is not None
@@ -235,7 +235,7 @@ async def favourite(image_id: int, body: Favourite, studio: StudioDep) -> dict[s
 @router.post("/images/{image_id}/export")
 async def export(image_id: int, body: Export, studio: StudioDep) -> Response:
     """The PNG as a download; ``strip_metadata`` drops the recipe, text, EXIF and time chunks."""
-    _, path = _entry_file(studio, image_id)
+    _, path = entry_file(studio, image_id)
     data = (
         await asyncio.to_thread(metadata.strip_metadata, path)
         if body.strip_metadata
@@ -248,7 +248,7 @@ async def export(image_id: int, body: Export, studio: StudioDep) -> Response:
     )
 
 
-def _run_record(path: Path) -> metadata.RunRecord:
+def run_record(path: Path) -> metadata.RunRecord:
     try:
         return metadata.read_sidecar(metadata.sidecar_path(path))
     except (OSError, ValueError):
@@ -258,8 +258,8 @@ def _run_record(path: Path) -> metadata.RunRecord:
 @router.get("/images/{image_id}/recipe")
 async def recipe(image_id: int, studio: StudioDep) -> dict[str, Any]:
     """The run record (recipe, bindings, seed, models, timings): sidecar first, then PNG chunks."""
-    _, path = _entry_file(studio, image_id)
-    out: dict[str, Any] = _run_record(path).model_dump(mode="json")
+    _, path = entry_file(studio, image_id)
+    out: dict[str, Any] = run_record(path).model_dump(mode="json")
     return out
 
 
@@ -270,8 +270,8 @@ async def variations(image_id: int, body: Variations, studio: StudioDep) -> dict
     Seed variations are one job of ``count`` runs (seeds ``seed + 1 …``); prompt variations are
     ``count`` jobs, each with its own mutation and the original seed, so only the words change.
     """
-    entry, path = _entry_file(studio, image_id)
-    record = _run_record(path)
+    entry, path = entry_file(studio, image_id)
+    record = run_record(path)
     bindings = {k: v if isinstance(v, str) else v.model_dump() for k, v in record.bindings.items()}
     if body.mode == "seed":
         start = (record.seed + 1) % (MAX_SEED + 1)
@@ -302,7 +302,7 @@ async def variations(image_id: int, body: Variations, studio: StudioDep) -> dict
 @router.delete("/images/{image_id}")
 async def delete(image_id: int, studio: StudioDep) -> dict[str, Any]:
     """Move the image and its sidecar to P11's trash folder and drop it from the gallery."""
-    entry, path = _entry_file(studio, image_id)
+    entry, path = entry_file(studio, image_id)
     directory = paths.ensure_private_dir(_trash_dir(studio))
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = f"{stamp}-{image_id}-{path.stem}"

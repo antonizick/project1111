@@ -12,7 +12,9 @@ import type {
   Recipe,
   RunRecord,
   SystemInfo,
+  Template,
   TrashInfo,
+  Upload,
 } from "./types";
 
 const json = (body: unknown): RequestInit => ({
@@ -70,6 +72,37 @@ export const client = {
   system: () => api<SystemInfo>("/api/system"),
   exportImage: (id: number, stripMetadata: boolean) =>
     apiBlob(`/api/images/${id}/export`, json({ strip_metadata: stripMetadata })),
+  templates: (q = "", tag: string | null = null) => {
+    const p = new URLSearchParams();
+    if (q) p.set("q", q);
+    if (tag) p.set("tag", tag);
+    return api<Template[]>(`/api/templates?${p.toString()}`);
+  },
+  createTemplate: (recipe: Recipe) => api<Template>("/api/templates", json(recipe)),
+  updateTemplate: (recipe: Recipe) =>
+    api<Template>(`/api/templates/${encodeURIComponent(recipe.id)}`, {
+      ...json(recipe),
+      method: "PUT",
+    }),
+  deleteTemplate: (id: string) =>
+    api<null>(`/api/templates/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  exportTemplate: (id: string) => apiBlob(`/api/templates/${encodeURIComponent(id)}/export`),
+  importTemplate: (text: string) =>
+    api<Template>("/api/templates/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: text,
+    }),
+  templateFromImage: (body: {
+    image_id: number;
+    name: string;
+    folder: string;
+    tags: string[];
+    seed: "fixed" | "random";
+    variable_prompt: boolean;
+  }) => api<Template>("/api/templates/from-image", json(body)),
+  upload: (file: Blob, kind: "image" | "mask" = "image") =>
+    api<Upload>(`/api/uploads?kind=${kind}`, { method: "POST", body: file }),
   exportImages: (ids: number[], stripMetadata: boolean) =>
     apiBlob("/api/gallery/export", json({ ids, strip_metadata: stripMetadata })),
 };

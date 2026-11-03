@@ -163,6 +163,16 @@ export type Step = GenerateStep | ({ type: string } & Record<string, unknown>);
 export type SeedStrategy =
   { kind: "random" } | { kind: "fixed"; value: number } | { kind: "increment"; start: number };
 
+export type SlotKind = "text" | "image" | "face_image" | "background_image" | "mask" | "video";
+
+export type Slot = {
+  name: string;
+  kind: SlotKind;
+  label: string | null;
+  required: boolean;
+  default: string | null;
+};
+
 export type Recipe = {
   schema_version: 1;
   id: string;
@@ -170,7 +180,7 @@ export type Recipe = {
   tags: string[];
   folder: string;
   steps: Step[];
-  slots: unknown[];
+  slots: Slot[];
   seed: SeedStrategy;
   created_at: string;
   source_image: { ref: string; sha256?: string | null } | null;
@@ -184,3 +194,17 @@ export type RunRecord = {
   timings: Record<string, number>;
   model_hashes: Record<string, string | null>;
 };
+
+export type Template = {
+  id: string;
+  name: string;
+  folder: string;
+  slug: string;
+  tags: string[];
+  slots: Slot[];
+  recipe: Recipe;
+  /** Newest image made from this template, for the card thumbnail. */
+  last_image: ImageEntry | null;
+};
+
+export type Upload = { id: string; kind: string; width: number; height: number };

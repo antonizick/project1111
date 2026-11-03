@@ -6,6 +6,7 @@ import { Shell } from "./app/Shell";
 import { ShortcutProvider } from "./app/shortcuts";
 import { StudioProvider } from "./app/studio";
 import { ToastProvider } from "./app/Toasts";
+import { TemplateUiProvider } from "./features/templates/ui";
 import "./app/theme.css";
 
 type SessionInfo = { ok: boolean; version: string; fake: boolean };
@@ -43,7 +44,9 @@ export function App({ createSource }: { createSource?: (url: string) => EventSou
         <ShortcutProvider>
           <NavProvider>
             <StudioProvider createSource={createSource}>
-              <Shell version={state.info.version} fake={state.info.fake} />
+              <TemplateUiProvider>
+                <Shell version={state.info.version} fake={state.info.fake} />
+              </TemplateUiProvider>
             </StudioProvider>
           </NavProvider>
         </ShortcutProvider>

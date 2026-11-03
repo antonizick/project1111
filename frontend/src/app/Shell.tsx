@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { GalleryView } from "../features/gallery/GalleryView";
 import { GenerateView } from "../features/generate/GenerateView";
+import { TemplatesView } from "../features/templates/TemplatesView";
 import { Dialog } from "../components/Dialog";
 import { useNav, VIEWS, type View } from "./nav";
 import { SHORTCUTS, useShortcuts } from "./shortcuts";
@@ -120,7 +121,10 @@ export function Shell({ version, fake }: { version: string; fake: boolean }) {
       <main id="main" ref={main} tabIndex={-1} className="main">
         <GenerateView active={view === "generate"} />
         <GalleryView active={view === "gallery"} />
-        {view !== "generate" && view !== "gallery" && <Placeholder view={view} />}
+        <TemplatesView active={view === "templates"} />
+        {view !== "generate" && view !== "gallery" && view !== "templates" && (
+          <Placeholder view={view} />
+        )}
       </main>
       <StatusBar />
       {help && (
