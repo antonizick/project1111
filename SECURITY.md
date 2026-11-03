@@ -11,7 +11,7 @@ In scope:
 - **The installer and updater** (`install.sh`, `uninstall.sh`, `p11 update`).
 - **Model downloads:** hash and size verification, file-format policy (safetensors by default), download sources.
 - **Supply chain:** pinned ComfyUI and custom-node commits, locked Python and npm dependencies, CI and pre-commit tooling.
-- **Templates and image metadata:** template import (schema validation, generated file names, no path traversal) and the recipe embedded in PNGs, including metadata stripping on export.
+- **Templates and image metadata:** template import (schema validation, generated file names, no path traversal) and the recipe embedded in PNGs, including metadata stripping on export. Templates never store bound photos (Save as Template drops uploads and turns them into empty inputs); remembered slot inputs are upload IDs and text in the browser's `localStorage`, never file contents.
 - **The face-swap NSFW target guard**, which must not be bypassable (spec S5).
 
 Out of scope: vulnerabilities in third-party engines or models themselves (report those upstream; we will update our pin), and attacks that already require local code execution as the same user.
