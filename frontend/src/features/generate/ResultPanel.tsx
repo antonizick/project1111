@@ -47,7 +47,10 @@ export function ImageActions({
       <button type="button" className="btn" onClick={() => actions.upscale(image)}>
         Upscale ×2
       </button>
-      {(["inpaint", "background", "face"] as const).map((k) => (
+      <button type="button" className="btn" onClick={() => actions.inpaint(image)}>
+        Inpaint
+      </button>
+      {(["background", "face"] as const).map((k) => (
         <button
           key={k}
           type="button"

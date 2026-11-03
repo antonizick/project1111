@@ -71,7 +71,8 @@ it("generates from a typed prompt with Ctrl+Enter, shows progress and the result
   emit("job", job({ state: "done", images: [5], progress: 1 }));
   const result = await screen.findByRole("region", { name: "Result" });
   expect(within(result).getByText("prompt 5")).toBeVisible();
-  expect(within(result).getByRole("button", { name: /Inpaint/ })).toHaveAttribute(
+  expect(within(result).getByRole("button", { name: "Inpaint" })).toBeEnabled();
+  expect(within(result).getByRole("button", { name: /Background/ })).toHaveAttribute(
     "aria-disabled",
     "true",
   );

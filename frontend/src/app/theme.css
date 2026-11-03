@@ -350,13 +350,15 @@ input:disabled {
 }
 
 /* Generate */
-.generate {
+.generate,
+.inpaint {
   display: grid;
   grid-template-columns: minmax(320px, 420px) 1fr;
   height: 100%;
   min-height: 0;
 }
-.generate-form {
+.generate-form,
+.inpaint-form {
   padding: 16px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
@@ -711,6 +713,7 @@ input:disabled {
     grid-template-columns: 140px 1fr;
   }
   .generate,
+  .inpaint,
   .detail {
     grid-template-columns: 1fr;
   }
@@ -831,4 +834,84 @@ input:disabled {
   .templates-body {
     grid-template-columns: 1fr;
   }
+}
+
+/* Inpaint and the mask editor (Phase 10) */
+.inpaint[hidden] {
+  display: none;
+}
+.inpaint .result-image {
+  height: auto;
+  max-height: 58vh;
+  object-fit: contain;
+}
+.mask-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.mask-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+.slider {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9em;
+  gap: 2px;
+}
+.zoom-level {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mask-stage {
+  position: relative;
+  height: 62vh;
+  overflow: hidden;
+  background: var(--panel-2);
+  border-radius: 8px;
+  touch-action: none;
+  user-select: none;
+  cursor: none;
+}
+.mask-stage:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.mask-stage.panning {
+  cursor: grab;
+}
+.mask-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.mask-layer img,
+.mask-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+.brush-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border: 1.5px solid #fff;
+  outline: 1px solid #000;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.brush-cursor.eraser {
+  border-style: dashed;
+}
+.mask-stage.panning .brush-cursor {
+  display: none;
 }
