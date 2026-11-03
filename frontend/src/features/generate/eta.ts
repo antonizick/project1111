@@ -27,9 +27,12 @@ export function baselineSeconds(
   model: string | null,
   aspect: string | null,
   count: number,
+  quality = false,
 ): number {
   const per = (model && aspect && BENCHMARK_SECONDS[model]?.[aspect]) || FALLBACK_SECONDS;
-  return per * Math.max(1, count);
+  // Quality adds the measured refinement pass (Phase 03: 45–66 s at wallpaper sizes).
+  const factor = quality ? 2.5 : 1;
+  return per * factor * Math.max(1, count);
 }
 
 /**

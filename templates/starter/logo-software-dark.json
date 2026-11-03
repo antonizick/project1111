@@ -4,8 +4,7 @@
   "name": "Software logo dark",
   "tags": [
     "logo",
-    "dark",
-    "mark-only"
+    "dark"
   ],
   "folder": "Starter",
   "steps": [
@@ -22,6 +21,25 @@
       "chain": null,
       "quality": false,
       "batch_size": 1
+    },
+    {
+      "type": "text_overlay",
+      "text": "{{logo_text}}",
+      "font": "display",
+      "weight": "bold",
+      "size_pct": 10,
+      "colour": "#eafff5",
+      "colour2": null,
+      "align": "center",
+      "position": "bottom",
+      "x": null,
+      "y": null,
+      "margin_pct": 7,
+      "letter_spacing": 0.05,
+      "stroke_px": 0,
+      "stroke_colour": "#000000",
+      "shadow": false,
+      "also_prompt_model": false
     }
   ],
   "slots": [
@@ -31,6 +49,13 @@
       "label": "Symbol",
       "required": false,
       "default": "a paper plane made of two simple shapes"
+    },
+    {
+      "name": "logo_text",
+      "kind": "text",
+      "label": "Text on the logo",
+      "required": false,
+      "default": "Product Name"
     }
   ],
   "seed": {

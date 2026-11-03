@@ -134,7 +134,7 @@ export function GenerateView({ active }: { active: boolean }) {
       const submitted = await client.submitJob({ recipe, count: form.count });
       setEstimate({
         cold: !state.system?.engine.ready,
-        baseline: baselineSeconds(model, aspect, form.count),
+        baseline: baselineSeconds(model, aspect, form.count, form.quality),
       });
       dispatch({ type: "submitted", jobs: [submitted], model });
       follow([submitted]);
@@ -236,6 +236,39 @@ export function GenerateView({ active }: { active: boolean }) {
             ))}
           </div>
         </fieldset>
+
+        {(() => {
+          const chosen = aspects.find((a) => a.id === aspectId);
+          if (!chosen || chosen.quality_chain === chosen.chain) return null;
+          return (
+            <fieldset className="field">
+              <legend>Upscale quality</legend>
+              <div className="chips">
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={!form.quality}
+                  onClick={() => setForm({ ...form, quality: false })}
+                >
+                  Speed
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={form.quality}
+                  onClick={() => setForm({ ...form, quality: true })}
+                >
+                  Quality
+                </button>
+              </div>
+              <p className="field-help">
+                {form.quality
+                  ? "A refinement pass adds detail after the model upscale (slower)."
+                  : "Model upscale only: crisp and fast. Pick Quality for more detail."}
+              </p>
+            </fieldset>
+          );
+        })()}
 
         <div className="row">
           <label htmlFor="count">Number of images</label>

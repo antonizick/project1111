@@ -2,11 +2,12 @@
 
 import { useCallback } from "react";
 import { client, problemOf, saveDownload } from "../api/client";
-import type { ImageEntry, Job } from "../api/types";
+import type { ImageEntry, Job, TextOverlayStep } from "../api/types";
 import { useNav, type View } from "../app/nav";
 import { useStudio } from "../app/studio";
 import { useToasts } from "../app/Toasts";
-import { newRecipeId, upscaleRecipe } from "./generate/form";
+import { newRecipeId, upscaleRecipe, type UpscaleOptions } from "./generate/form";
+import { textOverlayRecipe } from "./text/recipe";
 import { useTemplateUi } from "./templates/ui";
 
 /** Buttons that are still placeholders (Video 13, Models 14). */
@@ -44,14 +45,38 @@ export function useImageActions(onJobs?: (jobs: Job[]) => void) {
         .variations(img.id, mode, count)
         .then((r) => queued(r.jobs))
         .catch(fail),
-    upscale: (img: ImageEntry) =>
+    upscale: (img: ImageEntry, options: UpscaleOptions = {}) =>
       client
         .submitJob({
-          recipe: upscaleRecipe(img.id, img.prompt, { id: newRecipeId(), now: new Date() }),
+          recipe: upscaleRecipe(
+            img.id,
+            img.prompt,
+            { id: newRecipeId(), now: new Date() },
+            options,
+          ),
           parent: img.id,
           template: img.template,
         })
         .then((job) => queued([job]))
+        .catch(fail),
+    addText: (img: ImageEntry, overlay: TextOverlayStep) =>
+      client
+        .submitJob({
+          recipe: textOverlayRecipe(img.id, img.prompt, overlay, {
+            id: newRecipeId(),
+            now: new Date(),
+          }),
+          parent: img.id,
+          template: img.template,
+        })
+        .then((job) => queued([job]))
+        .catch(fail),
+    logoExport: (img: ImageEntry, transparent: boolean, sizes: number[]) =>
+      client.logoExport(img.id, { transparent, sizes }).then(saveDownload).catch(fail),
+    logoVariations: (img: ImageEntry, count = 6) =>
+      client
+        .variations(img.id, "seed", count)
+        .then((r) => queued(r.jobs))
         .catch(fail),
     download: (img: ImageEntry, strip: boolean) =>
       client.exportImage(img.id, strip).then(saveDownload).catch(fail),

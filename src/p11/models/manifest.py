@@ -285,9 +285,12 @@ def parse_manifest(text: str, path: Path | None = None, *, loopback_http: bool =
 
 
 def load_manifest(path: Path | None = None) -> Manifest:
+    """Load the curated manifest. ``$P11_ALLOW_LOOPBACK_MANIFEST=1`` is a test-only hook that
+    lets the e2e Models walkthrough install from a local HTTP server (127.0.0.1 only)."""
     path = path or find_manifest()
     try:
         text = path.read_text()
     except OSError as exc:
         raise ManifestError(f"cannot read the model manifest {path}: {exc.strerror}") from None
-    return parse_manifest(text, path)
+    loopback = os.environ.get("P11_ALLOW_LOOPBACK_MANIFEST") == "1"
+    return parse_manifest(text, path, loopback_http=loopback)

@@ -133,6 +133,9 @@ class _Step(_Frozen):
     image_fields: ClassVar[tuple[tuple[str, frozenset[str]], ...]] = ()
     #: Free-text fields that may contain ``{{slot}}`` placeholders.
     text_fields: ClassVar[tuple[str, ...]] = ()
+    #: A step whose named inputs are all optional is skipped when one is left empty (the
+    #: avatar starter's optional face swap).
+    skippable_if_unbound: ClassVar[bool] = False
 
     def image_slots(self) -> Iterator[tuple[str, str, frozenset[str]]]:
         for field, kinds in self.image_fields:
@@ -301,6 +304,7 @@ class FaceSwap(_Step):
     """Put the face from ``face_slot`` onto the target image (Phase 12 compiles it).
 
     The NSFW target guard (S5, ADR-0005) is not a field: it is always on and cannot be configured.
+    In a template whose face slot is optional (the avatar starter) leaving it empty skips the step.
     """
 
     type: Literal["face_swap"] = "face_swap"
@@ -319,6 +323,7 @@ class FaceSwap(_Step):
         ("face_slot", frozenset({"face_image", "image"})),
         ("image_slot", IMAGE_KINDS - {"mask"}),
     )
+    skippable_if_unbound = True
 
 
 class FaceRestore(_Step):
@@ -378,13 +383,25 @@ class Reference(_Step):
 
 
 class TextOverlay(_Step):
-    """Exact text drawn with a bundled font (R23; Phase 14 implements it, outside the engine)."""
+    """Exact text drawn with a bundled font (R23; Phase 14, ``recipe/steps/text_overlay.py``).
+
+    Drawn in P11 at full resolution by ``p11.media.text`` (ADR-0035), not by the engine.
+    ``position`` is the 9-way anchor; ``x``/``y`` (0..1 of the printable box) place the block's
+    centre instead, which is what the UI's draggable box sets. ``colour2`` turns ``colour`` into a
+    vertical gradient, ``letter_spacing`` is in em, ``stroke_px`` an outline and ``shadow`` a soft
+    drop shadow. Lines are split on ``\\n`` and the size shrinks to fit the printable box.
+    ``also_prompt_model`` means "let the model try the text": the overlay step is skipped and the
+    generated image keeps whatever text the model drew.
+    """
 
     type: Literal["text_overlay"] = "text_overlay"
     text: str = Field(min_length=1, max_length=200)
     font: str = Field(default="sans", max_length=64)
+    weight: Literal["light", "regular", "medium", "semibold", "bold"] = "semibold"
     size_pct: float = Field(default=12.0, gt=0.0, le=100.0)
     colour: str = Field(default="#ffffff", pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
+    colour2: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
+    align: Literal["left", "center", "right"] = "center"
     position: Literal[
         "top-left",
         "top",
@@ -396,7 +413,10 @@ class TextOverlay(_Step):
         "bottom",
         "bottom-right",
     ] = "bottom"
+    x: Unit | None = None
+    y: Unit | None = None
     margin_pct: float = Field(default=5.0, ge=0.0, le=50.0)
+    letter_spacing: float = Field(default=0.0, ge=-0.2, le=1.0)
     stroke_px: int = Field(default=0, ge=0, le=64)
     stroke_colour: str = Field(default="#000000", pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
     shadow: bool = False

@@ -34,6 +34,8 @@ export type FormState = {
   steps: number | null;
   cfg: number | null;
   chain: Chain | null;
+  /** The wallpaper Quality upscale toggle (Phase 14): model upscale + refinement pass. */
+  quality: boolean;
   seedLocked: boolean;
   seed: number | null;
 };
@@ -53,6 +55,7 @@ export const initialForm: FormState = {
   steps: null,
   cfg: null,
   chain: null,
+  quality: false,
   seedLocked: false,
   seed: null,
 };
@@ -99,6 +102,7 @@ export function resetAdvanced(form: FormState): FormState {
     steps: null,
     cfg: null,
     chain: null,
+    quality: false,
     seedLocked: false,
   };
 }
@@ -142,7 +146,7 @@ export function toRecipe(form: FormState, { id, now }: { id: string; now: Date }
     })),
     sampler,
     chain: form.chain,
-    quality: false,
+    quality: form.quality,
     batch_size: 1,
   };
   return {
@@ -178,6 +182,7 @@ export function fromRecord(record: RunRecord): { form: FormState; partial: boole
     steps: sampler?.steps ?? null,
     cfg: sampler?.cfg ?? null,
     chain: gen.chain,
+    quality: gen.quality ?? false,
     // Re-opening an image reproduces it: its seed is locked.
     seedLocked: true,
     seed: record.seed,
@@ -185,19 +190,40 @@ export function fromRecord(record: RunRecord): { form: FormState; partial: boole
   return { form, partial: steps.length > 1 || record.recipe.slots.length > 0 };
 }
 
-/** Recipe for the Upscale follow-up: the gallery image through the model upscaler, ×2. */
+export type UpscaleOptions = {
+  /** Speed (model only) or Quality (model + refinement pass, Phase 14). */
+  quality?: boolean;
+  /** ×1.5 / ×2 …; ignored when a target size is given. */
+  scale?: number;
+  width?: number;
+  height?: number;
+};
+
+/** Recipe for the Upscale follow-up: the gallery image at a factor or a target size. */
 export function upscaleRecipe(
   imageId: number,
   prompt: string,
   { id, now }: { id: string; now: Date },
+  options: UpscaleOptions = {},
 ): Recipe {
+  const target =
+    options.width !== undefined && options.height !== undefined
+      ? { width: options.width, height: options.height, scale: null }
+      : { scale: options.scale ?? 2 };
   return {
     schema_version: 1,
     id,
     name: recipeName(`Upscale: ${prompt}`),
     tags: [],
     folder: "",
-    steps: [{ type: "upscale", image_slot: null, chain: "model", scale: 2 }],
+    steps: [
+      {
+        type: "upscale",
+        image_slot: null,
+        chain: options.quality ? "latent" : "model",
+        ...target,
+      },
+    ],
     slots: [],
     seed: { kind: "random" },
     created_at: now.toISOString(),

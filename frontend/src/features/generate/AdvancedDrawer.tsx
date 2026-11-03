@@ -246,7 +246,10 @@ export function AdvancedDrawer({
           value={form.chain ?? ""}
           onChange={(e) => set({ chain: (e.target.value || null) as Chain | null })}
         >
-          <option value="">Preset default{aspect ? ` (${aspect.chain})` : ""}</option>
+          <option value="">
+            Preset default
+            {aspect ? ` (${form.quality ? aspect.quality_chain : aspect.chain})` : ""}
+          </option>
           {CHAINS.map((c) => (
             <option key={c.id} value={c.id}>
               {c.label}

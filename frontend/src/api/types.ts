@@ -122,14 +122,92 @@ export type ModelInfo = {
   name: string;
   kind: string;
   base: string | null;
-  state: string;
+  state: "installed" | "missing" | "corrupt" | "user-added" | "unregistered";
+  origin: "manifest" | "user" | "disk";
+  filename: string;
+  path: string | null;
+  size: number | null;
+  sha256: string | null;
+  verified: boolean;
   sets: string[];
   enabled: boolean;
   usable: boolean;
   family: string | null;
   defaults: SamplerDefaults | null;
   vae: string | null;
-  licence: { name: string; commercial_use: boolean; flags: string[] } | null;
+  format: string;
+  detail: string;
+  licence: {
+    name: string;
+    url?: string;
+    commercial_use: boolean;
+    flags: string[];
+    accepted?: boolean;
+  } | null;
+};
+
+/** One model install or add running in the service (Phase 14; ``models`` events). */
+export type ModelOperation = {
+  id: string;
+  kind: "install" | "add" | string;
+  target: string;
+  state: "running" | "done" | "failed";
+  label: string;
+  done: number;
+  total: number;
+  progress: number;
+  error: string | null;
+  report: Record<string, unknown> | null;
+  started_at: string;
+  seconds: number;
+};
+
+export type ModelLicenceRow = {
+  id: string;
+  name: string;
+  licence: string;
+  url: string;
+  commercial_use: boolean;
+  flags: string[];
+  needs_acknowledgement: boolean;
+  accepted_at: string | null;
+};
+
+export type ModelPlan = {
+  target: string;
+  models: string[];
+  to_fetch: string[];
+  licences_to_accept: Omit<ModelLicenceRow, "needs_acknowledgement" | "accepted_at">[];
+  total_bytes: number;
+  download_bytes: number;
+};
+
+export type FontInfo = {
+  id: string;
+  label: string;
+  weights: string[];
+  licence: string;
+  source: string;
+};
+
+export type TextOverlayStep = {
+  type: "text_overlay";
+  text: string;
+  font: string;
+  weight: "light" | "regular" | "medium" | "semibold" | "bold";
+  size_pct: number;
+  colour: string;
+  colour2: string | null;
+  align: "left" | "center" | "right";
+  position: string;
+  x: number | null;
+  y: number | null;
+  margin_pct: number;
+  letter_spacing: number;
+  stroke_px: number;
+  stroke_colour: string;
+  shadow: boolean;
+  also_prompt_model: boolean;
 };
 
 // Recipe schema v1 (src/p11/recipe/model.py). Only the parts the generate form writes.

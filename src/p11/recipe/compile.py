@@ -333,9 +333,7 @@ ModifierCompiler = Callable[[Any, CompileContext, GraphBuilder, Conditioning], C
 _STEP_COMPILERS: dict[str, StepCompiler] = {}
 _PLAN_COMPILERS: dict[str, PlanCompiler] = {}
 _MODIFIERS: dict[str, ModifierCompiler] = {}
-_NOT_YET = {
-    "text_overlay": "Phase 14",
-}
+_NOT_YET: dict[str, str] = {}
 
 
 def register_step(step_type: str, fn: StepCompiler, *, replace: bool = False) -> None:
@@ -455,6 +453,8 @@ def compile(
     for i, step in enumerate(steps):
         if step.is_modifier:
             continue
+        if step.skippable_if_unbound and _has_unbound_optional(step, resolved, recipe):
+            continue
         modifiers: list[Step] = []
         for later in steps[i + 1 :]:
             if not later.is_modifier:
@@ -464,6 +464,7 @@ def compile(
             recipe, resolved, registry, seed, i, tuple(modifiers), previous, last_generate
         )
         plan_fn = _PLAN_COMPILERS.get(step.type)
+        before = len(graphs)
         if plan_fn is not None:
             graphs.extend(plan_fn(step, ctx))
         else:
@@ -472,10 +473,19 @@ def compile(
                 raise UnsupportedStepError(_unsupported(step.type, ctx))
             g = GraphBuilder()
             graphs.append(graph_from(g, ctx, fn(step, ctx, g)))
-        previous = i
+        if len(graphs) > before:
+            previous = i
         if isinstance(step, Generate):
             last_generate = step
     return graphs
+
+
+def _has_unbound_optional(step: Step, resolved: Bindings, recipe: Recipe) -> bool:
+    """True when a named image input is an optional slot the run left empty."""
+    slots = {s.name: s for s in recipe.slots}
+    return any(
+        name not in resolved and not slots[name].required for _, name, _ in step.image_slots()
+    )
 
 
 def _unsupported(step_type: str, ctx: CompileContext) -> str:
