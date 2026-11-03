@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 JobState = Literal["queued", "running", "paused", "cancelled", "failed", "done"]
+#: A job is a recipe run (the default) or a video face-swap pipeline run (Phase 13).
+JobKind = Literal["recipe", "video"]
 ACTIVE: frozenset[str] = frozenset({"queued", "running", "paused"})
 FINISHED: frozenset[str] = frozenset({"cancelled", "failed", "done"})
 
@@ -55,13 +57,17 @@ class Job:
     error: JobError | None = None
     #: Note shown while ``paused`` (thermal) or after an OOM retry.
     note: str | None = None
+    kind: JobKind = "recipe"
+    #: Video face-swap settings (``kind="video"``); ``None`` for a recipe run.
+    spec: dict[str, Any] | None = None
 
     def summary(self) -> dict[str, Any]:
-        """The job as the API shows it (no recipe or bindings: those can hold private text)."""
+        """The job as the API shows it (recipe, bindings and spec stay out: they can be private)."""
         return {
             "id": self.id,
             "state": self.state,
-            "name": str(self.recipe.get("name", "")),
+            "kind": self.kind,
+            "name": "Video face-swap" if self.kind == "video" else str(self.recipe.get("name", "")),
             "count": self.count,
             "template": self.template,
             "created_at": self.created_at,
@@ -97,7 +103,13 @@ def _v1(db: sqlite3.Connection) -> None:
     )
 
 
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1]
+def _v2(db: sqlite3.Connection) -> None:
+    """Phase 13: video face-swap jobs carry a kind and their own spec instead of a recipe."""
+    db.execute("ALTER TABLE jobs ADD COLUMN kind TEXT NOT NULL DEFAULT 'recipe'")
+    db.execute("ALTER TABLE jobs ADD COLUMN spec TEXT")
+
+
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2]
 
 
 class JobStore:
@@ -121,7 +133,10 @@ class JobStore:
         job = replace(job, updated_at=_now())
         with self.db:
             self.db.execute(
-                "INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO jobs "
+                "(id, state, recipe, bindings, count, template, parent, created_at, updated_at, "
+                " images, progress, error, note, kind, spec) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     job.id,
                     job.state,
@@ -136,6 +151,8 @@ class JobStore:
                     job.progress,
                     json.dumps(job.error.as_json()) if job.error else None,
                     job.note,
+                    job.kind,
+                    json.dumps(job.spec) if job.spec is not None else None,
                 ),
             )
         return job
@@ -184,4 +201,6 @@ def _job(row: sqlite3.Row) -> Job:
         progress=row["progress"],
         error=JobError(**err) if err else None,
         note=row["note"],
+        kind=row["kind"],
+        spec=json.loads(row["spec"]) if row["spec"] else None,
     )

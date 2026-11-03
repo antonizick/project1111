@@ -21,6 +21,7 @@ from p11.gpulock import GpuLockTimeout
 from p11.media.composite import CompositeError
 from p11.media.control import ControlError
 from p11.media.faces import FaceError
+from p11.media.ffmpeg import VideoError as FfmpegError
 from p11.media.imageio import ImageError
 from p11.media.inpaint import MaskError
 from p11.media.inputs import UnknownInput
@@ -34,6 +35,7 @@ from p11.recipe.registry import UnknownModelError
 from p11.templates.store import TemplateError
 
 from .store import JobError
+from .video import VideoError
 
 INSTALL_HINT = "Run `p11 models install default` (or install the model named above)."
 LOG_HINT = "Details are in ~/.cache/p11/logs/studio.log and engine.log."
@@ -79,6 +81,8 @@ def problem_for(exc: BaseException) -> tuple[int, JobError]:
         )
     if isinstance(exc, (ControlError, PoseError)):
         return 422, JobError("control.map", str(exc), "Try a different photo or pick a stock pose.")
+    if isinstance(exc, (VideoError, FfmpegError)):
+        return 422, JobError("video.invalid", str(exc), "Check the clip and the video settings.")
     if isinstance(exc, UnknownInput):
         return 422, JobError("input.missing", str(exc), "Upload the file again.")
     if isinstance(exc, TemplateError):
