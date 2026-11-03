@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, bootstrapSession } from "./api/session";
+import type { EventSourceLike } from "./api/events";
+import { NavProvider } from "./app/nav";
+import { Shell } from "./app/Shell";
+import { ShortcutProvider } from "./app/shortcuts";
+import { StudioProvider } from "./app/studio";
+import { ToastProvider } from "./app/Toasts";
+import "./app/theme.css";
 
 type SessionInfo = { ok: boolean; version: string; fake: boolean };
 type State =
@@ -8,7 +15,7 @@ type State =
   | { kind: "no-session"; message?: string }
   | { kind: "error" };
 
-export function App() {
+export function App({ createSource }: { createSource?: (url: string) => EventSourceLike }) {
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
@@ -30,16 +37,23 @@ export function App() {
     };
   }, []);
 
+  if (state.kind === "ok")
+    return (
+      <ToastProvider>
+        <ShortcutProvider>
+          <NavProvider>
+            <StudioProvider createSource={createSource}>
+              <Shell version={state.info.version} fake={state.info.fake} />
+            </StudioProvider>
+          </NavProvider>
+        </ShortcutProvider>
+      </ToastProvider>
+    );
+
   return (
-    <main>
+    <main className="splash">
       <h1>P11 Studio</h1>
       {state.kind === "loading" && <p>Connecting…</p>}
-      {state.kind === "ok" && (
-        <p>
-          Session active (version {state.info.version}
-          {state.info.fake ? ", fake engine" : ""}).
-        </p>
-      )}
       {state.kind === "no-session" && (
         <p role="alert">
           {state.message ?? "No session."} Open P11 Studio with <code>p11 open</code>.

@@ -48,6 +48,33 @@ p11 doctor --quick # skip the PyTorch/CUDA check (a few seconds)
 | Port 8111 / 8188 is used by another program | stop it, or set `studio_port` / `engine_port` in `config.toml` |
 | Some P11 data is readable by other users | run the `chmod` command it prints |
 
+## 2. Generate (written in Phase 08)
+![Generate view](images/p11-generate.png)
+
+1. Type what you want to see in **Prompt**.
+2. Pick a **Style** (Photoreal, 3D animated avatar, Logo flat, Logo 3D). The style also picks a sensible size, for example square for logos.
+3. Pick a **Size**: Wallpaper 1920 × 1080 or 2560 × 1440, Square, or Avatar (portrait). Wallpapers are drawn at the model's native size and upscaled.
+4. Press **Generate** or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. **Number of images** makes up to 4 at once.
+
+While it runs you see the stage (Generating, Refining), the step, the percentage and an estimate of the time left; <kbd>Esc</kbd> or **Cancel** stops it. The first job after a pause takes about 15 s longer because the engine starts. If the GPU runs out of memory P11 says so and retries in low-memory mode.
+
+**What you can do with a result:** **Variations** (<kbd>V</kbd>, same prompt, next seeds), **Tweak prompt** (one small wording change, same seed), **Upscale ×2**, **Favourite**, and **Download** (with **Strip metadata** on, the file carries no recipe, prompt or timestamps). Inpaint, Background, Face and Save as Template show the phase that adds them.
+
+**Advanced** (click "▸ Advanced"): model (with its family and a "default" badge), LoRAs and their weights, negative prompt, sampler, scheduler, steps, CFG, seed with **Lock seed**, and the upscale method. Empty fields use the model's tested defaults, shown as grey placeholders; **Reset to model defaults** clears your changes. With the seed locked, a batch uses seed, seed + 1, …
+
+The status bar shows the engine state, the queue, GPU memory in use and the GPU temperature (green below 70 °C, yellow from 70, orange from 80, red from 87 °C when long jobs pause), and the model of your last job.
+
+## 3. Gallery (written in Phase 08)
+![Gallery](images/p11-gallery.png)
+
+Every image is listed newest first, grouped by day. **Search prompts** matches word beginnings ("mount" finds "mountain"); filter by template, model or ★ favourites. Click an image to open it: zoom with the mouse wheel or <kbd>+</kbd>/<kbd>−</kbd> (<kbd>0</kbd> resets, drag or arrow keys to pan), go to the previous/next image, make variations, download, or **Open as recipe**, which loads its settings into Generate with the seed locked, so Generate makes the same picture again.
+
+Tick the box on two or more images to **Compare** them side by side (zoom and pan move together), **Export** them as one ZIP (with or without metadata) or **Delete** them. Deleting moves the files to P11's trash folder (`~/.local/share/p11/trash/`); nothing is gone until you press **Empty trash** and confirm. To bring an image back before that, move its `.png` and `.json` back under `~/Pictures/P11/` and run a reindex (Phase 16 adds a button).
+
+![Compare](images/p11-compare.png)
+
+**Keyboard shortcuts** (press <kbd>?</kbd> in the app): <kbd>Ctrl</kbd>+<kbd>Enter</kbd> generate · <kbd>Esc</kbd> cancel the job or close a dialog · <kbd>V</kbd> variations · <kbd>T</kbd> save as template (Phase 09) · <kbd>G</kbd> gallery · <kbd>?</kbd> shortcuts. Letter keys do nothing while you are typing in a field. The theme button in the top bar switches light and dark.
+
 ## 9. Models (written in Phase 06)
 P11 ships a list of tested models (`models/manifest.toml`), not the models themselves. Each one is downloaded from its original host and checked against a pinned SHA-256 before P11 uses it.
 
