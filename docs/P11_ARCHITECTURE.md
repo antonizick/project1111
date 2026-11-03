@@ -156,13 +156,14 @@ browser ──HTTP/SSE──► AccessLog ─► SecurityMiddleware ─► FastA
 |---|---|
 | `POST /api/session` · `GET /api/session` · `POST /api/session/launch` | redeem a launch code (sets the cookie, returns the token) · check the session · mint a launch code (`p11 open`) |
 | `POST /api/jobs` · `GET /api/jobs` · `GET /api/jobs/{id}` · `POST /api/jobs/{id}/cancel` | `{recipe, bindings, count 1–16, template?, parent?}` → 201 job (validated by compiling first) · recent jobs · one job · cancel (queued: at once; running: engine interrupt) |
-| `GET /api/events` | SSE: `hello`, `job`, `progress`, `preview`, `image`, `gpu`; IDs increase; `Last-Event-ID` replays |
-| `GET /api/gallery` | `q` (prefix word search), `template`, `favourites`, `since`/`until` (ISO), `limit`/`offset` → `{items, total, limit, offset}` |
+| `GET /api/events` | SSE: `hello`, `job`, `progress`, `preview`, `image`, `gpu`, `deleted` (Phase 08); IDs increase; `Last-Event-ID` replays |
+| `GET /api/gallery` · `/gallery/facets` · `POST /api/gallery/export` | `q` (prefix word search), `template`, `model`, `favourites`, `since`/`until` (ISO), `limit`/`offset` → `{items, total, limit, offset}` · distinct templates and models · `{ids, strip_metadata}` → ZIP (Phase 08) |
 | `GET /api/images/{id}` · `/info` · `/thumb?size=` · `/recipe` | PNG · entry · WebP thumbnail (256/384/512, cached) · run record (sidecar, else PNG chunks) |
-| `POST /api/images/{id}/favourite` · `/export` | `{favourite}` · `{strip_metadata: true}` → PNG download |
+| `POST /api/images/{id}/favourite` · `/export` · `/variations` · `DELETE /api/images/{id}` | `{favourite}` · `{strip_metadata: true}` → PNG download · `{mode: seed\|prompt, count 1–4}` → `{jobs}` · move PNG + sidecar to `<data>/trash/` (Phase 08) |
+| `GET /api/trash` · `POST /api/trash/empty` | `{count, bytes}` of the trash · delete the trash folder (Phase 08) |
 | `POST /api/uploads?kind=image\|mask\|video` · `GET /api/uploads/{id}` · `/info` | raw-body upload → `{id, kind, width, height, sha256, seconds, warnings}` · the stored file · its metadata |
 | `GET/POST /api/templates` · `GET/PUT/DELETE /api/templates/{id}` · `/export` · `POST /api/templates/import` · `GET /api/templates/folders` | template store (Phase 04) |
-| `GET /api/presets` · `GET /api/models` · `GET /api/system` | aspect and style presets · `p11 models list --json` objects · engine health, GPU sample, queue, disk |
+| `GET /api/presets` · `GET /api/models` · `GET /api/system` | aspect and style presets · `p11 models list --json` objects plus `usable`, `family`, `defaults`, `vae` from the registry (Phase 08) · engine health, GPU sample, queue, disk |
 | `GET /api/openapi.json` | the schema (behind the token; no docs UI) |
 
 **Job model** (`jobs/`): `JobStore` (SQLite `jobs.db`) holds `id, state, recipe, bindings, count, template, parent, images, progress, error, note`; states `queued → running ⇄ paused → done | failed | cancelled`. `JobQueue` has one worker: lazy engine start, `Runner.run` per job, idle stop after `engine_idle_stop` s, `lowvram → dynamic` reset after 60 s idle; `mark_interrupted()` at startup. `Runner` resolves seeds, compiles, uploads slot/source/step inputs (`img-…` uploads or `gallery/<id>` images), runs each graph through `run_with_oom_retry`, saves every output (`output_path`, sidecar, `embed_record`, `GalleryIndex.add`, parent chain) and publishes events. `JobControl.checkpoint(long=…)` is the cancel point and the `ThermalWatch` hook (87/80 °C). `jobs/errors.py` maps every typed error to `(HTTP status, JobError)`.
@@ -174,3 +175,24 @@ browser ──HTTP/SSE──► AccessLog ─► SecurityMiddleware ─► FastA
 **Logging** (`logs.py`): JSON lines, rotated 5 MB × 3, `0600`; uvicorn's access log off; `AccessLog` writes method, path, status, ms; `debug_private` for prompt text (DEBUG only); `register_secret` redacts the token and launch codes everywhere.
 
 _The Phase 16 threat model builds on this section._
+
+## Studio UI (Phase 08)
+```
+main.tsx ─► App (session bootstrap) ─► ToastProvider ─► ShortcutProvider ─► NavProvider ─► StudioProvider ─► Shell
+                                                                                              │
+             api/events.ts (EventSource + reconnect) ─► reducer (app/studio.tsx) ◄── 5 s /api/system poll
+```
+`frontend/src/`:
+
+| Path | Role |
+|---|---|
+| `api/session.ts` · `api/client.ts` · `api/types.ts` | launch code → token; typed calls (`client.*`), `apiBlob` + `saveDownload` for exports, `problemOf` for toasts; hand-written API types |
+| `api/events.ts` | `EventStream`: `EventSource('/api/events')` (cookie auth), all event types, rebuild with 1/2/5/10 s backoff once the browser gives up |
+| `app/studio.tsx` | pure `reduce()` over events and actions → jobs, step progress, previews, images, `galleryRev` (bumped on new/changed/deleted images), GPU, system, presets, models, current model |
+| `app/Shell.tsx` · `app/nav.tsx` · `app/StatusBar.tsx` | left nav (`VIEWS`, placeholders for 09–14), top bar (connection, version, theme, `?`), status bar (engine, queue, VRAM, temperature band 70/80/87 °C, model); "open as recipe" hand-off |
+| `app/shortcuts.tsx` · `app/Toasts.tsx` · `app/theme.css` | keyboard map (`commandFor`) with a newest-wins handler stack; plain-English toasts with hints and an optional action; light/dark CSS variables, system fonts only |
+| `features/generate/` | `form.ts` (pure form ⇄ recipe v1, upscale follow-up recipe), `eta.ts`, `GenerateView` (Simple mode, progress, result), `AdvancedDrawer`, `ResultPanel` |
+| `features/gallery/` | `layout.ts` (pure day-grouped virtual rows), `GalleryView` (search, filters, selection, bulk export, delete, trash), `DetailView`, `CompareView` (shared zoom) |
+| `features/actions.tsx` · `components/` | follow-up actions shared by result and detail (`LATER` = actions of later phases); `Dialog` (focus trap, Esc), `ZoomPan` (wheel/keys/drag, controllable) |
+
+Generate builds a one-step `generate` recipe; Advanced fields stay `null` (manifest defaults) until changed, a locked seed becomes `increment`. Styles only use the CSSOM (`element.style`), which `style-src 'self'` allows. Tests: Vitest + Testing Library with a routed fake `fetch` and a fake `EventSource` (`src/test/fakes.ts`); Playwright walkthroughs on `p11 serve --fake` (`e2e/daily.spec.ts`: action counts, network guard, axe), `e2e/screenshots.spec.ts` (`P11_SCREENSHOTS=1`) and `e2e/real-engine.spec.ts` (`P11_REAL_LAUNCH_URL=…`, laptop only). ADR-0023.

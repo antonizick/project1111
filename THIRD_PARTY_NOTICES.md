@@ -66,3 +66,4 @@ Picked by Phase 03 (ADR-0018) and pinned in `models/manifest.toml` by Phase 06 (
 | ruff, mypy, pip-audit | 0.17.3 / 2.4.1 / 2.10.1 | MIT / MIT / Apache-2.0 | https://pypi.org/ | dev only |
 | vitest, jsdom, Testing Library, eslint, typescript-eslint, prettier, typescript | 5.1.0 / 30.1.3 / 16.3.3 / 10.14.0 / 8.72.1 / 3.9.10 / 6.0.3 | MIT (typescript: Apache-2.0) | https://www.npmjs.com/ | dev only |
 | @playwright/test | 1.64.1 | Apache-2.0 | https://www.npmjs.com/package/@playwright/test | dev only; downloads Chromium to `~/.cache/ms-playwright` |
+| @axe-core/playwright, axe-core | 4.14.0 / 4.14.0 | MPL-2.0 | https://www.npmjs.com/package/@axe-core/playwright | dev only: accessibility checks in the e2e walkthroughs, not shipped (licence read with `npm view` 2026-11-03 04:17 CST; Phase 08, ADR-0023) |

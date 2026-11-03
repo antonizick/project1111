@@ -38,4 +38,6 @@ P11 Studio is a web server on your own machine, and any web page you visit can t
 - **Logs** (`~/.cache/p11/logs/studio.log`, `0600`) never contain the token, launch codes, prompt text or file contents at the default level; `--debug` adds prompt text but still redacts the token.
 - FastAPI's built-in OpenTelemetry hooks are switched off; nothing is sent anywhere.
 
+**The UI (Phase 08)** loads nothing from the network: no CDN, fonts or analytics (Playwright fails the build if a page request leaves `127.0.0.1:<port>`). Downloads are made from an in-memory `blob:` URL. "Delete" moves files into P11's own trash folder (`~/.local/share/p11/trash/`, `0700`); "Empty trash" deletes only that folder, after a confirmation.
+
 Report a way to reach the API from a web page, read another user's outputs, get a file outside P11's folders, or find the token in a log as a vulnerability.
