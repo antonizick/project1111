@@ -104,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
 
     signal.signal(signal.SIGTERM, _sigterm)
     ap = argparse.ArgumentParser()
-    ap.add_argument("stage", choices=["smoke", "base", "presets", "vram", "stability", "thermal"])
+    ap.add_argument("stage", choices=["smoke", "base", "avatar", "presets", "vram", "stability", "thermal"])
     ap.add_argument("--models")
     ap.add_argument("--modes", default="dynamic")
     ap.add_argument("--presets", default="1920x1080,2560x1440")
@@ -135,6 +135,13 @@ def main(argv: list[str] | None = None) -> int:
                     for s in m.samplers[1:]:
                         for pid in ("p01", "a01"):
                             run_one(eng, ms, "base", m, s, pid, prompts.SEEDS[0], "native", "native", False)
+                elif a.stage == "avatar":
+                    # portrait bucket: 16:9 made the few-step models duplicate the character
+                    mp = ModelCfg(m.key, m.family, m.ckpt, m.vae, m.lora, m.samplers,
+                                  (896, 1152) if m.family == "sdxl" else (512, 640))
+                    for i, pid in enumerate(prompts.AVATAR):
+                        run_one(eng, ms, "avatar", mp, mp.samplers[-1] if m.key == "realvisxl5" else s0, pid,
+                                prompts.SEEDS[0], "native", "native", cold=i == 0)
                 elif a.stage in ("presets", "vram"):
                     pids = a.prompts.split(",") if a.prompts else ["p01", "p03"]
                     first = True

@@ -5,20 +5,21 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ID | Timestamp | Decision | Status | Phase |
 |---|---|---|---|---|
 | ADR-0001 | 2026-11-02 13:16 CST | Project prefix `P11` | Accepted | 00 |
-| ADR-0002 | 2026-11-02 13:16 CST | P11 Studio form UI over headless ComfyUI | Accepted (confirm in 03) | 00 |
+| ADR-0002 | 2026-11-02 13:16 CST | P11 Studio form UI over headless ComfyUI | Accepted; confirmed on the laptop (2026-11-02 17:56 CST) | 00, 03 |
 | ADR-0003 | 2026-11-02 13:16 CST | Private repo until release; MIT for own code; no weights in git | Accepted | 00 |
 | ADR-0004 | 2026-11-02 13:16 CST | Source notes stay in the vault, git-ignored | Accepted | 00 |
 | ADR-0005 | 2026-11-02 13:16 CST | Unfiltered generation; NSFW guard kept on face-swap | Accepted | 00 |
 | ADR-0006 | 2026-11-02 13:16 CST | Curated model set as a hash-pinned manifest | Accepted | 00 |
 | ADR-0007 | 2026-11-02 13:16 CST | Templates are versioned P11 recipes compiled to engine graphs | Accepted | 00 |
-| ADR-0008 | 2026-11-02 13:16 CST | uv-managed CPython, separate from host Python 3.14 | Accepted for P11 (Phase 02, 2026-11-02 15:14 CST); engine side Proposed (verify 03) | 00, 02 |
-| ADR-0009 | 2026-11-02 13:16 CST | Turing defaults: fp16, SDPA, fp16-safe SDXL VAE, sm_75-capable torch | Proposed (verify 03) | 00 |
-| ADR-0010 | 2026-11-02 13:16 CST | Wallpaper presets = native bucket + upscale | Proposed (verify 03/14) | 00 |
+| ADR-0008 | 2026-11-02 13:16 CST | uv-managed CPython, separate from host Python 3.14 | Accepted (P11 side Phase 02, 2026-11-02 15:14 CST; engine side Phase 03, 2026-11-02 17:56 CST) | 00, 02, 03 |
+| ADR-0009 | 2026-11-02 13:16 CST | Turing defaults: fp16, SDPA, fp16-safe SDXL VAE, sm_75-capable torch | Accepted (2026-11-02 17:56 CST) | 00, 03 |
+| ADR-0010 | 2026-11-02 13:16 CST | Wallpaper presets = native bucket + upscale | Accepted: `model` chain default, refinement pass = Quality (2026-11-02 17:56 CST) | 00, 03 |
 | ADR-0011 | 2026-11-02 13:16 CST | Face-swap engine: ReActor node vs FaceFusion | Proposed (decide 12) | 00 |
 | ADR-0012 | 2026-11-02 13:16 CST | Installer: clone + `./install.sh`, no driver installs | Accepted | 00 |
 | ADR-0013 | 2026-11-02 13:16 CST | Local-only security posture | Accepted | 00 |
 | ADR-0014 | 2026-11-02 13:16 CST | Advisory GPU lock across sessions and parallel phases | Accepted | 00 |
 | ADR-0017 | 2026-11-02 15:08 CST | gitleaks runs as a local pre-commit hook from a user-level pinned binary | Accepted | 01 |
+| ADR-0018 | 2026-11-02 17:56 CST | Default model set and engine VRAM mode | Accepted | 03 |
 
 ---
 
@@ -35,6 +36,8 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 **Options considered.** (a) own form UI over headless ComfyUI; (b) Forge/reForge plus curated extensions and a small templates extension; (c) InvokeAI as-is plus presets and side tools.
 **Decision.** (a), owner's choice. P11 owns the UI, recipes, jobs and outputs; ComfyUI is an engine behind an `Engine` interface, reached only on 127.0.0.1. Phase 03 must confirm on the laptop that ComfyUI meets the speed/VRAM/stability criteria; if it fails, Phase 03 stops and asks the owner before switching to the fallback (a Forge-family engine behind the same interface).
 **Consequences.** More build work (custom UI, compiler, adapter), but templates, Simple mode and the action targets are fully under P11's control and the engine can be swapped. Engine graph churn is contained in the compiler (ADR-0007).
+
+**Update (2026-11-02 17:56 CST, Phase 03).** **Confirmed** on the laptop: headless ComfyUI v0.43.0 (`426f5ee`) meets every hard requirement of H6. Every candidate model ran at its native bucket without OOM inside the 8 GB card (peak 7.7 GB total including the ~1.1 GB desktop, by ComfyUI's dynamic VRAM; 6.5 GB with it disabled), the default combination passed 50 consecutive 2560×1440 runs with no failure, and the torch build runs real fp16 kernels on sm_75. No fallback engine was installed or measured, since H6 only allows a switch when ComfyUI fails. Evidence: `docs/P11_BENCHMARKS.md`.
 
 ## ADR-0003: Private repo until release; MIT for own code; no weights in git
 **Recorded.** 2026-11-02 13:16 CST (Phase 00)
@@ -80,6 +83,8 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 
 **Update (2026-11-02 15:14 CST, Phase 02).** P11 side **Accepted**: `.python-version` is 3.12, `requires-python = ">=3.12,<3.13"`, `uv run python` reports 3.12.15, and nothing was installed into the host Python 3.14. The engine's own environment is still for Phase 03 to verify.
 
+**Update (2026-11-02 17:56 CST, Phase 03).** Engine side **Accepted**: a separate uv-managed CPython 3.12.15 venv at `~/.local/share/p11/engine/venv` (ComfyUI's README at v0.43.0: 3.13 "very well supported", 3.12 recommended when custom-node dependencies lag, 3.14 works with caveats; 3.12 matches P11 and leaves room for Phase 12's face-swap node), dependencies installed with `uv pip sync --require-hashes` from `engine/requirements.lock.txt`. The host Python 3.14 was not touched.
+
 ## ADR-0009: Turing defaults: fp16, SDPA, fp16-safe SDXL VAE, sm_75-capable torch
 **Recorded.** 2026-11-02 13:16 CST (Phase 00)
 **Context.** RTX 2070 Mobile is compute capability 7.5; host driver 615.78.08 (nvidia-open), CUDA 13.4. Newer CUDA toolkits have dropped older architectures, so the torch build must be checked for sm_75.
@@ -87,12 +92,20 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 **Decision (Proposed).** fp16 UNet/text encoders, SDPA attention, fp16-safe SDXL VAE, a torch build verified to run kernels on sm_75 with this driver.
 **Consequences.** Phase 03 pins the exact versions in `engine/engine.lock.toml` and marks this Accepted.
 
+**Update (2026-11-02 17:56 CST, Phase 03).** **Accepted** with these measured details:
+- torch 2.14.1+cu130 / torchvision 0.29.1+cu130 from `https://download.pytorch.org/whl/cu130` (cuDNN 9.24). `sm_75` is in `torch.cuda.get_arch_list()`, and `scripts/engine_setup.sh` runs an fp16 matmul, a conv and SDPA on the GPU with warnings as errors. torch 2.15.0 was skipped because it was under two weeks old at pin time.
+- UNet and text encoders run fp16. Attention is PyTorch SDPA (ComfyUI logs "Using pytorch attention"); xformers is not installed.
+- ComfyUI decodes the VAE in **fp32** on Turing by default (no bf16), so the fp16-fix SDXL VAE (`madebyollin/sdxl-vae-fp16-fix`) is not needed for correctness. It is kept as the explicit VAE for RealVisXL, which ships without a reliable baked VAE, and it allows a later `--fp16-vae` speed test (follow-up). Wallpaper decodes use `VAEDecodeTiled` (512 px tiles).
+- Dynamic VRAM (the v0.43.0 default, `comfy-aimdo`) is kept: same speed as `--disable-dynamic-vram`, up to 10 % faster on the upscale chain; see ADR-0018 for the VRAM mode.
+
 ## ADR-0010: Wallpaper presets = native bucket + upscale
 **Recorded.** 2026-11-02 13:16 CST (Phase 00)
 **Context.** Models degrade (duplicated subjects, composition errors) far from their training resolution; 1920×1080 and 2560×1440 exceed SDXL's ~1 MP sweet spot and VRAM budget.
 **Options considered.** Direct generation; native bucket + latent/hires pass; native bucket + model upscaler; tiled upscale.
 **Decision (Proposed).** Native-bucket generation then an upscale chain chosen by Phase 03 measurements (quality/speed toggle in Phase 14).
 **Consequences.** Presets carry both the generation size and the output size; the compiler emits the chain.
+
+**Update (2026-11-02 17:56 CST, Phase 03).** **Accepted.** The default chain for both wallpaper presets is **`model`**: native bucket 1344×768 (SDXL) → 4×NomosWebPhoto RealPLKSR → Lanczos resize to 1920×1080 or 2560×1440. It adds only ~5 s to the base image (RealVisXL Lightning: 18.3 s at 1920×1080, 18.7 s at 2560×1440, warm), compared with 45–66 s for `latent` (bislerp latent upscale + hires KSampler at denoise 0.45) and 55–88 s for `both` (model upscale + VAE re-encode + hires pass at denoise 0.3). At 1:1 crops the model chain is crisp; a refinement pass adds real generated detail at 3–5× the time, so it is the **Quality** option of Phase 14's toggle. Provisional Quality chain: `latent` (denoise 0.45, about half the base steps, tiled VAE decode), the faster of the two refinement chains; both ran without OOM at both presets. Phase 14 makes the final Quality pick between `latent` and `both` when it tunes prompt defaults, using these numbers. Direct generation at wallpaper size was not run (R3). The upscaler is 4×NomosWebPhoto RealPLKSR (CC-BY-4.0) rather than 4x-UltraSharp (CC-BY-NC-SA-4.0), as the two looked alike and H3 prefers the permissive one.
 
 ## ADR-0011: Face-swap engine: ReActor node vs FaceFusion
 **Recorded.** 2026-11-02 13:16 CST (Phase 00)
@@ -145,3 +158,28 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 **Options considered.** Upstream hook repo (`rev` pin, needs Go); `language: system` hook calling a pinned binary; gitleaks-action only in CI.
 **Decision.** `.pre-commit-config.yaml` uses a `language: system` hook calling `gitleaks` 8.30.1 from `PATH`, installed at user level from the release tarball after checking its SHA-256 against the release checksums. CI installs the same version with its SHA-256 checked in the workflow and scans full history. The basic hooks use `pre-commit-hooks` v6.0.0 (tag verified at its repo 2026-11-02 15:08 CST).
 **Consequences.** Contributors must install gitleaks themselves (documented in CONTRIBUTING); version drift between machines is possible but CI is the backstop. Dependabot does not track the binary; bump it by hand with its new SHA-256.
+
+## ADR-0018: Default model set and engine VRAM mode
+**Recorded.** 2026-11-02 17:56 CST (Phase 03)
+**Status.** Accepted (owner reviews the contact sheet at the Phase 17 pause, H5/H10)
+**Context.** Phase 03 measured six candidate configurations (`docs/P11_BENCHMARKS.md`) on the laptop: RealVisXL V5.0, RealVisXL V5.0 Lightning, Juggernaut XL v9 (RunDiffusionPhoto v2), Juggernaut XL v9 + SDXL-Lightning 4-step LoRA, DreamShaper XL v2 Turbo, and Realistic Vision V6.0 B1 (SD 1.5). All were login-free Hugging Face downloads whose SHA-256 matched the host's LFS hash. The default set must be ≤ 30 GB (H1), and the picks are the agent's own (H5).
+**Options considered.** One few-step model for everything; a few-step default plus a full-step quality model; an SD 1.5 default (smallest, but visibly weaker faces and composition at wallpaper size).
+**Decision.** Default set (14.4 GB):
+
+| ID (for Phase 06) | File | Size (bytes) | SHA-256 | Licence | Defaults |
+|---|---|---:|---|---|---|
+| `realvisxl5-lightning` (default photoreal **and** avatar) | `RealVisXL_V5.0_Lightning_fp16.safetensors` from `SG161222/RealVisXL_V5.0_Lightning` @ `f4454158` | 6938065512 | `fabcadd9330dcc4f9702063428d40b9d4d07168d8acefc819b8d1d9db466b3ec` | OpenRAIL++-M (use restrictions; commercial allowed) | dpmpp_sde / karras, 5 steps, CFG 1.5, clip-skip 1, VAE `sdxl-vae-fp16-fix` |
+| `juggernautxl9` (Quality model) | `Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors` from `RunDiffusion/Juggernaut-XL-v9` @ `cf419233` | 7105348188 | `c9e3e68f89b8e38689e1097d4be4573cf308de4e3fd044c64ca697bdb4aa8bca` | CreativeML OpenRAIL-M (use restrictions; commercial allowed) | dpmpp_2m / karras, 30 steps, CFG 4.5, clip-skip 1, baked VAE |
+| `sdxl-vae-fp16-fix` | `sdxl_vae.safetensors` from `madebyollin/sdxl-vae-fp16-fix` @ `207b116d` | 334641162 | `235745af8d86bf4a4c1b5b4f529868b37019a10f7c0b2e79ad0abca3a22bc6e1` | MIT | n/a |
+| `4x-nomos-webphoto-realplksr` | `4xNomosWebPhoto_RealPLKSR.safetensors` from `Phips/4xNomosWebPhoto_RealPLKSR` @ `49d5da19` | 29590440 | `9be0228f98156a100d6636d99b373ed2785b999723f9adc4cca504329ab157f2` | CC-BY-4.0 (attribution) | wallpaper chain (ADR-0010) |
+
+`full` set (kept on disk, measured, not default): `realisticvision6` (`Realistic_Vision_V6.0_NV_B1_fp16.safetensors`, `SG161222/Realistic_Vision_V6.0_B1_noVAE` @ `9a857a69`, 2132625894 bytes, `c48bfd159cd7a6507b128685e963c398fa72399cefafaf603781df50ce836cc7`, CreativeML OpenRAIL-M; dpmpp_sde/karras 25 steps CFG 5, clip-skip 1) with `vae-ft-mse-840000-ema-pruned.safetensors` (`stabilityai/sd-vae-ft-mse-original` @ `629b3ad3`, 334641190 bytes, `735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75`, MIT) as the SD 1.5 low-VRAM option (5.5 GB peak).
+
+Reasoning: RealVisXL V5.0 Lightning gave the best faces among the fast models on the 16-prompt contact sheet and fine bobblehead avatars in a portrait bucket, at 13.7 s per native image and 18–19 s per wallpaper. It passed 50/50 runs at 2560×1440 (median 17.7 s, max 24.6 s, peak 7.75 GB, 0 OOM). Juggernaut XL v9 is the best full-step model and runs at about twice the speed of RealVisXL V5.0 (DPM++ SDE costs two model evaluations per step), 41 s per wallpaper. Both licences are OpenRAIL-family with use restrictions, so H3 gives no preference. One checkpoint serves both photoreal and avatar, which keeps the default set small.
+
+Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower than Juggernaut at similar quality), DreamShaper XL v2 Turbo (similar to RealVisXL Lightning, slightly weaker photoreal faces), the SDXL-Lightning 4-step LoRA on Juggernaut (fastest at 11 s per wallpaper, but plasticky faces and needs a LoRA patch at every load), and 4x-UltraSharp (non-commercial licence, no visible gain).
+
+**Avatar bucket.** At 16:9 every few-step model duplicated the avatar character. The `avatar 4:5` preset generates at **896×1152** (SDXL) and the 3D-animated-avatar style uses it by default.
+
+**Engine VRAM mode.** Default: ComfyUI's dynamic VRAM (no flag). It peaks at ~7.7 GB total because it caches weights into free VRAM and releases them under pressure; it was 0–10 % faster than `--disable-dynamic-vram`. **OOM retry (Phase 05):** restart with `--disable-dynamic-vram --lowvram`: 6.5 GB peak, ~10 % slower, the same outputs. No `--novram` or CPU fallback is needed for these models. Generation timeouts for Phase 05: cold first image ≤ 60 s, warm wallpaper ≤ 30 s (fast), ≤ 90 s (Quality model), ≤ 6 min (Quality chain on the SD 1.5 model); a 5× margin on these is a safe hard timeout.
+**Consequences.** Phase 06 writes these entries to `models/manifest.toml` (re-verifying at the source); Phase 04 uses the buckets, chains and sampler defaults; Phase 05 uses the VRAM mode and OOM retry; Phase 14's quality toggle switches the chain (and optionally the model). Nick may override the pick through `/phase-add`.

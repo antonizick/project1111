@@ -42,10 +42,16 @@ Direct runtime dependencies as locked in Phase 02 (versions and licences read fr
 | vite | 8.3.5 | MIT | https://www.npmjs.com/package/vite | none |
 
 ## Models
-To be filled by Phase 06 (manifest) and audited in Phase 16. Weights are never committed or redistributed.
+Picked by Phase 03 (ADR-0018; licences read from each Hugging Face model card and repo metadata at the pinned commit on 2026-11-02 15:30 CST); Phase 06 adds them to the manifest and Phase 16 audits. Weights are never committed or redistributed.
 
 | Name | Version / SHA-256 | Licence | URL | Flags (e.g. non-commercial, OpenRAIL-M) |
 |---|---|---|---|---|
+| RealVisXL V5.0 Lightning (fp16) | `fabcadd9330dcc4f9702063428d40b9d4d07168d8acefc819b8d1d9db466b3ec` | OpenRAIL++-M | https://huggingface.co/SG161222/RealVisXL_V5.0_Lightning | default set; OpenRAIL use restrictions |
+| Juggernaut XL v9 (RunDiffusionPhoto v2) | `c9e3e68f89b8e38689e1097d4be4573cf308de4e3fd044c64ca697bdb4aa8bca` | CreativeML OpenRAIL-M | https://huggingface.co/RunDiffusion/Juggernaut-XL-v9 | default set; OpenRAIL-M use restrictions |
+| SDXL VAE fp16 fix | `235745af8d86bf4a4c1b5b4f529868b37019a10f7c0b2e79ad0abca3a22bc6e1` | MIT | https://huggingface.co/madebyollin/sdxl-vae-fp16-fix | default set |
+| 4xNomosWebPhoto RealPLKSR | `9be0228f98156a100d6636d99b373ed2785b999723f9adc4cca504329ab157f2` | CC-BY-4.0 | https://huggingface.co/Phips/4xNomosWebPhoto_RealPLKSR | default set; attribution required |
+| Realistic Vision V6.0 B1 (noVAE, fp16) | `c48bfd159cd7a6507b128685e963c398fa72399cefafaf603781df50ce836cc7` | CreativeML OpenRAIL-M | https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE | full set (SD 1.5); OpenRAIL-M use restrictions |
+| sd-vae-ft-mse-original (840000 EMA pruned) | `735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75` | MIT | https://huggingface.co/stabilityai/sd-vae-ft-mse-original | full set (SD 1.5) |
 
 ## Development tooling
 | Name | Version | Licence | URL | Flags |

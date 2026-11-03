@@ -26,10 +26,19 @@ def test_engine_renders_non_black_png() -> None:
         pytest.skip(f"smoke model missing: {CKPT.name}")
     env = {k: v for k, v in os.environ.items() if not k.startswith("P11_")}
     env["P11_BENCH_KEEP_POWER"] = "1"
-    proc = subprocess.run([sys.executable, "-m", "scripts.bench.run", "smoke"], cwd=REPO, env=env,
-                          capture_output=True, text=True, timeout=900)
+    proc = subprocess.run(
+        [sys.executable, "-m", "scripts.bench.run", "smoke"],
+        cwd=REPO,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=900,
+    )
     assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
-    runs = sorted((Path.home() / ".cache/p11/bench/runs/smoke").glob("*.json"), key=lambda p: p.stat().st_mtime)
+    runs = sorted(
+        (Path.home() / ".cache/p11/bench/runs/smoke").glob("*.json"),
+        key=lambda p: p.stat().st_mtime,
+    )
     res = json.loads(runs[-1].read_text())
     assert res["error"] is None and not res["oom"]
     img = Image.open(res["output_path"]).convert("RGB")

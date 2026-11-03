@@ -57,12 +57,13 @@ def preset_table(rs: list[BenchResult]) -> str:
     return "\n".join(rows)
 
 
-def contact_sheet(rs: list[BenchResult]) -> Path:
+def contact_sheet(rs: list[BenchResult], name: str = "contact-sheet", portrait: bool = False) -> Path:
     default = {m.key: m.samplers[0].steps for m in MODELS.values()}
-    cells = {(r.model, r.prompt_id): r for r in rs if r.output_path and r.steps == default.get(r.model)}
+    cells = {(r.model, r.prompt_id): r for r in rs
+             if r.output_path and (portrait or r.steps == default.get(r.model))}
     models = [m for m in MODELS if any(k[0] == m for k in cells)]
-    pids = list(prompts.ALL)
-    tw, th, lab = 336, 192, 18
+    pids = [p for p in prompts.ALL if any(k[1] == p for k in cells)]
+    tw, th, lab = (232, 296, 18) if portrait else (336, 192, 18)
     sheet = Image.new("RGB", (140 + tw * len(models), lab + (th + 4) * len(pids)), "white")
     d = ImageDraw.Draw(sheet)
     for j, m in enumerate(models):
@@ -76,7 +77,7 @@ def contact_sheet(rs: list[BenchResult]) -> Path:
                 im = Image.open(r.output_path).convert("RGB")
                 im.thumbnail((tw - 4, th))
                 sheet.paste(im, (140 + j * tw, y))
-    png = BENCH / "contact-sheet.png"
+    png = BENCH / f"{name}.png"
     sheet.save(png)
     rows = []
     for pid in pids:
@@ -87,7 +88,7 @@ def contact_sheet(rs: list[BenchResult]) -> Path:
             for m in models)
         rows.append(f"<tr><th title='{html.escape(prompts.ALL[pid])}'>{pid}</th>{tds}</tr>")
     head = "".join(f"<th>{m}</th>" for m in models)
-    (BENCH / "contact-sheet.html").write_text(
+    (BENCH / f"{name}.html").write_text(
         f"<!doctype html><meta charset=utf-8><title>P11 bake-off contact sheet</title>"
         f"<h1>P11 Phase 03 contact sheet (native 16:9 bucket, default sampler, seed {prompts.SEEDS[0]})</h1>"
         f"<table border=1><tr><th></th>{head}</tr>{''.join(rows)}</table>")
@@ -97,6 +98,8 @@ def contact_sheet(rs: list[BenchResult]) -> Path:
 def main() -> None:
     base = load("base")
     print("## Base (native bucket)\n" + base_table(base))
+    if (RUNS / "avatar").exists():
+        print("\n## Avatar (portrait bucket)\n" + base_table(load("avatar")))
     for st in ("presets", "vram"):
         if (RUNS / st).exists():
             print(f"\n## {st}\n" + preset_table(load(st)))
@@ -108,6 +111,8 @@ def main() -> None:
               f"max VRAM {max(v for v in s['peak_vram'] if v)} MiB")
     if base:
         print(f"\ncontact sheet: {contact_sheet(base)}")
+    if (RUNS / "avatar").exists():
+        print(f"avatar sheet: {contact_sheet(load('avatar'), 'avatar-sheet', portrait=True)}")
 
 
 if __name__ == "__main__":

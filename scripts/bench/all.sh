@@ -12,6 +12,7 @@ for st in "${stages[@]}"; do
   echo "[all] stage $st $(date '+%F %T %Z')"
   case "$st" in
     base) uv run python -m scripts.bench.run base ;;
+    avatar) uv run python -m scripts.bench.run avatar --models realvisxl5_lightning,realvisxl5,juggernautxl9,dreamshaperxl_turbo ;;
     presets) uv run python -m scripts.bench.run presets --prompts p01 ;;
     vram) uv run python -m scripts.bench.run vram --models "$LEAD" --modes dynamic,classic,lowvram --chains "${CHAIN:-model}" ;;
     stability) uv run python -m scripts.bench.run stability --models "$LEAD" --n 50 --preset 2560x1440 --chain "${CHAIN:-model}" ;;

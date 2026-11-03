@@ -38,6 +38,18 @@ User data follows XDG paths (config, data, cache, state); the exact layout is fi
 | `src/p11/{recipe,templates,outputs,engine,gpu,models,jobs,media}/` | empty packages with docstrings naming the owning phase | skeleton |
 | `frontend/` | Vite + React + TS (strict); `vite build` writes to `src/p11/web/` (git-ignored) | placeholder page |
 
+## Engine install (Phase 03)
+| Path | Role |
+|---|---|
+| `engine/engine.lock.toml` | ComfyUI tag and commit, engine Python, torch build and index URL, launch flags (S1), custom nodes (none) |
+| `engine/requirements.lock.txt` | hash-locked engine dependencies (`uv pip compile --generate-hashes`) |
+| `engine/extra_model_paths.yaml.tmpl` | template for `~/.local/share/p11/engine/extra_model_paths.yaml` (models live in `~/.local/share/p11/models/<kind>/`, R8) |
+| `scripts/engine_setup.sh` | idempotent install/verify: clone at the pin, uv venv (CPython 3.12), `uv pip sync --require-hashes`, model folders, sm_75 torch check; `--dry-run`, `--relock`, `--no-check` |
+| `~/.local/share/p11/engine/{ComfyUI,venv}` | the installed engine (never in the repo) |
+| `scripts/bench/` | bake-off harness (talks to ComfyUI directly; Phase 05 replaces this with `p11.engine`); results in `docs/P11_BENCHMARKS.md`, raw JSON in `~/.cache/p11/bench/runs/` |
+
+Engine defaults (ADR-0009, ADR-0010, ADR-0018): fp16 UNet/text encoders, SDPA attention, fp32 VAE decode (tiled at wallpaper size), ComfyUI's dynamic VRAM by default with `--disable-dynamic-vram --lowvram` as the OOM retry; wallpapers are generated at the native bucket and upscaled with a model upscaler.
+
 Quality gates: `make check` (see `CONTRIBUTING.md`); CI runs the same target.
 
-_To be detailed in Phases 03–07 and the Phase 16 threat model._
+_To be detailed in Phases 04–07 and the Phase 16 threat model._
