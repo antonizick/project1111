@@ -17,7 +17,8 @@ export type Stroke = {
   points: Point[];
 };
 
-export type Op = Stroke | { type: "clear" } | { type: "invert" };
+export type Op =
+  Stroke | { type: "clear" } | { type: "invert" } | { type: "seed"; image: HTMLCanvasElement };
 
 export type History = { done: Op[]; undone: Op[] };
 
@@ -55,7 +56,10 @@ export function visibleOps(h: History): Op[] {
 /** Cheap "is there a mask" for enabling Apply; export checks the pixels exactly. */
 export function hasMask(h: History): boolean {
   return visibleOps(h).some(
-    (o) => o.type === "invert" || (o.type === "stroke" && o.tool === "brush" && o.opacity > 0),
+    (o) =>
+      o.type === "invert" ||
+      o.type === "seed" ||
+      (o.type === "stroke" && o.tool === "brush" && o.opacity > 0),
   );
 }
 

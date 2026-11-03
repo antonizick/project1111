@@ -10,7 +10,6 @@ import { newRecipeId, upscaleRecipe } from "./generate/form";
 import { useTemplateUi } from "./templates/ui";
 
 export const LATER: Record<string, { label: string; phase: string; view: View }> = {
-  background: { label: "Background", phase: "11", view: "background" },
   face: { label: "Face", phase: "12", view: "face" },
 };
 
@@ -64,6 +63,7 @@ export function useImageActions(onJobs?: (jobs: Job[]) => void) {
         .catch(fail),
     saveTemplate: (img: ImageEntry) => templates.saveImage(img),
     inpaint: (img: ImageEntry) => nav.edit("inpaint", img),
+    background: (img: ImageEntry) => nav.edit("background", img),
     later: (key: keyof typeof LATER) => {
       const l = LATER[key];
       if (l) toasts.push({ kind: "info", message: `${l.label} arrives in Phase ${l.phase}.` });

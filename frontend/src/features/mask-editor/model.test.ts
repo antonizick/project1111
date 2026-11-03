@@ -140,3 +140,20 @@ describe("keys", () => {
     expect(k("x")).toBeNull();
   });
 });
+
+describe("seed entries (Phase 11 initialMask)", () => {
+  const seedOp = { type: "seed", image: document.createElement("canvas") } as const;
+
+  it("counts as a mask until it is undone or cleared", () => {
+    const seeded = push(EMPTY, seedOp);
+    expect(hasMask(seeded)).toBe(true);
+    expect(hasMask(undo(seeded))).toBe(false);
+    expect(hasMask(push(seeded, { type: "clear" }))).toBe(false);
+  });
+
+  it("is the base the strokes draw on: visible until a clear", () => {
+    const h = push(push(EMPTY, seedOp), { type: "clear" });
+    expect(visibleOps(h)).toHaveLength(0);
+    expect(visibleOps(push(EMPTY, seedOp))).toHaveLength(1);
+  });
+});

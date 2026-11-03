@@ -107,7 +107,8 @@ export function replay(
   if (!lc || !sc) return;
   const full = { x: 0, y: 0, w, h };
   for (const op of visibleOps(history)) {
-    if (op.type === "invert") invert(mask, snapshot);
+    if (op.type === "seed") mask.drawImage(op.image, 0, 0);
+    else if (op.type === "invert") invert(mask, snapshot);
     else if (op.type === "stroke") {
       sc.clearRect(0, 0, w, h);
       sc.drawImage(mask.canvas, 0, 0);
@@ -116,6 +117,30 @@ export function replay(
     }
   }
   lc.clearRect(0, 0, w, h);
+}
+
+/**
+ * A greyscale mask image (white = painted, from the server's auto-mask) as an alpha-mask canvas
+ * in the editor's display colour, so it can be the history's seed entry.
+ */
+export function seedCanvas(img: CanvasImageSource, w: number, h: number): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const s = ctx2d(c);
+  if (!s) return c;
+  s.drawImage(img, 0, 0, w, h);
+  const data = s.getImageData(0, 0, w, h);
+  const p = data.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const a = Math.round((p[i]! * p[i + 3]!) / 255);
+    p[i] = 255;
+    p[i + 1] = 48;
+    p[i + 2] = 96;
+    p[i + 3] = a;
+  }
+  s.putImageData(data, 0, 0);
+  return c;
 }
 
 /** True if any pixel of the mask is painted (alpha > 0). */

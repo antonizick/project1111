@@ -26,10 +26,19 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from ..outputs.metadata import RunRecord
-from ..recipe.model import PLACEHOLDER, FixedSeed, Generate, Inpaint, RandomSeed, Recipe, Slot
+from ..recipe.model import (
+    PLACEHOLDER,
+    FixedSeed,
+    Generate,
+    Inpaint,
+    RandomSeed,
+    Recipe,
+    ReplaceBackground,
+    Slot,
+)
 
 SeedMode = Literal["fixed", "random"]
-MaskMode = Literal["slot", "fixed"]
+MaskMode = Literal["auto", "slot", "fixed"]
 MAX_SLOTS = 16
 
 
@@ -50,10 +59,12 @@ def capture_template(
     seed: SeedMode = "fixed",
     variable_prompt: bool = False,
     masks: Mapping[str, bytes] | None = None,
+    mask_mode: MaskMode = "slot",
 ) -> Recipe:
     """The template for ``record``: a new recipe ID, the chosen seed strategy and inferred slots.
 
-    ``masks`` maps an inpaint mask slot to the (compacted) mask PNG to keep fixed in the template.
+    ``masks`` maps a mask slot to the (compacted) mask PNG to keep fixed in the template;
+    ``mask_mode`` "auto" makes ``replace_background`` steps segment each run's subject instead.
     """
     recipe = record.recipe
     slots: list[Slot] = []
@@ -99,7 +110,15 @@ def capture_template(
 
     fixed = set()
     for i, step in enumerate(steps):
-        if isinstance(step, Inpaint) and step.mask_slot and step.mask_slot in (masks or {}):
+        if not isinstance(step, (Inpaint, ReplaceBackground)) or step.mask_slot is None:
+            continue
+        if mask_mode == "auto" and isinstance(step, ReplaceBackground):
+            # Segment the subject of each run (the template re-runs on new subjects).
+            steps[i] = step.model_copy(
+                update={"mask_mode": "auto", "mask_slot": None, "mask_png": None}
+            )
+            fixed.add(step.mask_slot)
+        elif mask_mode == "fixed" and step.mask_slot in (masks or {}):
             png = base64.b64encode((masks or {})[step.mask_slot]).decode()
             steps[i] = step.model_copy(update={"mask_slot": None, "mask_png": png})
             fixed.add(step.mask_slot)

@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { GalleryView } from "../features/gallery/GalleryView";
 import { GenerateView } from "../features/generate/GenerateView";
+import { BackgroundView } from "../features/background/BackgroundView";
 import { InpaintView } from "../features/inpaint/InpaintView";
 import { TemplatesView } from "../features/templates/TemplatesView";
 import { Dialog } from "../components/Dialog";
@@ -15,7 +16,13 @@ import { useStudio } from "./studio";
 import { useToasts } from "./Toasts";
 
 type Theme = "light" | "dark";
-const BUILT: ReadonlySet<View> = new Set(["generate", "gallery", "templates", "inpaint"]);
+const BUILT: ReadonlySet<View> = new Set([
+  "generate",
+  "gallery",
+  "templates",
+  "inpaint",
+  "background",
+]);
 const THEME_KEY = "p11.theme";
 
 function initialTheme(): Theme {
@@ -125,6 +132,7 @@ export function Shell({ version, fake }: { version: string; fake: boolean }) {
         <GalleryView active={view === "gallery"} />
         <TemplatesView active={view === "templates"} />
         <InpaintView active={view === "inpaint"} />
+        <BackgroundView active={view === "background"} />
         {!BUILT.has(view) && <Placeholder view={view} />}
       </main>
       <StatusBar />

@@ -37,6 +37,7 @@ import {
   exportMask,
   invert as invertMask,
   replay,
+  seedCanvas,
   union,
   type Rect,
 } from "./render";
@@ -60,6 +61,7 @@ export function MaskEditor({
   feather,
   onFeather,
   onChange,
+  initialMask,
   active = true,
   ref,
 }: {
@@ -70,6 +72,8 @@ export function MaskEditor({
   feather: number;
   onFeather: (px: number) => void;
   onChange?: (hasMask: boolean) => void;
+  /** Greyscale mask PNG (white = painted) to start from, e.g. the auto-mask (Phase 11). */
+  initialMask?: string | null;
   /** Keyboard shortcuts are live only while the editor's view is shown. */
   active?: boolean;
   ref?: Ref<MaskEditorHandle>;
@@ -139,6 +143,20 @@ export function MaskEditor({
     },
     [onChange, offscreen],
   );
+
+  // Seed the mask from `initialMask` as the first history entry, so Clear and Undo behave.
+  const seeded = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialMask || seeded.current === initialMask) return;
+    seeded.current = initialMask;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = seedCanvas(img, width, height);
+      apply(push(EMPTY, { type: "seed", image: canvas }), true);
+    };
+    img.src = initialMask;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMask, width, height]);
 
   const doUndo = useCallback(
     () => canUndo(history) && apply(undo(history), true),

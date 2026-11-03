@@ -36,8 +36,9 @@ export function SaveTemplateDialog({
   const [tags, setTags] = useState("");
   const [seed, setSeed] = useState<"fixed" | "random">("random");
   const [variable, setVariable] = useState(false);
-  const [mask, setMask] = useState<"slot" | "fixed">("fixed");
+  const [mask, setMask] = useState<"auto" | "slot" | "fixed">("fixed");
   const [hasMask, setHasMask] = useState(false);
+  const [hasBackground, setHasBackground] = useState(false);
   const [folders, setFolders] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -49,7 +50,14 @@ export function SaveTemplateDialog({
       .catch(() => undefined);
     client
       .recipe(image.id)
-      .then((r) => live && setHasMask(r.recipe.steps.some((s) => s.type === "inpaint")))
+      .then((r) => {
+        if (!live) return;
+        const background = r.recipe.steps.some((s) => s.type === "replace_background");
+        setHasBackground(background);
+        setHasMask(background || r.recipe.steps.some((s) => s.type === "inpaint"));
+        // A background template re-segments each run's subject unless told otherwise.
+        setMask(background ? "auto" : "fixed");
+      })
       .catch(() => undefined);
     return () => {
       live = false;
@@ -140,7 +148,18 @@ export function SaveTemplateDialog({
         </label>
         {hasMask && (
           <fieldset className="field">
-            <legend>Inpaint mask</legend>
+            <legend>{hasBackground ? "Subject mask" : "Inpaint mask"}</legend>
+            {hasBackground && (
+              <label className="check">
+                <input
+                  type="radio"
+                  name={`${id}-mask`}
+                  checked={mask === "auto"}
+                  onChange={() => setMask("auto")}
+                />
+                Find the subject each time
+              </label>
+            )}
             <label className="check">
               <input
                 type="radio"

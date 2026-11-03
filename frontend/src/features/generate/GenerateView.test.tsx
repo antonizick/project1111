@@ -72,10 +72,7 @@ it("generates from a typed prompt with Ctrl+Enter, shows progress and the result
   const result = await screen.findByRole("region", { name: "Result" });
   expect(within(result).getByText("prompt 5")).toBeVisible();
   expect(within(result).getByRole("button", { name: "Inpaint" })).toBeEnabled();
-  expect(within(result).getByRole("button", { name: /Background/ })).toHaveAttribute(
-    "aria-disabled",
-    "true",
-  );
+  expect(within(result).getByRole("button", { name: "Background" })).toBeEnabled();
   expect(screen.getByText("Model: realvisxl5-lightning")).toBeVisible();
 });
 
