@@ -9,6 +9,8 @@
 
 **Phase 05 results (2026-11-02 19:28 CST):** a custom node (ReActor etc.) must also be added to `p11.engine.fake.KNOWN_NODES` and the FakeEngine taught its output size if it changes it (`_size` in `fake.py`); `ControlNetLoader` and `ControlNetApplyAdvanced` are already known. The S5 guard runs before the graph reaches `Engine.run`.
 
+**Phase 06 results (2026-11-02 23:09 CST):** add models to `models/manifest.toml` with the schema in `src/p11/models/manifest.py` (ADR-0021): `id, name, kind, base (sdxl|sd15|any), files = [{url (HF `/resolve/<commit>/`), filename, sha256, size}], licence {name, url, commercial_use, flags}, requires_login, sets, scale, source, notes`, plus a `# Checked <TS>: …` comment saying what was verified. Kinds and folders: `KIND_FOLDERS` (`facerestore/`, `faceswap/`, `facedetect/`, `segmentation/`, `controlnet/`, `ipadapter/`; `facedetect` is new, and ComfyUI only sees a folder listed in `engine/extra_model_paths.yaml.tmpl`, so add the key a custom node expects there). Non-`.safetensors` formats (ONNX, pickle-only face models) are not loaded through `p11 models add`; curated entries are hash-pinned, which S4 allows. Put new entries in `full` or an `optional` set, never silently into `default` (≤ 30 GB). Tests can serve fake weights with `tests/fixtures/model_server.py` and `parse_manifest(text, loopback_http=True)`.
+
 ## Goal
 Faces, poses and reference styles are one-click tools in Generate and Inpaint. **Face-swap** puts the face from a photo onto a generated image. **Apply Pose** makes a generation follow a pose from an image or the built-in editor. **Reference** keeps a style or character consistent through IP-Adapter. Face restoration polishes results. The face-swap path carries the non-negotiable NSFW target guard (S5).
 

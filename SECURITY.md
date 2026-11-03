@@ -18,3 +18,10 @@ Out of scope: vulnerabilities in third-party engines or models themselves (repor
 
 ## Baseline
 The security and privacy baseline is spec Amendments S1–S10 in [`docs/P11_SPECIFICATION.md`](docs/P11_SPECIFICATION.md). Secrets are scanned with gitleaks in pre-commit and CI. Never commit secrets, tokens, `.env` files, model weights or personal media.
+
+## Model files
+Model weights are code-adjacent: pickle-based formats (`.ckpt`, `.pt`, `.pth`, `.bin`) can execute arbitrary code when loaded. P11 (ADR-0021, spec S4):
+- downloads curated models only over HTTPS from the pinned commit named in `models/manifest.toml`, and deletes any file whose size or SHA-256 differs;
+- identifies user-added files by content and refuses pickle formats unless `--allow-pickle` is given for that file (with a warning); `p11 doctor` keeps warning about such files;
+- reads optional tokens only from `~/.config/p11/secrets.toml` with mode `0600`, sends each token only to its own host (never across a redirect to another host) and never logs it.
+Report a manifest entry whose source changed, or a way to load an unverified file, as a vulnerability.

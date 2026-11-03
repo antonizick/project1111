@@ -9,6 +9,8 @@
 
 **Phase 05 results (2026-11-02 19:28 CST):** the FakeEngine only accepts node types in `p11.engine.fake.KNOWN_NODES`; add segmentation/compositing nodes you introduce there (the gpu test `test_known_nodes_exist_in_pinned_engine` checks them against `/object_info`).
 
+**Phase 06 results (2026-11-02 23:09 CST):** add models to `models/manifest.toml` with the schema in `src/p11/models/manifest.py` (ADR-0021): `id, name, kind, base (sdxl|sd15|any), files = [{url (HF `/resolve/<commit>/`), filename, sha256, size}], licence {name, url, commercial_use, flags}, requires_login, sets, scale, source, notes`, plus a `# Checked <TS>: …` comment saying what was verified. Kinds and folders: `KIND_FOLDERS` (`facerestore/`, `faceswap/`, `facedetect/`, `segmentation/`, `controlnet/`, `ipadapter/`; `facedetect` is new, and ComfyUI only sees a folder listed in `engine/extra_model_paths.yaml.tmpl`, so add the key a custom node expects there). Non-`.safetensors` formats (ONNX, pickle-only face models) are not loaded through `p11 models add`; curated entries are hash-pinned, which S4 allows. Put new entries in `full` or an `optional` set, never silently into `default` (≤ 30 GB). Tests can serve fake weights with `tests/fixtures/model_server.py` and `parse_manifest(text, loopback_http=True)`.
+
 ## Goal
 Replacing a background with a photograph takes one click. You open an image, P11 finds the subject automatically, you refine the edge with the Phase 10 mask editor if needed, drop in a background photo (or describe one), and press **Replace Background**. The subject is blended in with matched colour and light, and the step can be captured in templates. This matters most for logo and product shots.
 

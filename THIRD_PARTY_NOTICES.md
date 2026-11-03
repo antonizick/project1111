@@ -43,16 +43,16 @@ Direct runtime dependencies as locked in Phase 02 (versions and licences read fr
 | vite | 8.3.5 | MIT | https://www.npmjs.com/package/vite | none |
 
 ## Models
-Picked by Phase 03 (ADR-0018; licences read from each Hugging Face model card and repo metadata at the pinned commit on 2026-11-02 15:30 CST); Phase 06 adds them to the manifest and Phase 16 audits. Weights are never committed or redistributed.
+Picked by Phase 03 (ADR-0018) and pinned in `models/manifest.toml` by Phase 06 (ADR-0021). Revision, size, SHA-256 and licence tag re-read from the Hugging Face API, the hash recomputed over the downloaded file and the licence URLs fetched on 2026-11-02 19:42 CST. Weights are never committed or redistributed; P11 downloads them from these repositories at the pinned commit. Phase 16 audits.
 
-| Name | Version / SHA-256 | Licence | URL | Flags (e.g. non-commercial, OpenRAIL-M) |
-|---|---|---|---|---|
-| RealVisXL V5.0 Lightning (fp16) | `fabcadd9330dcc4f9702063428d40b9d4d07168d8acefc819b8d1d9db466b3ec` | OpenRAIL++-M | https://huggingface.co/SG161222/RealVisXL_V5.0_Lightning | default set; OpenRAIL use restrictions |
-| Juggernaut XL v9 (RunDiffusionPhoto v2) | `c9e3e68f89b8e38689e1097d4be4573cf308de4e3fd044c64ca697bdb4aa8bca` | CreativeML OpenRAIL-M | https://huggingface.co/RunDiffusion/Juggernaut-XL-v9 | default set; OpenRAIL-M use restrictions |
-| SDXL VAE fp16 fix | `235745af8d86bf4a4c1b5b4f529868b37019a10f7c0b2e79ad0abca3a22bc6e1` | MIT | https://huggingface.co/madebyollin/sdxl-vae-fp16-fix | default set |
-| 4xNomosWebPhoto RealPLKSR | `9be0228f98156a100d6636d99b373ed2785b999723f9adc4cca504329ab157f2` | CC-BY-4.0 | https://huggingface.co/Phips/4xNomosWebPhoto_RealPLKSR | default set; attribution required |
-| Realistic Vision V6.0 B1 (noVAE, fp16) | `c48bfd159cd7a6507b128685e963c398fa72399cefafaf603781df50ce836cc7` | CreativeML OpenRAIL-M | https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE | full set (SD 1.5); OpenRAIL-M use restrictions |
-| sd-vae-ft-mse-original (840000 EMA pruned) | `735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75` | MIT | https://huggingface.co/stabilityai/sd-vae-ft-mse-original | full set (SD 1.5) |
+| Name (manifest ID) | Source @ commit | SHA-256 | Licence | Commercial use | Flags / set |
+|---|---|---|---|---|---|
+| RealVisXL V5.0 Lightning fp16 (`realvisxl5-lightning`) | [SG161222/RealVisXL_V5.0_Lightning](https://huggingface.co/SG161222/RealVisXL_V5.0_Lightning) @ `f4454158` | `fabcadd9330dcc4f9702063428d40b9d4d07168d8acefc819b8d1d9db466b3ec` | [CreativeML Open RAIL++-M](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) | yes | use restrictions; default |
+| Juggernaut XL v9 RunDiffusionPhoto v2 (`juggernautxl9`) | [RunDiffusion/Juggernaut-XL-v9](https://huggingface.co/RunDiffusion/Juggernaut-XL-v9) @ `cf419233` | `c9e3e68f89b8e38689e1097d4be4573cf308de4e3fd044c64ca697bdb4aa8bca` | [CreativeML OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) | yes | use restrictions; default |
+| SDXL VAE fp16 fix (`sdxl-vae-fp16-fix`) | [madebyollin/sdxl-vae-fp16-fix](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix) @ `207b116d` | `235745af8d86bf4a4c1b5b4f529868b37019a10f7c0b2e79ad0abca3a22bc6e1` | [MIT](https://opensource.org/license/mit) | yes | none; default |
+| 4xNomosWebPhoto RealPLKSR (`4x-nomos-webphoto-realplksr`) | [Phips/4xNomosWebPhoto_RealPLKSR](https://huggingface.co/Phips/4xNomosWebPhoto_RealPLKSR) @ `49d5da19` | `9be0228f98156a100d6636d99b373ed2785b999723f9adc4cca504329ab157f2` | [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) | yes | attribution required; default |
+| Realistic Vision V6.0 B1 noVAE fp16 (`realisticvision6`) | [SG161222/Realistic_Vision_V6.0_B1_noVAE](https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE) @ `9a857a69` | `c48bfd159cd7a6507b128685e963c398fa72399cefafaf603781df50ce836cc7` | [CreativeML OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) | yes | use restrictions; full (SD 1.5) |
+| sd-vae-ft-mse-original 840000 EMA pruned (`vae-ft-mse-840000`) | [stabilityai/sd-vae-ft-mse-original](https://huggingface.co/stabilityai/sd-vae-ft-mse-original) @ `629b3ad3` | `735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75` | [MIT](https://opensource.org/license/mit) | yes | none; full (SD 1.5) |
 
 ## Development tooling
 | Name | Version | Licence | URL | Flags |

@@ -24,19 +24,19 @@ User data follows XDG paths (config, data, cache, state); the exact layout is fi
 ## Trust boundaries
 - **Browser ↔ Studio API:** untrusted input; Host/Origin/token checks, CSP, upload validation.
 - **Studio API ↔ engine:** loopback only; the engine is never exposed beyond `127.0.0.1`.
-- **Network ↔ model downloads:** pinned URL, size and SHA-256; safetensors policy; login-free hosts by default.
+- **Network ↔ model downloads:** pinned URL (commit), size and SHA-256 checked before a file is used; HTTPS only; tokens only to their own host, never across redirects; safetensors/GGUF only unless a user opts in per file; login-free hosts by default (ADR-0021).
 - **Face-swap paths:** NSFW target guard always on (spec S5, ADR-0005).
 
 ## Package map (Phase 02)
 | Path | Role | Status |
 |---|---|---|
-| `src/p11/cli.py` | Typer app: `version`, `paths`, `serve`; stubs `start stop status open doctor models update` | real (stubs print the owning phase) |
+| `src/p11/cli.py` | Typer app: `version`, `paths`, `serve`, `models …` (Phase 06); stubs `start stop status open doctor update` | real (stubs print the owning phase) |
 | `src/p11/paths.py` | XDG config/data/cache/pictures with `P11_*_DIR` overrides; `ensure_private_dir()` makes `0700` dirs | real |
 | `src/p11/config.py` | `Settings` from `~/.config/p11/config.toml` and `P11_*` env; host must be `127.0.0.1` (S1) | real |
 | `src/p11/gpulock.py` | `gpu_lock(timeout, holder)`: `flock` on `~/.cache/p11/gpu.lock`, holder info (pid, name, start) readable by waiters (R24) | real |
 | `src/p11/api/app.py` | `create_app(engine=…)`: `GET /healthz`, serves `src/p11/web/` at `/` when built, keeps the engine on `app.state.engine` | real (middleware arrives in Phase 07) |
 | `src/p11/{engine,gpu}/` | engine adapter and GPU telemetry (Phase 05, below) | real |
-| `src/p11/{models,jobs,media}/` | empty packages with docstrings naming the owning phase | skeleton |
+| `src/p11/{jobs,media}/` | empty packages with docstrings naming the owning phase | skeleton |
 | `src/p11/{recipe,outputs,templates}/` | recipe core (Phase 04, below) | real |
 | `frontend/` | Vite + React + TS (strict); `vite build` writes to `src/p11/web/` (git-ignored) | placeholder page |
 
@@ -60,7 +60,7 @@ Everything here is pure or touches the filesystem only through roots passed in (
 | `recipe/model.py` | Recipe schema v1 (frozen Pydantic): `Recipe`, `Step` union (`generate`, `upscale`, `inpaint`, `replace_background`, `face_swap`, `pose`, `reference`, `text_overlay`), `Slot`, `SeedStrategy`, `ModelRef`, `FileRef`; cross-checks slot references and `{{slot}}` placeholders |
 | `recipe/migrate.py` | `migrate(dict)`, `loads(json)`: version check, `MIGRATIONS[n]` chain, plain-English errors; newer versions refused |
 | `recipe/presets.py` | the one preset table: aspect presets (bucket per family, output size, default and Quality chain) and style presets (prompt prefix/suffix, negative, default aspect and model) |
-| `recipe/registry.py` | `ModelRegistry` protocol + `ModelInfo`/`SamplerDefaults`; `PROVISIONAL_DEFAULT_SET` (ADR-0018) until Phase 06 |
+| `recipe/registry.py` | `ModelRegistry` protocol + `ModelInfo`/`SamplerDefaults`; `PROVISIONAL_DEFAULT_SET`, a pure copy of the manifest for compiler tests (a test keeps them equal); the app uses `p11.models` (Phase 06) |
 | `recipe/compile.py` | `compile(recipe, bindings, registry, seed=…) → list[EngineGraph]`, `resolve_seed`, `resolve_bindings`, `register_step`, `register_modifier` |
 | `recipe/variations.py` | `seed_variations(recipe, n, rng?)`, `prompt_mutation(recipe, rng)` (word lists, no network) |
 | `outputs/layout.py` | `output_path(root, now, template_slug, seed, step)` → `<root>/YYYY-MM-DD/<slug|adhoc>/<HHMMSS>-<seed>[-<step>].png`, `0700` dirs, file reserved `0600` with `O_EXCL`, `-2`… on collision; `slugify` |
@@ -107,4 +107,22 @@ job (07) ─► run_with_oom_retry ─► Engine.run ──ws + HTTP──► Co
 
 Quality gates: `make check` (see `CONTRIBUTING.md`); CI runs the same target.
 
-_To be detailed in Phases 05–07 and the Phase 16 threat model._
+## Model manager (Phase 06)
+`src/p11/models/` turns the hash-pinned manifest (ADR-0006, ADR-0018, ADR-0021) into installed files.
+
+| Module | Role |
+|---|---|
+| `models/manifest.toml` (repo root) | the curated set: per entry `id, name, kind, base, files[{url (HF `/resolve/<commit>/`), filename, sha256, size}], licence {name, url, commercial_use, flags}, requires_login, sets, defaults, scale, source, notes`, each with a `# Checked <TS>` comment |
+| `models/manifest.py` | strict schema (unknown keys are errors) and cross-checks; `find_manifest()`: `$P11_MODEL_MANIFEST`, else the repo copy, else `~/.local/share/p11/manifest.toml`; `KIND_FOLDERS` |
+| `models/download.py` | `Downloader`: HTTPS only, manual redirects (token only to its own host), `.part` + `Range` resume, streaming SHA-256, atomic rename, size/hash mismatch deletes the part, backoff retries, disk-space pre-check, ≤ 2 per host; `load_tokens()` from `secrets.toml` (`0600` enforced) |
+| `models/formats.py` | content sniffing (`safetensors`, `gguf`, `pickle`, `torch-zip`, `unknown`), safetensors header reader, kind/base detection from tensor names |
+| `models/state.py` | `LicenceStore` (`~/.config/p11/licences.toml`), `StateStore` (`~/.config/p11/models.toml`: disabled IDs, user models), `HashCache` (`~/.cache/p11/model-hashes.json`, keyed by path + size + mtime) |
+| `models/registry.py` | `ModelManager`: `statuses()` (`installed | missing | corrupt | user-added | unregistered`, join by hash), `plan`/`install` (licence acknowledgement, `--from` reuse, repair), `verify`, `add` (S4 policy), `remove`, `set_enabled`, `write_extra_model_paths`; `registry()` → `ManagerRegistry` for the compiler |
+| `models/doctor.py` | `check()` → `list[p11.problems.Problem]` for `p11 doctor` |
+| `models/cli.py` | `p11 models list|install|verify|add|remove|enable|disable|licences`, all with `--json` |
+
+**Layout.** `~/.local/share/p11/models/` (or `models_root` in `config.toml`) holds `checkpoints/ loras/ vae/ controlnet/ ipadapter/ upscale/ facerestore/ faceswap/ facedetect/ segmentation/ embeddings/`; ComfyUI reads them through `extra_model_paths.yaml`, written by `scripts/engine_setup.sh` and by `p11 models install` from the same template. Partial downloads are `<file>.part` next to the target; URL adds are staged in `.incoming/`.
+
+**Tests.** `tests/fixtures/model_server.py` is a loopback HTTP server with Range, cut-off connections, redirects and request recording; `Downloader(insecure_hosts=…)` and `parse_manifest(…, loopback_http=True)` are the only ways to use plain http (tests). `tests/net/` holds the one real download (the smallest default entry), run with `P11_NET_TESTS=1`.
+
+_To be detailed in Phase 07 and the Phase 16 threat model._

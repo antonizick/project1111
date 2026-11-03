@@ -2,8 +2,9 @@
 
 The graph is compiled in this process (pure) and run through ``ComfyEngine`` (Phase 05) with the
 real XDG paths, so it uses the installed engine, the real models directory and the real GPU lock
-(R24). ``/prompt`` validating the graph is the acceptance criterion; the run finishing with a
-1920x1080 image is the stronger check. The engine's scratch copy is deleted (S6).
+(R24); models resolve through the Phase 06 ``ModelManager`` registry. ``/prompt`` validating the
+graph is the acceptance criterion; the run finishing with a 1920x1080 image is the stronger check.
+The engine's scratch copy is deleted (S6).
 """
 
 import io
@@ -14,9 +15,9 @@ from PIL import Image, ImageStat
 from tests.helpers import recipe
 
 from p11.engine.comfy import ComfyEngine, EngineConfig
+from p11.models.registry import ModelManager
 from p11.recipe.compile import compile
 from p11.recipe.model import Generate
-from p11.recipe.registry import PROVISIONAL_DEFAULT_SET
 
 DATA = Path.home() / ".local/share/p11"
 
@@ -35,7 +36,8 @@ async def test_compiled_wallpaper_graph_runs_on_engine(monkeypatch: pytest.Monke
     for var in ("P11_CONFIG_DIR", "P11_DATA_DIR", "P11_CACHE_DIR", "P11_PICTURES_DIR"):
         monkeypatch.delenv(var, raising=False)
     r = recipe(Generate(prompt="a lighthouse on a rocky coast at dusk", aspect="16:9-1920x1080"))
-    (graph,) = compile(r, {}, PROVISIONAL_DEFAULT_SET)
+    # The app's registry (Phase 06): manifest + installed, hash-checked files.
+    (graph,) = compile(r, {}, ModelManager(DATA / "models").registry())
     engine = ComfyEngine(EngineConfig.default(lock_timeout=1800))
     await engine.start()
     try:
