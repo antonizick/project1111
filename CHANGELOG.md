@@ -4,6 +4,12 @@ All notable changes are recorded here. Format: [Keep a Changelog](https://keepac
 
 ## [Unreleased]
 
+### Added
+- Phase 17b: **Start from a photo** on the Generate tab (ADR-0038). Upload or drop a picture (or press **Use as starting photo** on a result or gallery image), describe the picture you want and pick a strength: **Light touch**, **Change** or **Reimagine** (Advanced: a 0.10–0.95 slider). P11 re-renders the photo with SDXL image-to-image on the installed default model (no new model, node or download): the photo is scaled to the model's nearest native bucket at its own aspect, VAE-encoded, sampled at the preset strength and upscaled toward its own size (at most 2560 × 1440). The Size chips are off while a photo is set. The `generate` step gains `image_slot`, `denoise` and `denoise_preset` (additive, schema v1 unchanged; text-to-image graphs are byte-identical). Save as Template turns the photo into a **Start photo** input. Tests: `tests/unit/test_photo_edit.py` (schema, buckets, sizes, goldens `tests/golden/compile/img2img__*.json`, template capture, runner and API), Vitest for the form and view, Playwright `e2e/photo-edit.spec.ts`, `tests/gpu/test_photo_edit_gpu.py`; tuning script `scripts/bench/photo_edit_tune.py`.
+
+### Security
+- Phase 17b (S5, ADR-0038): edits of **uploaded** photos showing a face are checked. When a photo edit, Inpaint or Background job edits an uploaded photo in which the face detector finds a face, every output passes the S5 image check and is flagged `likeness` in its sidecar (later edits inherit it). Without the `face` model set such an edit is refused before queueing: "Editing an uploaded photo needs the face safety models: run `p11 models install face`". Text to image and edits of P11's own pictures are unchanged (A5). This closes the Inpaint/Background gap noted in threat model T8.
+
 ### Fixed
 - Phase 17a: the inpaint and Refine-mask brush and eraser now leave their stroke on the canvas while you draw, at any opacity. Each pointer move restored its box with a `copy` draw, which in a real browser clears the whole canvas outside that box, so only the latest dab showed until Undo/Redo replayed the history (`render.ts:composite` now clears the box and draws with `source-over`).
 - Phase 17a: the Background view's mask overlay sits exactly on the subject. The overlay used to fill a stage that stretched to the pane width while the image was capped at 58 % of the window height, so the mask was shifted to the right and stretched; the stage now wraps the image.

@@ -163,7 +163,7 @@ describe("photo edit (Phase 17b)", () => {
   it("clamps the slider and builds a gallery photo", () => {
     expect(clampDenoise(0.01)).toBe(0.1);
     expect(clampDenoise(2)).toBe(0.95);
-    expect(clampDenoise(Number.NaN)).toBe(0.55);
+    expect(clampDenoise(Number.NaN)).toBe(0.7);
     expect(photoFromImage({ id: 7, url: "/api/images/7", width: null, height: 600 })).toEqual({
       ref: "gallery/7",
       url: "/api/images/7",

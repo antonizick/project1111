@@ -8,6 +8,7 @@ contact grid per photo. Stage ``detect`` times the face detector on a 1920x1080 
 
     uv run python scripts/bench/photo_edit_tune.py generate
     uv run python scripts/bench/photo_edit_tune.py edit
+    uv run python scripts/bench/photo_edit_tune.py edit2   # Change at 0.70 / 0.75 on four photos
     uv run python scripts/bench/photo_edit_tune.py detect
 
 Runs through the Studio API in-process on ``ComfyEngine`` (GPU lock R24, power profile H8);
@@ -122,15 +123,26 @@ def generate() -> None:
             print(key, "ok", flush=True)
 
 
-def edit() -> None:
+#: Second round: Change between 0.65 (outfit, colour) and 0.75 (the room is furnished).
+CANDIDATES_2: tuple[tuple[str, float | None], ...] = (("change", 0.7), ("change", 0.75))
+KEYS_2 = ("person", "house", "room", "sneaker")
+
+
+def edit(
+    candidates: tuple[tuple[str, float | None], ...] = CANDIDATES,
+    keys: tuple[str, ...] | None = None,
+    name: str = "results.json",
+) -> None:
     c, auth = client(OUT / "edit-studio")
     results: list[dict[str, Any]] = []
     with performance() as previous, c:
         print("power profile was", previous, flush=True)
         for key, _aspect, _prompt, change in SOURCES:
+            if keys is not None and key not in keys:
+                continue
             src = (OUT / "sources" / f"{key}.png").read_bytes()
             up = c.post("/api/uploads?kind=image", headers=auth, content=src).json()
-            for preset, denoise in CANDIDATES:
+            for preset, denoise in candidates:
                 step = Generate(prompt=change, denoise_preset=None if denoise else preset,  # type: ignore[arg-type]
                                 denoise=denoise)  # fmt: skip
                 r = Recipe.new(f"{key}-{preset}", [step], source_image=FileRef(ref=up["id"]),
@@ -159,7 +171,9 @@ def edit() -> None:
                     "file": name,
                 })  # fmt: skip
                 print(json.dumps(results[-1]), flush=True)
-    (OUT / "results.json").write_text(json.dumps(results, indent=1))
+    (OUT / name).write_text(json.dumps(results, indent=1))
+    if name != "results.json":
+        results = json.loads((OUT / "results.json").read_text()) + results
     grids(results)
 
 
@@ -173,7 +187,7 @@ def grids(results: list[dict[str, Any]]) -> None:
         tw = 400
         first = Image.open(files[0][1])
         th = round(tw * first.height / first.width)
-        cols = 4
+        cols = 5
         rows = -(-len(files) // cols)
         grid = Image.new("RGB", (tw * cols, (th + 20) * rows), "white")
         d = ImageDraw.Draw(grid)
@@ -200,4 +214,5 @@ def detect() -> None:
 
 if __name__ == "__main__":
     {"generate": generate, "edit": edit, "detect": detect,
+     "edit2": lambda: edit(CANDIDATES_2, KEYS_2, "results-2.json"),
      "grids": lambda: grids(json.loads((OUT / "results.json").read_text()))}[sys.argv[1]]()  # fmt: skip

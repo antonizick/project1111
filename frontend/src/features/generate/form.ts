@@ -36,14 +36,14 @@ export const PHOTO_PRESETS: { id: PhotoPreset; label: string; about: string; den
     id: "light",
     label: "Light touch",
     about: "Keeps the picture, changes details.",
-    denoise: 0.35,
+    denoise: 0.45,
   },
-  { id: "change", label: "Change", about: "Follows the prompt, keeps the layout.", denoise: 0.55 },
+  { id: "change", label: "Change", about: "Follows the prompt, keeps the layout.", denoise: 0.7 },
   {
     id: "reimagine",
     label: "Reimagine",
     about: "Keeps little more than the composition.",
-    denoise: 0.75,
+    denoise: 0.85,
   },
 ];
 export const DENOISE_MIN = 0.1;
@@ -148,7 +148,7 @@ export function resetAdvanced(form: FormState): FormState {
 }
 
 export function clampDenoise(n: number): number {
-  const v = Number.isFinite(n) ? n : 0.55;
+  const v = Number.isFinite(n) ? n : 0.7;
   return Math.round(Math.min(DENOISE_MAX, Math.max(DENOISE_MIN, v)) * 100) / 100;
 }
 

@@ -34,9 +34,10 @@ INPAINT_MAX_PIXELS = 2560 * 1440
 #: Image-to-image ("Start from a photo", ADR-0038) per preset (UI: Light touch / Change /
 #: Reimagine): the denoise and the sampler steps. ComfyUI runs exactly ``steps`` steps at any
 #: denoise (it samples the tail of a ``steps / denoise`` schedule), so the steps are the model's
-#: own count, raised to ``steps`` for few-step (Lightning) models; tuned on the laptop in Phase 17b
-#: (``docs/P11_BENCHMARKS.md`` → Photo edit).
-IMG2IMG_PRESETS: dict[str, float] = {"light": 0.35, "change": 0.55, "reimagine": 0.75}
+#: own count, raised to ``steps`` for few-step (Lightning) models. Tuned on the laptop in Phase 17b
+#: (``docs/P11_BENCHMARKS.md`` → Photo edit): below 0.45 the default model barely changes anything,
+#: 0.7 furnishes a room and changes clothes or colour in the same layout, 0.85 rebuilds the scene.
+IMG2IMG_PRESETS: dict[str, float] = {"light": 0.45, "change": 0.7, "reimagine": 0.85}
 IMG2IMG_DEFAULT_PRESET = "change"
 IMG2IMG_MIN_STEPS: dict[str, int] = {"light": 5, "change": 6, "reimagine": 6}
 #: A photo-edit upscales toward the photo's own size, at most to this many pixels (the largest

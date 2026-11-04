@@ -71,7 +71,7 @@ export function AdvancedDrawer({
       {form.photo && (
         <div className="field">
           <label htmlFor="adv-denoise">
-            Photo strength: {(form.denoise ?? chip?.denoise ?? 0.55).toFixed(2)}
+            Photo strength: {(form.denoise ?? chip?.denoise ?? 0.7).toFixed(2)}
           </label>
           <input
             id="adv-denoise"
@@ -79,7 +79,7 @@ export function AdvancedDrawer({
             min={DENOISE_MIN}
             max={DENOISE_MAX}
             step={0.05}
-            value={form.denoise ?? chip?.denoise ?? 0.55}
+            value={form.denoise ?? chip?.denoise ?? 0.7}
             onChange={(e) => set({ denoise: clampDenoise(Number(e.target.value)) })}
           />
           <p className="field-help">
