@@ -54,6 +54,31 @@ While it runs you see the stage (Generating, Refining), the step, the percentage
 
 The status bar shows the engine state, the queue, GPU memory in use and the GPU temperature (green below 70 °C, yellow from 70, orange from 80, red from 87 °C when long jobs pause), and the model of your last job.
 
+### 2a. Start from a photo (written in Phase 17b)
+On the Generate tab, add a picture under the prompt (**Start from a photo**: choose a file or drop it on the box), or press **Use as starting photo** on any result or gallery image. Then write the prompt as a description of the picture you want, pick a **Strength** and press **Generate**. P11 re-renders the photo following the prompt, at the photo's own shape (the Size chips are switched off while a photo is set; the picture is drawn at the model's nearest native size and upscaled toward the photo's own size, at most 2560 × 1440). **Remove photo** goes back to text to image.
+
+Examples:
+- a photo of a man, prompt *a man in a leather jacket and fedora, adventurer outfit*, **Change**: same pose and setting, new clothes;
+- a photo of a house, prompt *the same house painted green, wider driveway*, **Change**: the house stays recognisable;
+- a photo of an empty room, prompt *a modern furnished living room, sofa, rug, plants, warm light*, **Change**: furniture in the same perspective.
+
+**Strength.** **Light touch** keeps the picture and changes details and colour; **Change** follows the prompt and keeps the layout; **Reimagine** keeps little more than the composition. Higher strength changes more but keeps less of the original. Advanced has a slider (0.10 to 0.95) for any value in between. The prompt is read as a description, not an instruction: write *a green house*, not *make it green*. To change only one part of a picture, use **Inpaint** (section 5).
+
+**Photos of people.** When you edit a photo you uploaded and P11 finds a face in it, every result is checked by the same image check as face swap (spec S5) and refused if it looks sexual or nude; later edits of that result are checked too. This needs the face safety models: if they are missing, P11 says "Editing an uploaded photo needs the face safety models: run `p11 models install face`". The same applies to Inpaint and Background on an uploaded photo. Text to image and edits of P11's own pictures are not checked.
+
+**Templates.** **Save as Template** on a photo-edit result makes the photo a **Start photo** input, so the template re-runs on any new photo in one click plus the photo.
+
+**Scripts.** The jobs API takes the photo through the recipe's `source_image` and the step's `denoise_preset` (`light`, `change`, `reimagine`) or `denoise` (0 to 1):
+```bash
+TOKEN=$(cat "$(p11 status --token-file)"); API=http://127.0.0.1:8111/api
+UP=$(curl -s -H "Authorization: Bearer $TOKEN" --data-binary @room.jpg "$API/uploads?kind=image" | jq -r .id)
+curl -s -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' "$API/jobs" -d '{"recipe":
+  {"schema_version":1,"id":"photo-edit-1","name":"Furnish the room","created_at":"2026-11-04T15:00:00Z",
+   "source_image":{"ref":"'"$UP"'"},
+   "steps":[{"type":"generate","prompt":"a modern furnished living room, sofa, rug, plants, warm light",
+             "denoise_preset":"change"}]}}'
+```
+
 ## 3. Gallery (written in Phase 08)
 ![Gallery](images/p11-gallery.png)
 

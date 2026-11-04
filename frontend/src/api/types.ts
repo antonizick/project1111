@@ -236,7 +236,13 @@ export type GenerateStep = {
   chain: Chain | null;
   quality: boolean;
   batch_size: number;
+  /** Photo edit (Phase 17b, ADR-0038): set any of these and the step starts from a photo. */
+  image_slot?: string | null;
+  denoise?: number | null;
+  denoise_preset?: PhotoPreset | null;
 };
+
+export type PhotoPreset = "light" | "change" | "reimagine";
 
 export type Step = GenerateStep | ({ type: string } & Record<string, unknown>);
 

@@ -6,6 +6,7 @@ import type {
   Chain,
   GenerateStep,
   ModelInfo,
+  PhotoPreset,
   Presets,
   Recipe,
   RunRecord,
@@ -17,6 +18,36 @@ export const MAX_SEED = 2 ** 53 - 1;
 export const MAX_BATCH = 4;
 
 export type LoraChoice = { id: string; weight: number };
+
+/** The picture a photo edit starts from: an upload (`img-…`) or a gallery image. */
+export type StartPhoto = {
+  /** `FileRef.ref`: the upload ID or `gallery/<id>`. */
+  ref: string;
+  url: string;
+  width: number;
+  height: number;
+  /** Set for a gallery image: the job's parent, so the edit chain stays navigable. */
+  galleryId: number | null;
+};
+
+/** Strength chips (ADR-0038); the server holds the tuned values (`presets.IMG2IMG_PRESETS`). */
+export const PHOTO_PRESETS: { id: PhotoPreset; label: string; about: string; denoise: number }[] = [
+  {
+    id: "light",
+    label: "Light touch",
+    about: "Keeps the picture, changes details.",
+    denoise: 0.45,
+  },
+  { id: "change", label: "Change", about: "Follows the prompt, keeps the layout.", denoise: 0.7 },
+  {
+    id: "reimagine",
+    label: "Reimagine",
+    about: "Keeps little more than the composition.",
+    denoise: 0.85,
+  },
+];
+export const DENOISE_MIN = 0.1;
+export const DENOISE_MAX = 0.95;
 
 export type FormState = {
   prompt: string;
@@ -38,6 +69,11 @@ export type FormState = {
   quality: boolean;
   seedLocked: boolean;
   seed: number | null;
+  /** Start from a photo (Phase 17b): null = text to image. */
+  photo: StartPhoto | null;
+  strength: PhotoPreset;
+  /** Advanced strength slider (0.10–0.95); null = the chip's tuned value. */
+  denoise: number | null;
 };
 
 export const DEFAULT_STYLE = "photoreal";
@@ -58,6 +94,9 @@ export const initialForm: FormState = {
   quality: false,
   seedLocked: false,
   seed: null,
+  photo: null,
+  strength: "change",
+  denoise: null,
 };
 
 export function styleOf(presets: Presets | null, id: string) {
@@ -104,7 +143,13 @@ export function resetAdvanced(form: FormState): FormState {
     chain: null,
     quality: false,
     seedLocked: false,
+    denoise: null,
   };
+}
+
+export function clampDenoise(n: number): number {
+  const v = Number.isFinite(n) ? n : 0.7;
+  return Math.round(Math.min(DENOISE_MAX, Math.max(DENOISE_MIN, v)) * 100) / 100;
 }
 
 export function clampCount(n: number): number {
@@ -149,17 +194,39 @@ export function toRecipe(form: FormState, { id, now }: { id: string; now: Date }
     quality: form.quality,
     batch_size: 1,
   };
+  if (form.photo) {
+    // The photo is the recipe's source image; the slider (Advanced) replaces the chip's value.
+    step.image_slot = null;
+    step.denoise = form.denoise;
+    step.denoise_preset = form.denoise === null ? form.strength : null;
+  }
   return {
     schema_version: 1,
     id,
-    name: recipeName(form.prompt),
+    name: recipeName(form.photo ? `Photo edit: ${form.prompt}` : form.prompt),
     tags: [],
     folder: "",
     steps: [step],
     slots: [],
     seed: seedStrategy(form),
     created_at: now.toISOString(),
-    source_image: null,
+    source_image: form.photo ? { ref: form.photo.ref } : null,
+  };
+}
+
+/** A gallery image as the photo to start from ("Use as starting photo"). */
+export function photoFromImage(img: {
+  id: number;
+  url: string;
+  width: number | null;
+  height: number | null;
+}): StartPhoto {
+  return {
+    ref: `gallery/${img.id}`,
+    url: img.url,
+    width: img.width ?? 1024,
+    height: img.height ?? 1024,
+    galleryId: img.id,
   };
 }
 
@@ -186,6 +253,9 @@ export function fromRecord(record: RunRecord): { form: FormState; partial: boole
     // Re-opening an image reproduces it: its seed is locked.
     seedLocked: true,
     seed: record.seed,
+    // A photo edit's settings load; its photo is picked again (an upload is not shown back).
+    strength: gen.denoise_preset ?? initialForm.strength,
+    denoise: gen.denoise_preset ? null : (gen.denoise ?? null),
   };
   return { form, partial: steps.length > 1 || record.recipe.slots.length > 0 };
 }

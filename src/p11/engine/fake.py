@@ -54,7 +54,8 @@ from p11.recipe.compile import EngineGraph
 
 #: Node types the fake accepts. Each was checked to exist in ComfyUI v0.43.0 ``426f5ee``
 #: (``nodes.py``, ``comfy_extras/nodes_upscale_model.py``, ``comfy_extras/nodes_mask.py``) on
-#: 2026-11-02 18:45 CST; the gpu parity test re-checks them against ``/object_info``.
+#: 2026-11-02 18:45 CST (``RepeatLatentBatch``: 2026-11-04 08:33 CST, Phase 17b); the gpu parity
+#: test re-checks them against ``/object_info``.
 KNOWN_NODES: frozenset[str] = frozenset(
     {
         "CheckpointLoaderSimple",
@@ -86,6 +87,7 @@ KNOWN_NODES: frozenset[str] = frozenset(
         "P11IPAdapterApply",
         "P11IPAdapterLoader",
         "PreviewImage",
+        "RepeatLatentBatch",
         "SaveImage",
         "SetLatentNoiseMask",
         "SetUnionControlNetType",
@@ -499,6 +501,9 @@ def _size(
         if h == 0:
             h = round(h0 * w / w0)
         return w, h, b
+    if cls == "RepeatLatentBatch":
+        w0, h0, b = src("samples")
+        return w0, h0, b * int(inp.get("amount", 1))
     if cls in ("LatentUpscaleBy", "ImageScaleBy"):
         w0, h0, b = src("samples" if cls == "LatentUpscaleBy" else "image")
         f = float(inp.get("scale_by", 1.0))

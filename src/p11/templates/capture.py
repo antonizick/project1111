@@ -1,14 +1,15 @@
 """Save as Template: turn what produced an image into a reusable recipe (spec §4, Phase 09).
 
 Pure: takes a ``RunRecord`` and the user's choices, returns a ``Recipe``. Slot inference follows
-three rules, none of which looks at step types, so inpaint, background and face steps need no
-changes here:
+these rules, which look at step types only to keep a text-to-image ``generate`` from taking the
+source photo, so inpaint, background and face steps need no changes here:
 
 * slots the run already had stay slots; a text slot that was filled for the run keeps that text as
   its default (so the template reproduces the run until the user types something else);
 * an image the run started from (``source_image``, a follow-up on an earlier output) becomes a
-  ``source`` image slot on the first step that takes one, so a template never points at a gallery
-  image that may be deleted;
+  ``source`` image slot on the first step that takes one (a photo-edit ``generate``'s becomes
+  ``start_photo``, "Start photo"), so a template never points at a gallery image that may be
+  deleted;
 * the prompt becomes a ``prompt`` text slot only when the user marks it variable;
 * an inpaint mask stays a slot (paint or upload one per run) unless the user keeps it **fixed**:
   then the mask (a shape, never a photo; made small by ``media.inpaint.compact_mask``) is stored in
@@ -83,11 +84,14 @@ def capture_template(
                  if "image" in kinds and getattr(step, f) is None),
                 None,
             )  # fmt: skip
-            if field is None:
+            if field is None or (isinstance(step, Generate) and not step.is_img2img):
                 continue
-            slot_name = _free_name(taken, "source")
+            # A photo edit's photo is its "Start photo" (Phase 17b); others take a source image.
+            photo = isinstance(step, Generate)
+            slot_name = _free_name(taken, "start_photo" if photo else "source")
             taken.add(slot_name)
-            slots.append(Slot(name=slot_name, kind="image", label="Source image"))
+            label = "Start photo" if photo else "Source image"
+            slots.append(Slot(name=slot_name, kind="image", label=label))
             steps[i] = step.model_copy(update={field: slot_name})
             break
 

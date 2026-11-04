@@ -296,6 +296,36 @@ def bind_inputs(graph: EngineGraph, files: Mapping[str, EngineFileRef]) -> dict[
     return nodes
 
 
+def stamp_output_prefixes(
+    nodes: dict[str, dict[str, Any]], token: str
+) -> dict[str, dict[str, Any]]:
+    """Return ``nodes`` with a per-run token on every ``SaveImage`` ``filename_prefix``.
+
+    P11 deletes an engine's output file right after fetching it (``p11.engine.comfy``), so two
+    runs may never name their outputs the same. ComfyUI caches node outputs across prompts and
+    answers a byte-identical graph from the cache: it reports the *first* run's file name without
+    writing the file again, which is a file P11 has already deleted. ``filename_prefix`` is a
+    plain input, and every plain input is part of that cache key (``comfy_execution/caching.py``
+    ``CacheKeySetInputSignature``, pinned ComfyUI v0.43.0 ``426f5ee``, checked 2026-11-04 09:50
+    CST), so a token makes ``SaveImage`` always write its own file while the expensive upstream
+    nodes still come from the cache. ``token`` is short and case-insensitive (it goes into a file
+    name).
+    """
+    stamped: dict[str, dict[str, Any]] = dict(nodes)
+    for node_id, node in nodes.items():
+        inputs = node.get("inputs")
+        if not isinstance(inputs, Mapping):
+            continue
+        prefix = inputs.get("filename_prefix")
+        if node.get("class_type") != "SaveImage" or not isinstance(prefix, str):
+            continue
+        stamped[node_id] = {
+            **node,
+            "inputs": {**inputs, "filename_prefix": f"{prefix}-{token.lower()}"},
+        }
+    return stamped
+
+
 def node_titles(nodes: Mapping[str, Mapping[str, Any]]) -> dict[str, str]:
     return {
         k: str(v["_meta"]["title"])

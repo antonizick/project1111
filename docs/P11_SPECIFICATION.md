@@ -179,7 +179,7 @@ Compared to stock Automatic1111, ComfyUI, Forge, and InvokeAI:
 
 ---
 
-## 11. Amendments (v1.1, 2026-11-02 13:14 CST; v1.2, 2026-11-02 14:57 CST; v1.3, 2026-11-03 11:46 CST)
+## 11. Amendments (v1.1, 2026-11-02 13:14 CST; v1.2, 2026-11-02 14:57 CST; v1.3, 2026-11-03 11:46 CST; v1.4, 2026-11-04 10:36 CST)
 
 These amendments supersede conflicting text in the earlier sections. Each amendment that records a decision has an entry in `docs/P11_DECISIONS.md`.
 
@@ -289,3 +289,10 @@ Names, versions, URLs and licences are verified at the source during Phase 03; n
 - **Daily workflow (≤ 5):** from a typed prompt with the default preset: Generate (1) → Background (1) → choose photo (1) → Apply (1) → Save/Download (1). Inpaint path: Inpaint (1) → one mask stroke (1) → Apply (1) → Save (1).
 - **Save as template (≤ 3):** Save as Template (1) → type name (not counted) → Save (1).
 - **Re-run template (1):** clicking the template runs it when it has no unfilled slots; a template with input slots needs one action per slot plus Run.
+
+### 11.8 Photo edit and the upload face rule (v1.4, 2026-11-04 10:36 CST; Phase 17b, ADR-0038, ADR-0042)
+Nick asked to start from his own picture on the Generate tab and describe what it should become ("dress this man as an adventurer", "paint the house green and widen the driveway", "furnish this empty room"). This adds a capability the body of the spec does not describe and narrows S5, so both are recorded here.
+
+- **Photo edit is part of Generate.** The Generate step gains an optional input image and a strength ("Light touch / Change / Reimagine", Advanced: 0.10–0.95). With no input image it behaves exactly as before (§3, R3). With one, P11 re-renders that picture following the prompt: the photo keeps its own shape (scaled to the model family's nearest native bucket, §3/R3), and the output is upscaled toward the photo's own size, at most the largest wallpaper preset. The run is a normal recipe (R6/R7): it lands in the gallery with its sidecar and can be varied, upscaled, inpainted and saved as a template with the photo as an image slot. The implementation is plain SDXL image-to-image on the installed default model — **no new model, custom node or download** (ADR-0038). A5 is unchanged: the edit itself is unfiltered where S5 does not apply.
+- **S5 now covers edits of uploaded photos that show a face.** An uploaded file is an unflagged input (threat model T8), so an unfiltered edit of a real person's photo would be a new path to sexual content of a real face. When a photo edit, an inpaint or a background-replacement job edits an *uploaded* image in which the face detector finds a face, **every output is checked by the same NSFW check as face swap and is flagged `likeness`** (so later edits of it are checked too). Without the `face` model set such an edit is **refused before queueing** with "Editing an uploaded photo needs the face safety models: run `p11 models install face`" (fail closed; ADR-0041 decision 1 keeps the refusal instead of moving the models into the default set). Text to image, and edits of pictures P11 itself made without a likeness, are never checked (A5). Nothing can turn this off; S5's "not a setting" rule stands.
+- **Engine output names carry a per-run token** (ADR-0042). P11 deletes an engine's output right after fetching it (S6), so two runs may never name their outputs the same; the ComfyUI adapter stamps a token on the save prefix so the engine's cross-prompt cache can never report a file P11 has already deleted.

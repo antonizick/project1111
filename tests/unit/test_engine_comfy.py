@@ -22,6 +22,7 @@ from p11.engine.base import (
     bind_inputs,
     graph_nodes,
     is_oom_message,
+    stamp_output_prefixes,
     upload_name,
 )
 from p11.engine.comfy import (
@@ -134,6 +135,36 @@ def test_is_oom_message() -> None:
 def test_graph_nodes_rejects_non_api_nodes() -> None:
     with pytest.raises(EngineValidation, match="class_type"):
         graph_nodes({"1": {"inputs": {}}})
+
+
+def test_stamp_output_prefixes_gives_each_run_its_own_files() -> None:
+    """ComfyUI caches node outputs across prompts; a repeated graph must still write a file
+    (ADR-0042): the token is in the cache key, so ``SaveImage`` re-runs and names its own file."""
+    nodes = {
+        "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "a.safetensors"}},
+        "13": {
+            "class_type": "SaveImage",
+            "inputs": {"images": ["1", 0], "filename_prefix": "p11/step-00"},
+        },
+    }
+    first = stamp_output_prefixes(nodes, "49747701")
+    second = stamp_output_prefixes(nodes, "0fbc1fa1")
+    assert first["13"]["inputs"]["filename_prefix"] == "p11/step-00-49747701"
+    assert second["13"]["inputs"]["filename_prefix"] == "p11/step-00-0fbc1fa1"
+    assert first["13"]["inputs"] != second["13"]["inputs"]  # a different cache key per run
+    assert first["1"] == nodes["1"] and first["13"]["inputs"]["images"] == ["1", 0]
+    # The caller's graph is untouched (EngineGraph.nodes is reused across runs).
+    assert nodes["13"]["inputs"]["filename_prefix"] == "p11/step-00"
+
+
+def test_stamp_output_prefixes_ignores_other_nodes() -> None:
+    nodes = {
+        "1": {"class_type": "PreviewImage", "inputs": {"filename_prefix": "p11/x"}},
+        "2": {"class_type": "SaveImage", "inputs": {"filename_prefix": 7}},
+        "3": {"class_type": "SaveImage", "inputs": {}},
+        "4": {"class_type": "SaveImage"},
+    }
+    assert all(v == nodes[k] for k, v in stamp_output_prefixes(nodes, "ab").items())
 
 
 def test_bind_inputs_requires_every_placeholder() -> None:

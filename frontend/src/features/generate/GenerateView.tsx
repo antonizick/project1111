@@ -1,7 +1,8 @@
-// Generate view (R18 Simple mode + Advanced drawer): prompt, style chips, aspect presets, batch
-// count, Generate/Cancel, live progress with an ETA, then the result and its follow-ups.
+// Generate view (R18 Simple mode + Advanced drawer): prompt, an optional photo to start from
+// (Phase 17b), style chips, aspect presets, batch count, Generate/Cancel, live progress with an
+// ETA, then the result and its follow-ups.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { client } from "../../api/client";
 import type { ImageEntry, Job } from "../../api/types";
 import { FINISHED } from "../../api/types";
@@ -20,6 +21,8 @@ import {
   initialForm,
   MAX_BATCH,
   newRecipeId,
+  PHOTO_PRESETS,
+  photoFromImage,
   toRecipe,
   withStyle,
   type FormState,
@@ -50,6 +53,9 @@ export function GenerateView({ active }: { active: boolean }) {
   const [estimate, setEstimate] = useState({ cold: false, baseline: 0 });
   const [now, setNow] = useState(() => Date.now());
   const prompt = useRef<HTMLTextAreaElement>(null);
+  const photoId = useId();
+  const [photoOver, setPhotoOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const jobId = followed[followed.length - 1] ?? null;
   const job = jobId ? state.jobs[jobId] : undefined;
@@ -88,6 +94,37 @@ export function GenerateView({ active }: { active: boolean }) {
         : "Settings loaded. The seed is locked so Generate reproduces the image.",
     });
   });
+
+  // "Use as starting photo" from a result or the gallery: load each new hand-off once (during
+  // render, as the Inpaint view does).
+  const editing = nav.editing;
+  const [seenEdit, setSeenEdit] = useState<number | null>(null);
+  if (editing?.view === "generate" && editing.at !== seenEdit) {
+    setSeenEdit(editing.at);
+    setForm((f) => ({ ...f, photo: photoFromImage(editing.image) }));
+  }
+
+  const takePhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const up = await client.upload(file, "image");
+      const url = URL.createObjectURL(file);
+      setForm((f) => ({
+        ...f,
+        photo: { ref: up.id, url, width: up.width, height: up.height, galleryId: null },
+      }));
+    } catch (e) {
+      actions.fail(e);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = () => {
+    if (form.photo?.url.startsWith("blob:")) URL.revokeObjectURL(form.photo.url);
+    setForm((f) => ({ ...f, photo: null, denoise: null }));
+  };
 
   // Fetch result entries the event stream did not deliver; report failures once.
   const jobState = job?.state;
@@ -131,7 +168,11 @@ export function GenerateView({ active }: { active: boolean }) {
     setBusy(true);
     try {
       const recipe = toRecipe(form, { id: newRecipeId(), now: new Date() });
-      const submitted = await client.submitJob({ recipe, count: form.count });
+      const submitted = await client.submitJob({
+        recipe,
+        count: form.count,
+        parent: form.photo?.galleryId ?? null,
+      });
       setEstimate({
         cold: !state.system?.engine.ready,
         baseline: baselineSeconds(model, aspect, form.count, form.quality),
@@ -195,13 +236,101 @@ export function GenerateView({ active }: { active: boolean }) {
             ref={prompt}
             rows={4}
             value={form.prompt}
-            placeholder="Describe the image, e.g. a lighthouse on a rocky coast at dusk"
+            placeholder={
+              form.photo
+                ? "Describe the picture you want, e.g. the same house painted green"
+                : "Describe the image, e.g. a lighthouse on a rocky coast at dusk"
+            }
             onChange={(e) => setForm({ ...form, prompt: e.target.value })}
           />
-          <p className="field-help">
-            <kbd>Ctrl</kbd>+<kbd>Enter</kbd> generates.
-          </p>
+          {form.photo ? (
+            <p className="field-help">
+              Describe the picture you want, for example{" "}
+              <em>a man in a leather jacket and fedora, adventurer outfit</em>. Higher strength
+              changes more but keeps less of the original. To change only one part, use{" "}
+              <button type="button" className="btn-link" onClick={() => nav.go("inpaint")}>
+                Inpaint
+              </button>
+              .
+            </p>
+          ) : (
+            <p className="field-help">
+              <kbd>Ctrl</kbd>+<kbd>Enter</kbd> generates.
+            </p>
+          )}
         </div>
+
+        <div
+          className={`field dropzone start-photo${photoOver ? " dropzone-over" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setPhotoOver(true);
+          }}
+          onDragLeave={() => setPhotoOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setPhotoOver(false);
+            void takePhoto(e.dataTransfer.files[0]);
+          }}
+        >
+          <label htmlFor={photoId}>Start from a photo (optional)</label>
+          {form.photo ? (
+            <div className="start-photo-chosen">
+              <img
+                className="thumb"
+                src={form.photo.url}
+                alt="Starting photo"
+                width={form.photo.width}
+                height={form.photo.height}
+              />
+              <button type="button" className="btn btn-small" onClick={removePhoto}>
+                Remove photo
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                id={photoId}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                disabled={uploading}
+                onChange={(e) => {
+                  void takePhoto(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <p className="field-help" aria-live="polite">
+                {uploading
+                  ? "Uploading…"
+                  : "Choose a photo or drop it here, and P11 re-renders it following your prompt."}
+              </p>
+            </>
+          )}
+        </div>
+
+        {form.photo && (
+          <fieldset className="field">
+            <legend>Strength</legend>
+            <div className="chips">
+              {PHOTO_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="chip"
+                  aria-pressed={form.denoise === null && form.strength === p.id}
+                  onClick={() => setForm({ ...form, strength: p.id, denoise: null })}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <p className="field-help">
+              {form.denoise !== null
+                ? `Custom strength ${form.denoise.toFixed(2)} (Advanced).`
+                : PHOTO_PRESETS.find((p) => p.id === form.strength)?.about}
+            </p>
+          </fieldset>
+        )}
 
         <fieldset className="field">
           <legend>Style</legend>
@@ -220,7 +349,7 @@ export function GenerateView({ active }: { active: boolean }) {
           </div>
         </fieldset>
 
-        <fieldset className="field">
+        <fieldset className="field" disabled={!!form.photo}>
           <legend>Size</legend>
           <div className="chips">
             {aspects.map((a) => (
@@ -228,18 +357,24 @@ export function GenerateView({ active }: { active: boolean }) {
                 key={a.id}
                 type="button"
                 className="chip"
-                aria-pressed={aspectId === a.id}
+                aria-pressed={!form.photo && aspectId === a.id}
                 onClick={() => setForm({ ...form, aspect: a.id })}
               >
                 {a.label}
               </button>
             ))}
           </div>
+          {form.photo && (
+            <p className="field-help">
+              The picture keeps the photo&apos;s own shape ({form.photo.width} × {form.photo.height}
+              ).
+            </p>
+          )}
         </fieldset>
 
         {(() => {
           const chosen = aspects.find((a) => a.id === aspectId);
-          if (!chosen || chosen.quality_chain === chosen.chain) return null;
+          if (!form.photo && (!chosen || chosen.quality_chain === chosen.chain)) return null;
           return (
             <fieldset className="field">
               <legend>Upscale quality</legend>
@@ -349,6 +484,9 @@ export function GenerateView({ active }: { active: boolean }) {
               <p>
                 Type what you want to see, pick a style and a size, then press{" "}
                 <strong>Generate</strong> (or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>).
+              </p>
+              <p>
+                Or start from a photo: add one under the prompt and describe what it should become.
               </p>
             </section>
           )

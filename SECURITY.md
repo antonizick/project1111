@@ -77,11 +77,21 @@ step that follows a face swap or face reference in the same run; and every job w
 gallery picture made that way (the picture's sidecar records it). Plain generation and style
 references stay unfiltered (A5). The check models must be installed or these jobs refuse.
 
+**Edits of uploaded photos (Phase 17b, ADR-0038).** An uploaded file is an unflagged input, so an
+unfiltered edit of a real person's photo would be a new path to the same boundary. When a photo edit
+(**Start from a photo** on Generate), an inpaint or a background replacement edits an *uploaded*
+image in which the face detector finds a face, every output goes through the same two-classifier
+check and is flagged `likeness`, so later edits of it are checked as well. Without the `face` model
+set such an edit is refused before it is queued: "Editing an uploaded photo needs the face safety
+models: run `p11 models install face`". Pictures P11 made itself without a likeness, and plain text
+to image, stay unfiltered (A5). The detector runs on the CPU (about 100 ms on a 1920x1080 photo) and
+there is no switch.
+
 **Residual risks (Phase 16 threat model, `docs/P11_THREAT-MODEL.md`).** The engine port
 (`127.0.0.1:8188`) has no authentication, so any program running as your user can drive ComfyUI
 directly, outside P11's checks; such a program could equally read your pictures, so this is the same
 privilege boundary as the token file. A picture exported with metadata stripped and uploaded again
-is a new input with no likeness record. The classifiers can miss.
+is a new input with no likeness record; since Phase 17b that photo is still face-checked before it is edited, so the gap is limited to faces the detector misses (small, turned away, stylised). The classifiers can miss.
 
 **Using other people's likenesses.** The Studio shows a one-line notice in the face panel: "Use
 faces of people who agreed." Face photos are private data (S6): uploads are stored under

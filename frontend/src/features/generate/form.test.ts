@@ -7,7 +7,9 @@ import {
   effectiveAspect,
   effectiveModel,
   fromRecord,
+  clampDenoise,
   initialForm,
+  photoFromImage,
   recipeName,
   resetAdvanced,
   toRecipe,
@@ -135,5 +137,47 @@ describe("open as recipe", () => {
     const gen = toRecipe({ ...initialForm, prompt: "p" }, at).steps[0];
     expect(fromRecord(record([gen, { type: "upscale", chain: "model" }]))?.partial).toBe(true);
     expect(fromRecord(record([{ type: "upscale", chain: "model" }]))).toBeNull();
+  });
+});
+
+describe("photo edit (Phase 17b)", () => {
+  const photo = { ref: "img-1", url: "blob:x", width: 1200, height: 900, galleryId: null };
+
+  it("a photo makes the step a photo edit with the chosen chip", () => {
+    const r = toRecipe({ ...initialForm, prompt: "paint it green", photo, strength: "change" }, at);
+    expect(r.source_image).toEqual({ ref: "img-1" });
+    expect(r.steps[0]).toMatchObject({ denoise_preset: "change", denoise: null, image_slot: null });
+    expect(r.name).toBe("Photo edit: paint it green");
+  });
+
+  it("the Advanced slider replaces the chip", () => {
+    const r = toRecipe({ ...initialForm, prompt: "x", photo, denoise: 0.42 }, at);
+    expect(r.steps[0]).toMatchObject({ denoise_preset: null, denoise: 0.42 });
+  });
+
+  it("no photo: no photo fields at all (text to image unchanged)", () => {
+    const step = toRecipe({ ...initialForm, prompt: "x" }, at).steps[0] as Record<string, unknown>;
+    expect("denoise_preset" in step || "denoise" in step || "image_slot" in step).toBe(false);
+  });
+
+  it("clamps the slider and builds a gallery photo", () => {
+    expect(clampDenoise(0.01)).toBe(0.1);
+    expect(clampDenoise(2)).toBe(0.95);
+    expect(clampDenoise(Number.NaN)).toBe(0.7);
+    expect(photoFromImage({ id: 7, url: "/api/images/7", width: null, height: 600 })).toEqual({
+      ref: "gallery/7",
+      url: "/api/images/7",
+      width: 1024,
+      height: 600,
+      galleryId: 7,
+    });
+  });
+
+  it("a photo-edit record loads its strength", () => {
+    const record = {
+      recipe: toRecipe({ ...initialForm, prompt: "x", photo, strength: "reimagine" }, at),
+      seed: 3,
+    } as unknown as RunRecord;
+    expect(fromRecord(record)?.form).toMatchObject({ strength: "reimagine", denoise: null });
   });
 });

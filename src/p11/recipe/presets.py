@@ -31,6 +31,45 @@ INPAINT_PRESETS: dict[str, float] = {"subtle": 0.4, "balanced": 0.65, "major": 0
 INPAINT_WORK_PIXELS = 1024 * 1024
 INPAINT_MAX_UPSCALE = 4.0
 INPAINT_MAX_PIXELS = 2560 * 1440
+#: Image-to-image ("Start from a photo", ADR-0038) per preset (UI: Light touch / Change /
+#: Reimagine): the denoise and the sampler steps. ComfyUI runs exactly ``steps`` steps at any
+#: denoise (it samples the tail of a ``steps / denoise`` schedule), so the steps are the model's
+#: own count, raised to ``steps`` for few-step (Lightning) models. Tuned on the laptop in Phase 17b
+#: (``docs/P11_BENCHMARKS.md`` → Photo edit): below 0.45 the default model barely changes anything,
+#: 0.7 furnishes a room and changes clothes or colour in the same layout, 0.85 rebuilds the scene.
+IMG2IMG_PRESETS: dict[str, float] = {"light": 0.45, "change": 0.7, "reimagine": 0.85}
+IMG2IMG_DEFAULT_PRESET = "change"
+IMG2IMG_MIN_STEPS: dict[str, int] = {"light": 5, "change": 6, "reimagine": 6}
+#: A photo-edit upscales toward the photo's own size, at most to this many pixels (the largest
+#: wallpaper preset, 2560 x 1440), and only when that is at least this much larger than the bucket.
+IMG2IMG_MAX_PIXELS = 2560 * 1440
+IMG2IMG_MIN_UPSCALE = 1.15
+#: Native buckets per model family (about one megapixel for SDXL, multiples of 64): a photo is
+#: scaled (centre-cropped) to the bucket nearest its aspect ratio.
+BUCKETS: dict[Family, tuple[tuple[int, int], ...]] = {
+    "sdxl": (
+        (1024, 1024),
+        (1152, 896),
+        (896, 1152),
+        (1216, 832),
+        (832, 1216),
+        (1344, 768),
+        (768, 1344),
+        (1536, 640),
+        (640, 1536),
+    ),
+    "sd15": (
+        (512, 512),
+        (576, 448),
+        (448, 576),
+        (640, 512),
+        (512, 640),
+        (768, 512),
+        (512, 768),
+        (1024, 576),
+        (576, 1024),
+    ),
+}
 #: Tiled VAE settings for decodes/encodes above the native bucket (ADR-0009).
 VAE_TILE = 512
 VAE_OVERLAP = 64

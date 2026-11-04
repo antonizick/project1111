@@ -64,6 +64,7 @@ from p11.engine.base import (
     graph_nodes,
     is_oom_message,
     node_titles,
+    stamp_output_prefixes,
     upload_name,
 )
 from p11.engine.lockfile import EngineLock, load_lock
@@ -377,6 +378,7 @@ class ComfyEngine:
         self, nodes: dict[str, dict[str, Any]], on_event: EventCallback | None, timeout: float
     ) -> RunResult:
         prompt_id = str(uuid.uuid4())
+        nodes = stamp_output_prefixes(nodes, prompt_id[:8])
         log_offset = _file_size(self.config.log_path)
         try:
             ws = await connect(self.ws_url, max_size=None, open_timeout=10, ping_interval=None)
