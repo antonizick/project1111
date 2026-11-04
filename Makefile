@@ -4,6 +4,8 @@ SHELL := /bin/bash
 
 GITLEAKS_VERSION := 8.30.1
 GITLEAKS_SHA256  := 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+SHELLCHECK_VERSION := 0.11.0
+SHELLCHECK_SHA256  := 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
 TOOLS_BIN        := $(CURDIR)/.tools/bin
 export PATH      := $(TOOLS_BIN):$(HOME)/.local/bin:$(PATH)
 
@@ -26,6 +28,14 @@ tools:
 	  echo "$(GITLEAKS_SHA256)  $$d/g.tgz" | sha256sum -c -; \
 	  tar xzf $$d/g.tgz -C $$d gitleaks; install -m755 $$d/gitleaks $(TOOLS_BIN)/gitleaks; rm -rf $$d; \
 	fi
+	@if shellcheck --version 2>/dev/null | grep -q '^version: $(SHELLCHECK_VERSION)$$'; then \
+	  echo "shellcheck $(SHELLCHECK_VERSION) already installed"; \
+	else \
+	  set -euo pipefail; mkdir -p $(TOOLS_BIN); d=$$(mktemp -d); \
+	  curl -fsSL -o $$d/s.txz https://github.com/koalaman/shellcheck/releases/download/v$(SHELLCHECK_VERSION)/shellcheck-v$(SHELLCHECK_VERSION).linux.x86_64.tar.xz; \
+	  echo "$(SHELLCHECK_SHA256)  $$d/s.txz" | sha256sum -c -; \
+	  tar xJf $$d/s.txz -C $$d; install -m755 $$d/shellcheck-v$(SHELLCHECK_VERSION)/shellcheck $(TOOLS_BIN)/shellcheck; rm -rf $$d; \
+	fi
 
 fmt:
 	uv run ruff format .
@@ -35,6 +45,7 @@ fmt:
 lint:
 	uv run ruff format --check .
 	uv run ruff check .
+	shellcheck install.sh uninstall.sh scripts/*.sh tests/install/*.sh
 	cd frontend && npm run lint
 
 typecheck:

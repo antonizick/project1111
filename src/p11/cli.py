@@ -250,6 +250,64 @@ def doctor(
 
 
 @app.command()
-def update() -> None:
-    """Not implemented yet (Phase 15)."""
-    typer.echo("p11 update: not implemented yet (Phase 15).")
+def update(
+    to: str | None = typer.Option(None, "--to", help="Release tag to install (default: latest)."),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would change, change nothing."
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Do not ask before updating."),
+) -> None:
+    """Update to the latest release tag, keeping your data (needs a clean git checkout)."""
+    import subprocess
+
+    from p11 import updater
+
+    try:
+        root = updater.repo_root()
+        plan = updater.plan_update(root, to)
+    except updater.UpdateError as exc:
+        _fail(str(exc), exc.hint)
+        return
+    if plan.target is None:
+        typer.echo(f"No release tags found; staying on {plan.current}.")
+        return
+    if plan.up_to_date:
+        typer.echo(f"P11 is up to date ({plan.current}).")
+        return
+    typer.echo(f"Update {plan.current} -> {plan.target}")
+    typer.echo(plan.changelog or "(no CHANGELOG changes)")
+    if dry_run:
+        typer.echo("Dry run: nothing was changed.")
+        return
+    if not yes and not typer.confirm(f"Update to {plan.target}?"):
+        raise typer.Exit(1)
+    try:
+        updater.checkout(root, plan.target)
+    except updater.UpdateError as exc:
+        _fail(str(exc))
+        return
+    # Re-run the idempotent installer steps: dependencies, engine lock changes, desktop entry.
+    code = subprocess.run(
+        [str(root / "install.sh"), "--yes", "--models", "none"], check=False
+    ).returncode
+    if code != 0:
+        _fail(
+            f"install.sh failed (exit {code}) after checking out {plan.target}.",
+            "Fix it and run ./install.sh.",
+            code,
+        )
+    typer.echo(f"Updated to {plan.target}. Your settings, templates and images were kept.")
+    typer.echo("New models, if any: run `p11 models list`, then `p11 models install <set>`.")
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def uninstall(ctx: typer.Context) -> None:
+    """Remove P11 (runs uninstall.sh; pass --models/--config/--outputs/--yes/--dry-run through)."""
+    from p11 import updater
+
+    try:
+        script = updater.repo_root() / "uninstall.sh"
+    except updater.UpdateError as exc:
+        _fail(str(exc), exc.hint)
+        return
+    os.execv(str(script), [str(script), *ctx.args])  # replaces this process: uninstall removes it

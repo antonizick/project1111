@@ -2,7 +2,7 @@
 
 P11 is a fully local image-generation system for Omarchy Linux, tuned for a laptop with an 8 GB NVIDIA GPU. **P11 Studio** is its own browser form UI (Vite, React, TypeScript) with a Python service (FastAPI, Typer CLI, SQLite) that drives a pinned, headless ComfyUI engine reachable only on `127.0.0.1`. Planned features: photoreal text-to-image at wallpaper resolutions, one-click templates, inpainting, background replacement with your own photos, face-swap, pose and reference control, short-video face-swap, and a curated, hash-pinned model set.
 
-> **Status: pre-release, under construction.** The repository holds the specification, the implementation plan, the project governance files and the Python/React scaffold (CLI, `/healthz`, placeholder page), the pinned engine with its benchmarks, and the recipe core (recipe schema, presets, recipe → engine graph compiler, output layout and metadata, gallery index, template store), the engine adapter, the model manager, the Studio API with its job queue and `p11 start/stop/status/open/doctor`, and the Studio UI's Generate view, gallery, status bar and templates (save, run, starters), inpainting with a mask editor, and background replacement (subject segmentation on the CPU, colour-matched blending, photo/colour/transparent backgrounds), and face, pose and reference control (face swap and face restore on the CPU with the non-removable NSFW target guard, a pose editor with OpenPose/depth/line controls, and IP-Adapter style and character reference), and short-video face-swap (clip + face photo in, MP4 with the original audio out, resumable per frame, guarded on every frame). The models view and the installer are still to come. Progress is tracked in [`P11_IMPLEMENTATION_PLAN.md`](P11_IMPLEMENTATION_PLAN.md).
+> **Status: pre-release, under construction.** The repository holds the specification, the implementation plan, the project governance files and the Python/React scaffold (CLI, `/healthz`, placeholder page), the pinned engine with its benchmarks, and the recipe core (recipe schema, presets, recipe → engine graph compiler, output layout and metadata, gallery index, template store), the engine adapter, the model manager, the Studio API with its job queue and `p11 start/stop/status/open/doctor`, and the Studio UI's Generate view, gallery, status bar and templates (save, run, starters), inpainting with a mask editor, and background replacement (subject segmentation on the CPU, colour-matched blending, photo/colour/transparent backgrounds), and face, pose and reference control (face swap and face restore on the CPU with the non-removable NSFW target guard, a pose editor with OpenPose/depth/line controls, and IP-Adapter style and character reference), and short-video face-swap (clip + face photo in, MP4 with the original audio out, resumable per frame, guarded on every frame). Upscaling, logo text and the Models page, and the installer (`install.sh`, `p11 update`, `p11 uninstall`, desktop entry) are in. Progress is tracked in [`P11_IMPLEMENTATION_PLAN.md`](P11_IMPLEMENTATION_PLAN.md).
 
 ![P11 Studio: Generate view](docs/images/p11-generate.png)
 
@@ -22,13 +22,14 @@ make e2e          # Playwright walkthroughs on the fake engine (action counts, a
 - Reference machine: HP Omen laptop, Omarchy (Arch + Hyprland), NVIDIA GeForce RTX 2070 Mobile / Max-Q (8 GB, Turing), driver via `nvidia-open-dkms`, 31 GB RAM.
 - Budget: about 7 GB of VRAM for generation; the desktop uses the rest.
 
-## Planned install
+## Install
 ```bash
 git clone https://github.com/antonizick/project1111.git
 cd project1111
-./install.sh        # not available yet (Phase 15)
+./install.sh            # add --dry-run to look first, --models none to skip the 14.6 GB download
+p11 open                # or launch "P11 Studio" from the app menu
 ```
-The installer will not install GPU drivers, will ask before any `pacman` step, and will not pipe unpinned scripts to a shell.
+Arch Linux / Omarchy, NVIDIA GPU with driver 580 or newer. The installer will not install GPU drivers, asks before any `pacman` step, and refuses to run from a pipe unless it is a pinned release tag. Update with `p11 update`, remove with `p11 uninstall`. Details: [`docs/P11_USER-GUIDE.md`](docs/P11_USER-GUIDE.md) section 11.
 
 ## Privacy
 Everything runs on your machine. The service listens on `127.0.0.1` only, has no telemetry, loads no network assets in the UI, and downloads only the pinned models you approve (spec S1). Your prompts, uploads and outputs are never committed to this repository.

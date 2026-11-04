@@ -77,3 +77,11 @@ repo, fixtures or logs. Video clips are handled the same way (the stored copy is
 remux, S8), and their extracted frames live in `~/.cache/p11/jobs/<job>/` (`0700`) only while a job
 runs — they are deleted when it finishes or is cancelled, and a refused clip's frames are deleted
 immediately.
+
+## The installer (Phase 15, spec S7, ADR-0012, ADR-0036)
+- `install.sh` never installs or changes GPU drivers and never edits files outside your HOME. It runs `sudo` only for `pacman -S --needed` with the package list printed first (and asks, unless you pass `--yes`).
+- It refuses to run from a pipe unless `P11_INSTALL_TAG` names a `vX.Y.Z` release tag; it then clones that tag and runs the script from the clone. Prefer cloning and reading the script.
+- The only thing it downloads outside the pinned engine and model manifest is uv, and only when the distribution has no package: a fixed release URL checked against a SHA-256 in the script.
+- Private directories are created with mode `0700` (R8). `--keybinding` appends one line to your Hyprland `bindings.lua` (after a backup) and refuses a combination that is already bound.
+- `p11 update` only fast-forwards the checkout to a release tag, and only when tracked files are unmodified. Check tags you do not trust before updating.
+- `uninstall.sh` deletes models, settings and images only when you say so.

@@ -345,6 +345,20 @@ Measured 2026-11-03 17:25 CST by `tests/gpu/test_quality_upscale_gpu.py` on the 
 
 Quality at 2560x1440 is the slow case (tiled VAE decode of the refinement pass); it stays within the ~7 GB budget. Phase 03's `both` chain (55 / 88 s) was not re-run; `latent` remains the Quality chain on time and memory. Not measured in Phase 14: the by-eye `latent` versus `both` comparison, a 10-prompt defaults review and avatar-preset consistency across seeds (follow-ups).
 
+## Time to first image after install (Phase 15, spec R4)
+Measured 2026-11-03 18:29 CST on the reference laptop (RTX 2070 Max-Q, driver 615.78.08), plugged in, power profile `performance` (restored to `power-saver` afterwards, H8), GPU lock held. A throw-away `HOME` (`~/.cache/p11-throwaway`, deleted afterwards) with `P11_MODELS_FROM=~/.local/share/p11/models ./install.sh --yes --models default --accept-licences`, then `scripts/bench/first_image.py`: `p11 start`, one 1920x1080 photoreal wallpaper through the Studio API, cold (the engine starts with the job).
+
+| Step | Result |
+|---|---|
+| `install.sh` total (system check, uv tool install, engine venv with torch 2.14.1+cu130, models reused by hard link, doctor, desktop entry) | 147 s (torch and Python wheels came from the local uv cache, so the network part of a first-ever install is not included) |
+| Model download | not measured: reused (H1); the default set is 14.6 GB |
+| Studio ready after `p11 start` | 2.9 s |
+| **Time to first image** (start Studio, start engine, load the model, generate 1920x1080) | **43.1 s** (R4 target: 5 minutes after the download) |
+| Second `install.sh` run | "Nothing to do", no step changed |
+| `p11 doctor` after install | All good |
+
+Clean install in a stock Arch container (`tests/install/run.sh`, `--gpus all`): install, doctor, a second run saying "Nothing to do", `p11 start --fake`/`status`/`stop`, desktop entry present, uninstall removes the engine: `CLEAN-INSTALL-OK` (2026-11-03 18:24 CST).
+
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
 - **Quality model:** Juggernaut XL v9, DPM++ 2M Karras, 30 steps, CFG 4.5, baked VAE. 38.6 s native, ~41 s per wallpaper.

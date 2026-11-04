@@ -72,6 +72,7 @@ repo's card).
 | Name | Version | Licence | URL | Flags |
 |---|---|---|---|---|
 | gitleaks | 8.30.1 | MIT | https://github.com/gitleaks/gitleaks | none |
+| ShellCheck (dev tool, not distributed) | 0.11.0 | GPL-3.0 | https://github.com/koalaman/shellcheck | none |
 | pre-commit-hooks | v6.0.0 | MIT | https://github.com/pre-commit/pre-commit-hooks | none |
 | pytest, pytest-asyncio, pytest-cov | 9.2.0 / 1.4.1.post1 / 7.1.0 | MIT / Apache-2.0 / MIT | https://pypi.org/ | dev only |
 | hypothesis | 6.170.14 | MPL-2.0 | https://pypi.org/project/hypothesis/ | dev only (property tests) |
