@@ -1,6 +1,6 @@
 # P11 Benchmarks
 
-**Last updated:** 2026-11-03 11:55 CST (Phase 12). Measured on the reference laptop by `scripts/bench/` against the pinned engine. Later phases append their own sections (Phase 05: adapter overhead; Phase 16: success criteria).
+**Last updated:** 2026-11-03 20:22 CST (Phase 16). Measured on the reference laptop by `scripts/bench/` against the pinned engine. Later phases append their own sections (Phase 05: adapter overhead; Phase 16: success criteria).
 
 ## Method
 - **Engine:** headless ComfyUI v0.43.0 (`426f5eea52a7ece1dd599fff4cb6cd1f352ddd24`), uv CPython 3.12.15, torch 2.14.1+cu130, cuDNN 9.24, SDPA attention, UNet/text encoders fp16, VAE fp32 (ComfyUI's default on Turing). Launched by `scripts/bench/engine.py` with the flags in `engine/engine.lock.toml` (`--listen 127.0.0.1 --offline --disable-all-custom-nodes …`), core nodes only.
@@ -358,6 +358,66 @@ Measured 2026-11-03 18:29 CST on the reference laptop (RTX 2070 Max-Q, driver 61
 | `p11 doctor` after install | All good |
 
 Clean install in a stock Arch container (`tests/install/run.sh`, `--gpus all`): install, doctor, a second run saying "Nothing to do", `p11 start --fake`/`status`/`stop`, desktop entry present, uninstall removes the engine: `CLEAN-INSTALL-OK` (2026-11-03 18:24 CST).
+
+## Success criteria (Phase 16, spec §1, §10, R22, Appendix B)
+Measured 2026-11-03 18:52–20:20 CST on the reference laptop, on AC power, power profile `performance` during every GPU stage and restored to `power-saver` after each (H8), GPU lock held (R24). The GPU stages ran through the **Studio API on the real engine** (`scripts/bench/qa.py`: the in-process Studio, `ComfyEngine`, default model RealVisXL V5.0 Lightning unless stated), so they include job queueing, saving, PNG metadata and gallery indexing. Times are submit to saved. Raw JSON: `~/.cache/p11/bench/qa/` (not committed).
+
+| Criterion (source) | Target | Measured | Met? |
+|---|---|---|---|
+| Time to first image after the default-set download (§1, R4) | ≤ 5 min | **37.7 s** (throw-away HOME, `install.sh --models default` reusing the models by hard link, then `scripts/bench/first_image.py`: Studio ready 2.6 s, cold engine, 1920×1080). `install.sh` itself: 184 s (uv cache warm) | ✅ |
+| Wallpaper presets without OOM, 50 in a row each (DoD) | 0 OOM | 1920×1080: **50/50**, 2560×1440: **50/50**, 0 failures, 0 OOM retries; peak VRAM 7690 MiB total | ✅ |
+| Stable on 8 GB without VRAM tuning (§1) | no crash, no leak | 30-min mixed soak below: 105 jobs, 0 OOM, 0 crashes, RSS flat | ✅ |
+| Daily workflow ≤ 5 actions (§1, App. B) | ≤ 5 | Generate (1) + background path 4 = **5**; generate → download **2**; inpaint path **4** | ✅ |
+| Save as template ≤ 3, re-run 1 (§1, App. B) | ≤ 3 / 1 | **2** / **1**; a one-slot template run **3**; logo template with its text slot **3**; Models page install (licence accepted) **4** | ✅ |
+| Inpaint, background, face, pose, reference work from Simple mode without docs (§1, §10) | end-to-end | Playwright walkthroughs on the FakeEngine (@@E2E@@) plus the mixed soak on the real engine; axe clean on every view | ✅ |
+| Short video face-swap usable, resume after kill (§10, DoD) | usable MP4 with audio | Phase 13 measurements (below, "Video face-swap"): 30 s 1080p Fast 2.75 s/frame, killed and resumed to completion; Good ~6.9 s/frame (projected, the 4 h run was not repeated) | ✅ (Good row projected, H12) |
+| No content filter on generation (A5); S5 guard on face paths | | `tests/unit/test_likeness_guard.py::test_a_style_reference_stays_unfiltered`; S5 coverage in `docs/P11_THREAT-MODEL.md` §5 | ✅ |
+
+**Per-preset times** (`qa.py presets`: per combination one cold run, the engine starting with the job, then 3 warm runs):
+
+| Preset | Mode | Cold | Warm median (min–max) |
+|---|---|---:|---:|
+| 1920×1080 | Speed (`model` chain) | 28.4 s | 16.2 s (16.0–16.2) |
+| 1920×1080 | Quality (`latent` refine) | 46.2 s | 35.6 s (35.0–35.7) |
+| 2560×1440 | Speed | 29.2 s | 17.8 s (17.8–17.9) |
+| 2560×1440 | Quality | 70.7 s | 59.4 s (59.4–59.8) |
+
+Quality at 2560×1440 came in under Phase 14's 76.6 s (a different harness, prompt and seed; the cause was not investigated); every run finished, peak VRAM 7708 MiB, max 76 °C.
+
+**50-run soak per preset** (`qa.py soak`, 10 photoreal prompts in rotation, distinct seeds): 1920×1080 median 17.6 s (mean 17.8, 17.1–28.8; the 28.8 s is the cold first run); 2560×1440 median 17.9 s (mean 18.2, 17.8–29.4). The counterbalanced run order Phase 05 asked for: the two blocks differ by 0.3 s, within the cold-run noise, so the warm-GPU drift is negligible.
+
+**Mixed 30-minute soak** (`qa.py mixed`, 19:41–20:13 CST): 15 cycles of generate 1920×1080 → inpaint (ellipse mask) → background (flat colour) → generate portrait → face swap (S5 guard on) → upscale to 2560×1440 → model switch to Juggernaut XL v9 and back.
+
+| Job | n | Median | Max |
+|---|---:|---:|---:|
+| generate 1920×1080 (after a model switch) | 15 | 22.9 s | 29.1 s |
+| inpaint | 15 | 17.1 s | 17.7 s |
+| background | 15 | 11.7 s | 13.7 s |
+| portrait 1024² | 15 | 12.2 s | 14.2 s |
+| face swap + restore | 15 | 5.2 s | 8.2 s |
+| upscale to 2560×1440 | 15 | 12.2 s | 12.6 s |
+| Juggernaut XL v9 1920×1080 (switch) | 15 | 43.0 s | 50.2 s |
+
+0 OOM, 0 crashes. 3 of 15 background jobs were refused with the plain-English "could not find a subject" (their bases were landscapes with no subject: correct behaviour, not a defect). **No leak:** Studio RSS 2.28 GB after the first face swap loaded the CPU models, then 2.28–2.30 GB every cycle to the end; engine RSS 9.35–9.64 GB, flat from cycle 4 on; GPU VRAM peak per 5-minute window 7689 → 7657 MiB, never growing. GPU max 79 °C.
+
+**10-minute thermal loop** (`qa.py thermal`, 19:31–19:41 CST, directly after the soak, heat-soaked): 33 images at 1920×1080, median 17.9 s, the last five 18.1–18.3 s (no slowdown).
+
+| Minute | Temp °C (avg / max) | SM clock MHz (avg / max) | Power W (avg / max) |
+|---:|---|---|---|
+| 0 | 77 / 78 | 1252 / 1770 | 61 / 80 |
+| 2 | 79 / 79 | 1329 / 1770 | 69 / 78 |
+| 4 | 79 / 80 | 1381 / 1770 | 66 / 81 |
+| 6 | 80 / 81 | 1357 / 1755 | 67 / 74 |
+| 8 | 80 / 80 | 1365 / 1755 | 68 / 78 |
+| 10 | 80 / 81 | 1518 / 1755 | 65 / 74 |
+
+No thermal slowdown bit was set in any sample; the plateau is 80–81 °C, under the 87 °C pause (H9).
+
+**Network during the session (S1).** A watcher (`ss -tunp` once a second) recorded every socket of the bench Studio and, from 19:34, of the engine process with a non-loopback peer, from 19:00 to 20:15 CST (2280 samples with the engine included): **none**. Listeners: engine `127.0.0.1:8188` only; the Studio `127.0.0.1` only. The Playwright network guard (every spec) saw no request leave the Studio's origin.
+
+**Security checks against a running Studio** (`p11 serve --fake` on 127.0.0.1:18311, curl, 2026-11-03 19:48 CST): `/healthz` 200; `/api/system` without a token 401, with it 200; `Host: evil.example` 421; a POST with `Origin: http://evil.example` 403; `Sec-Fetch-Site: cross-site` read 403; a POST carrying only the cookie 401; a non-ASCII token 401 (was a 500 before the Phase 16 fix); a websocket upgrade 403; `/` carries the full CSP, `nosniff`, `no-referrer` and `X-Frame-Options: DENY`.
+
+**Clean install in a container** (`tests/install/run.sh`): @@CONTAINER@@
 
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
