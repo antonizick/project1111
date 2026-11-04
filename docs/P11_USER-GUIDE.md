@@ -2,7 +2,7 @@
 
 Contents: 1 Running P11 Studio · 2 Generate · 3 Gallery · 4 Templates · 5 Inpainting · 6 Background
 replacement · 7 Face & Pose · 8 Video face-swap · 9 Models · 10 Upscaling, logos and the Models page ·
-11 Install, update and uninstall · 12 Troubleshooting.
+11 Install, update and uninstall · 12 Run P11 from OCC · 13 Troubleshooting.
 
 ## 1. Running P11 Studio (written in Phase 07)
 P11 Studio is a small local web service plus the engine it drives. Everything stays on `127.0.0.1`.
@@ -316,7 +316,32 @@ The **face** model set contains two InsightFace models that are for non-commerci
 | Model download stopped | Run `./install.sh` or `p11 models install default` again; downloads resume and are checked by SHA-256. |
 | `p11 update` says the checkout is modified | `git status`; commit, stash or discard your edits first. |
 
-## 12. Troubleshooting (written in Phase 16)
+## 12. Run P11 from OCC (written in Phase 17c)
+
+P11 Studio has a card in the Omarchy Control Center (OCC, `Super + Alt + T`). The card is a
+`transient` OCC service: **Start** runs `p11 serve` in the foreground as the user unit
+`occ-p11.service`, so the Studio keeps running when OCC quits. The GPU engine still starts with
+the first job and stops after five idle minutes.
+
+- **Start** — the card turns Healthy within a few seconds (the Studio answers `/healthz`).
+- **Busy** — while a job runs or waits, the card shows Busy, and **Stop** or **Restart** asks
+  first because the job is cancelled. Busy comes from the token-free `/healthz` `busy` field,
+  which carries only counts (`running`, `waiting`), never job details.
+- **Logs** — the card reads `~/.cache/p11/logs/studio.log`; the journal is nearly empty because
+  the Studio logs to its own JSON file. Use **Logs** on the card, or `tail -f` that file.
+- **External** — a Studio you started with `p11 start`, `p11 open` or `Super + Alt + I` shows as
+  **External**, because OCC matches the same `p11 serve` command line.
+- **Open** — until OCC ships its `open_exec` field, the card has no Open button; use
+  `Super + Alt + I` or run `p11 open`. The P11 block in `~/.config/occ/services.toml` carries a
+  commented `open_exec` line ready for it.
+
+The block lives in `~/.config/occ/services.toml` (mode `600`). OCC reads that file once at
+start, so after changing it run `occ quit` and then `occ`. **To undo:** stop P11 on the card,
+delete the `[[service]]` block whose `id = "p11"`, restore the backup named in the OSMods note
+`P11 in OCC`, and relaunch OCC. The OSMods notes `P11 in OCC` and
+`OCC Omarchy Control Center` record the exact lines and the backup path.
+
+## 13. Troubleshooting (written in Phase 16)
 - **Something is off:** run `p11 doctor`. Every problem comes with the command that fixes it; "optional models" says whether the `face` and `control` sets are installed.
 - **Out of GPU memory:** P11 retries once in a low-memory mode and tells you so ("Out of GPU memory: retrying in low-memory mode."); the next idle period switches back. On the reference laptop, 100 wallpapers in a row and a 30-minute mixed session never needed it. If it keeps happening, close other GPU programs (games, video editors) or pick Speed instead of Quality.
 - **Long jobs pause when hot:** video and batch jobs wait when the GPU reaches 87 °C and continue at 80 °C; the status bar shows it. Single images run at about 80 °C on the reference laptop.
