@@ -4,9 +4,21 @@
 import type { ImageEntry } from "../../api/types";
 
 export const TILE = 200;
+export const SMALL_TILE = 120;
 export const GAP = 8;
 export const HEADER = 40;
 export const ROW = TILE + GAP;
+
+export type TileSize = "small" | "medium";
+
+export const TILE_SIZES: { id: TileSize; label: string; tile: number }[] = [
+  { id: "small", label: "Small", tile: SMALL_TILE },
+  { id: "medium", label: "Medium", tile: TILE },
+];
+
+export function tileFor(size: TileSize): number {
+  return size === "small" ? SMALL_TILE : TILE;
+}
 
 export type Row =
   | { kind: "header"; key: string; label: string; top: number; height: number }
@@ -34,20 +46,26 @@ export function dayLabel(key: string, today: Date = new Date()): string {
   });
 }
 
-export function columnsFor(width: number): number {
-  return Math.max(1, Math.floor((width + GAP) / ROW));
+export function columnsFor(width: number, tile: number = TILE): number {
+  return Math.max(1, Math.floor((width + GAP) / (tile + GAP)));
 }
 
-/** Rows for `items` (newest first) in `columns` columns, with their offsets. */
-export function layoutRows(items: ImageEntry[], columns: number, today?: Date): Row[] {
+/** Rows for `items` (newest first) in `columns` columns of `tile` px, with their offsets. */
+export function layoutRows(
+  items: ImageEntry[],
+  columns: number,
+  today?: Date,
+  tile: number = TILE,
+): Row[] {
+  const row = tile + GAP;
   const rows: Row[] = [];
   let top = 0;
   let current: string | null = null;
   let tiles: ImageEntry[] = [];
   const flush = () => {
     if (!tiles.length) return;
-    rows.push({ kind: "tiles", key: `t-${tiles[0]?.id}`, items: tiles, top, height: ROW });
-    top += ROW;
+    rows.push({ kind: "tiles", key: `t-${tiles[0]?.id}`, items: tiles, top, height: row });
+    top += row;
     tiles = [];
   };
   for (const item of items) {
@@ -74,6 +92,19 @@ export function layoutRows(items: ImageEntry[], columns: number, today?: Date): 
 export function totalHeight(rows: Row[]): number {
   const last = rows[rows.length - 1];
   return last ? last.top + last.height : 0;
+}
+
+/** The first image at or below `scrollTop`: what stays in view when the tile size changes. */
+export function anchorAt(rows: Row[], scrollTop: number): number | null {
+  for (const r of rows)
+    if (r.kind === "tiles" && r.top + r.height > scrollTop) return r.items[0]?.id ?? null;
+  return null;
+}
+
+/** Top of the tile row holding image `id`, or null. */
+export function rowTopOf(rows: Row[], id: number): number | null {
+  for (const r of rows) if (r.kind === "tiles" && r.items.some((i) => i.id === id)) return r.top;
+  return null;
 }
 
 /** Rows that intersect [scrollTop - overscan, scrollTop + height + overscan]. */

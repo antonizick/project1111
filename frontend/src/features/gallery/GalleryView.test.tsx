@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import { baseRoutes, createSource, FakeSource, image, mockApi } from "../../test/fakes";
+import { loadTileSize, saveTileSize } from "./tileSize";
 
 const items = [
   image(3, { favourite: true }),
@@ -154,4 +155,43 @@ it("explains the empty gallery and live-updates on new images", async () => {
   list = [image(8)];
   act(() => FakeSource.last!.emit("image", { job: "j", image: image(8) }));
   expect(await screen.findByRole("button", { name: "Open: prompt 8" })).toBeVisible();
+});
+
+it("switches thumbnail size and remembers it", async () => {
+  localStorage.removeItem("p11.gallery-tile-size");
+  const { user } = await openGallery();
+  const size = screen.getByRole("group", { name: "Thumbnail size" });
+  const small = within(size).getByRole("button", { name: "Small" });
+  const tile = () =>
+    within(screen.getByRole("group", { name: "Images" })).getAllByRole("listitem")[0];
+  expect(within(size).getByRole("button", { name: "Medium" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(tile()).toHaveStyle({ width: "200px" });
+  await user.click(small);
+  expect(tile()).toHaveStyle({ width: "120px" });
+  await user.click(screen.getByLabelText("Select image 3"));
+  await user.click(within(size).getByRole("button", { name: "Medium" }));
+  expect(screen.getByLabelText("Select image 3")).toBeChecked(); // selection survives
+  await user.click(small);
+  expect(localStorage.getItem("p11.gallery-tile-size")).toBe("small");
+  cleanup();
+  await openGallery();
+  expect(tile()).toHaveStyle({ width: "120px" });
+  localStorage.removeItem("p11.gallery-tile-size");
+});
+
+it("works when storage throws", async () => {
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation((key) => {
+    if (key === "p11.gallery-tile-size") throw new Error("blocked");
+    return key === "p11.token" ? "tok-abcdefghijkl" : null;
+  });
+  const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("blocked");
+  });
+  expect(loadTileSize()).toBe("medium");
+  expect(() => saveTileSize("small")).not.toThrow();
+  set.mockRestore();
+  vi.restoreAllMocks();
 });

@@ -6,10 +6,11 @@
 
 import { useId, useState } from "react";
 import { client, type FaceBox } from "../../api/client";
-import type { Job } from "../../api/types";
+import type { ImageEntry, Job } from "../../api/types";
 import { useNav } from "../../app/nav";
 import { useStudio } from "../../app/studio";
 import { useToasts } from "../../app/Toasts";
+import { GalleryPicker } from "../../components/GalleryPicker";
 import { useImageActions } from "../actions";
 import { newRecipeId } from "../generate/form";
 import { ImageActions } from "../generate/ResultPanel";
@@ -42,6 +43,15 @@ const CONTROLS: { id: ControlKind; label: string }[] = [
 ];
 
 type Picked = { ref: string; url: string; width: number; height: number; name: string };
+
+/** A gallery image as a picture for one of the tools: a reference, never its bytes (ADR-0046). */
+const pickedFrom = (img: ImageEntry): Picked => ({
+  ref: `gallery/${img.id}`,
+  url: img.url,
+  width: img.width ?? 1024,
+  height: img.height ?? 1024,
+  name: `Image ${img.id}`,
+});
 
 export function FaceView({ active }: { active: boolean }) {
   const { state, dispatch } = useStudio();
@@ -115,13 +125,7 @@ export function FaceView({ active }: { active: boolean }) {
   if (active && editing?.view === "face" && editing.at !== seen) {
     setSeen(editing.at);
     const img = editing.image;
-    pickTarget({
-      ref: `gallery/${img.id}`,
-      url: img.url,
-      width: img.width ?? 1024,
-      height: img.height ?? 1024,
-      name: `Image ${img.id}`,
-    });
+    pickTarget(pickedFrom(img));
     setPrompt(img.prompt ?? "");
   }
 
@@ -238,6 +242,7 @@ export function FaceView({ active }: { active: boolean }) {
             accept="image/*"
             onChange={(e) => upload(e.target.files?.[0], pickTarget)}
           />
+          <GalleryPicker label="Picture" onPick={(img) => pickTarget(pickedFrom(img))} />
           {target && <img className="thumb" src={target.url} alt={target.name} />}
         </div>
       )}
@@ -255,6 +260,7 @@ export function FaceView({ active }: { active: boolean }) {
               accept="image/*"
               onChange={(e) => upload(e.target.files?.[0], setFace)}
             />
+            <GalleryPicker label="Face photo" onPick={(img) => setFace(pickedFrom(img))} />
             {face && <img className="thumb" src={face.url} alt={face.name} />}
           </div>
           {target && faces.length > 1 && (
@@ -413,12 +419,16 @@ export function FaceView({ active }: { active: boolean }) {
               <option value="photo">A photo</option>
             </select>
             {!poseFromEditor && (
-              <input
-                type="file"
-                accept="image/*"
-                aria-label="Pose photo"
-                onChange={(e) => upload(e.target.files?.[0], setPosePhoto)}
-              />
+              <>
+                <input
+                  type="file"
+                  accept="image/*"
+                  aria-label="Pose photo"
+                  onChange={(e) => upload(e.target.files?.[0], setPosePhoto)}
+                />
+                <GalleryPicker label="Pose photo" onPick={(img) => setPosePhoto(pickedFrom(img))} />
+                {posePhoto && <img className="thumb" src={posePhoto.url} alt={posePhoto.name} />}
+              </>
             )}
           </div>
           {poseFromEditor && <PoseEditor data={pose} onChange={setPose} />}
@@ -460,6 +470,10 @@ export function FaceView({ active }: { active: boolean }) {
               type="file"
               accept="image/*"
               onChange={(e) => upload(e.target.files?.[0], setReference)}
+            />
+            <GalleryPicker
+              label="Reference image"
+              onPick={(img) => setReference(pickedFrom(img))}
             />
             {reference && <img className="thumb" src={reference.url} alt={reference.name} />}
           </div>

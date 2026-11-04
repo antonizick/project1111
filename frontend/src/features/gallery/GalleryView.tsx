@@ -11,7 +11,19 @@ import { Dialog } from "../../components/Dialog";
 import { useImageActions } from "../actions";
 import { CompareView } from "./CompareView";
 import { DetailView } from "./DetailView";
-import { columnsFor, layoutRows, totalHeight, visibleRows, GAP, TILE } from "./layout";
+import {
+  anchorAt,
+  columnsFor,
+  layoutRows,
+  rowTopOf,
+  tileFor,
+  totalHeight,
+  visibleRows,
+  GAP,
+  TILE_SIZES,
+  type TileSize,
+} from "./layout";
+import { loadTileSize, saveTileSize } from "./tileSize";
 
 const PAGE = 120;
 /** Left + right padding of .gallery-scroll (theme.css). */
@@ -44,7 +56,9 @@ export function GalleryView({ active }: { active: boolean }) {
   const [strip, setStrip] = useState(true);
   const [scrollTop, setScrollTop] = useState(0);
   const [size, setSize] = useState({ width: 1000, height: 800 });
+  const [tileSize, setTileSize] = useState<TileSize>(loadTileSize);
   const scroller = useRef<HTMLDivElement>(null);
+  const anchor = useRef<number | null>(null);
   const loading = useRef(false);
 
   useEffect(() => {
@@ -103,9 +117,30 @@ export function GalleryView({ active }: { active: boolean }) {
 
   // Show the latest state of each image (favourites change through events).
   const current = items.map((i) => state.images[i.id] ?? i);
-  const rows = layoutRows(current, columnsFor(size.width));
+  const tile = tileFor(tileSize);
+  const rows = layoutRows(current, columnsFor(size.width, tile), undefined, tile);
   const height = totalHeight(rows);
   const visible = visibleRows(rows, scrollTop, size.height);
+
+  const chooseTileSize = (next: TileSize) => {
+    if (next === tileSize) return;
+    anchor.current = anchorAt(rows, scrollTop);
+    setTileSize(next);
+    saveTileSize(next);
+  };
+
+  // After a size change, keep the image that was at the top of the view at the top. Reading the
+  // scroller and setting state here is the point: the new rows only exist after the render.
+  useLayoutEffect(() => {
+    const id = anchor.current;
+    anchor.current = null;
+    if (id === null || scrollTop === 0) return;
+    const top = rowTopOf(rows, id);
+    if (top === null) return;
+    if (scroller.current) scroller.current.scrollTop = top;
+    setScrollTop(top);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tileSize]);
 
   useEffect(() => {
     if (!loading.current && items.length < total && scrollTop + size.height > height - 800)
@@ -190,6 +225,19 @@ export function GalleryView({ active }: { active: boolean }) {
         >
           ★ Favourites
         </button>
+        <div className="chips" role="group" aria-label="Thumbnail size">
+          {TILE_SIZES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="chip"
+              aria-pressed={tileSize === s.id}
+              onClick={() => chooseTileSize(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
         <span className="grow" />
         <span className="muted" aria-live="polite">
           {total} {total === 1 ? "image" : "images"}
@@ -252,13 +300,18 @@ export function GalleryView({ active }: { active: boolean }) {
                   {row.label}
                 </h2>
               ) : (
-                <div key={row.key} className="tile-row" role="list" style={{ top: row.top }}>
+                <div
+                  key={row.key}
+                  className="tile-row"
+                  role="list"
+                  style={{ top: row.top, height: row.height }}
+                >
                   {row.items.map((img, i) => (
                     <div
                       key={img.id}
                       role="listitem"
                       className={`tile ${selected.includes(img.id) ? "selected" : ""}`}
-                      style={{ left: i * (TILE + GAP), width: TILE, height: TILE }}
+                      style={{ left: i * (tile + GAP), width: tile, height: tile }}
                     >
                       <button
                         type="button"

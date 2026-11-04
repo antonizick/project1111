@@ -6,11 +6,12 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import { client, saveDownload, type FaceBox } from "../../api/client";
-import type { Job, VideoJob, VideoRequest } from "../../api/types";
+import type { ImageEntry, Job, VideoJob, VideoRequest } from "../../api/types";
 import { useNav } from "../../app/nav";
 import { useShortcuts } from "../../app/shortcuts";
 import { useStudio } from "../../app/studio";
 import { useToasts } from "../../app/Toasts";
+import { GalleryPicker } from "../../components/GalleryPicker";
 import { useImageActions } from "../actions";
 import { CONSENT_NOTICE } from "../face/recipe";
 import { stageLabel } from "../generate/GenerateView";
@@ -133,12 +134,8 @@ export function VideoView({ active }: { active: boolean }) {
     }
   };
 
-  // An image opened from the gallery or a result ("Use face in Video") becomes the face photo.
-  const editing = nav.editing;
-  const [seen, setSeen] = useState<number | null>(null);
-  if (active && editing?.view === "video" && editing.at !== seen) {
-    setSeen(editing.at);
-    const img = editing.image;
+  /** A gallery image as the face photo: a reference, never its bytes (ADR-0046). */
+  const faceFrom = (img: ImageEntry) =>
     setFace({
       ref: `gallery/${img.id}`,
       url: img.url,
@@ -146,6 +143,13 @@ export function VideoView({ active }: { active: boolean }) {
       seconds: 0,
       warnings: [],
     });
+
+  // An image opened from the gallery or a result ("Use face in Video") becomes the face photo.
+  const editing = nav.editing;
+  const [seen, setSeen] = useState<number | null>(null);
+  if (active && editing?.view === "video" && editing.at !== seen) {
+    setSeen(editing.at);
+    faceFrom(editing.image);
   }
 
   const job: Job | undefined = jobId ? state.jobs[jobId] : undefined;
@@ -301,6 +305,7 @@ export function VideoView({ active }: { active: boolean }) {
             disabled={busy}
             onChange={(e) => void pickFace(e.target.files?.[0])}
           />
+          <GalleryPicker label="Face photo" disabled={busy} onPick={faceFrom} />
           {face && <img className="preview" src={face.url} alt={face.name} />}
         </div>
 

@@ -517,7 +517,6 @@ input:disabled {
   position: absolute;
   left: 0;
   right: 0;
-  height: 208px;
 }
 .tile {
   position: absolute;
@@ -591,6 +590,36 @@ input:disabled {
 .dialog-wide {
   width: 96vw;
   height: 92vh;
+}
+.from-gallery {
+  align-self: flex-start;
+}
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: 60vh;
+  padding: 2px;
+}
+.picker-tile {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel-2);
+  cursor: pointer;
+}
+.picker-tile:hover {
+  border-color: var(--accent);
+}
+.picker-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .dialog-header {
   display: flex;

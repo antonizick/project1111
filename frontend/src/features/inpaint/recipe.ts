@@ -43,7 +43,7 @@ export function initialInpaint(prompt = ""): InpaintForm {
     prompt,
     preset: "balanced",
     denoise: null,
-    crop: true,
+    crop: false,
     blur: DEFAULTS.blur,
     padding: DEFAULTS.padding,
     steps: null,

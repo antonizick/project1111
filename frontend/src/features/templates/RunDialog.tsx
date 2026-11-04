@@ -1,4 +1,4 @@
-// The small slot form: one field per open input (text, or a photo by picker or drag and drop),
+// The small slot form: one field per open input (text, or a photo by picker, gallery or drop),
 // remembered per template on request ("use last face photo").
 
 import { useId, useState } from "react";
@@ -6,6 +6,7 @@ import { client, problemOf } from "../../api/client";
 import type { Slot, Template } from "../../api/types";
 import { useToasts } from "../../app/Toasts";
 import { Dialog } from "../../components/Dialog";
+import { GalleryPicker } from "../../components/GalleryPicker";
 import { isImageSlot, missingSlots, recalled, remember, slotLabel, type SlotValues } from "./slots";
 
 function ImageInput({
@@ -58,6 +59,13 @@ function ImageInput({
         accept="image/png,image/jpeg,image/webp"
         onChange={(e) => void take(e.target.files?.[0])}
       />
+      {slot.kind !== "mask" && (
+        <GalleryPicker
+          label={slotLabel(slot)}
+          disabled={busy}
+          onPick={(img) => onChange({ ref: `gallery/${img.id}`, name: `Image ${img.id}` })}
+        />
+      )}
       <p className="field-help" aria-live="polite">
         {busy ? "Uploading…" : chosen ? `Using ${chosen}.` : "Choose a photo or drop it here."}
       </p>

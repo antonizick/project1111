@@ -1,4 +1,5 @@
-// A modal dialog: focus moves in on open, Tab stays inside, Esc closes, focus returns after.
+// A modal dialog: focus moves in on open (to `data-autofocus` if a child has it), Tab stays inside,
+// Esc closes, focus returns after.
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { useShortcuts } from "../app/shortcuts";
@@ -22,7 +23,9 @@ export function Dialog({
 
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
-    const first = ref.current?.querySelector<HTMLElement>(FOCUSABLE);
+    const first =
+      ref.current?.querySelector<HTMLElement>("[data-autofocus]") ??
+      ref.current?.querySelector<HTMLElement>(FOCUSABLE);
     (first ?? ref.current)?.focus();
     return () => before?.focus?.();
   }, []);
@@ -53,12 +56,12 @@ export function Dialog({
         className={wide ? "dialog dialog-wide" : "dialog"}
         onKeyDown={onKeyDown}
       >
-        <header className="dialog-header">
+        <div className="dialog-header">
           <h2>{title}</h2>
           <button type="button" className="btn btn-ghost" aria-label="Close" onClick={onClose}>
             ×
           </button>
-        </header>
+        </div>
         <div className="dialog-body">{children}</div>
       </div>
     </div>

@@ -23,7 +23,7 @@ it("builds a preset inpaint of a gallery image with a mask slot", () => {
     mask_slot: "mask",
     prompt: "a red scarf",
     denoise_preset: "balanced",
-    crop: true,
+    crop: false,
     mask_blur_px: 12,
     padding_px: 48,
     model: { manifest_id: "realvisxl5-lightning" },

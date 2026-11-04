@@ -12,6 +12,7 @@ import { useNav } from "../../app/nav";
 import { useShortcuts } from "../../app/shortcuts";
 import { useStudio } from "../../app/studio";
 import { useToasts } from "../../app/Toasts";
+import { GalleryPicker } from "../../components/GalleryPicker";
 import { useImageActions } from "../actions";
 import { newRecipeId } from "../generate/form";
 import { stageLabel } from "../generate/GenerateView";
@@ -324,6 +325,7 @@ export function BackgroundView({ active }: { active: boolean }) {
             disabled={busy}
             onChange={(e) => void uploadSubject(e.target.files?.[0])}
           />
+          <GalleryPicker label="Upload photo" disabled={busy} onPick={fromImage} />
           <p className="field-help">
             Or press <strong>Background</strong> on a result or a gallery image.
           </p>
@@ -343,6 +345,14 @@ export function BackgroundView({ active }: { active: boolean }) {
                 onChange={(e) => void uploadBackground(e.target.files?.[0])}
               />
             </label>
+            <GalleryPicker
+              label="Background photo"
+              className="chip"
+              disabled={busy}
+              onPick={(img) =>
+                setChoice({ kind: "gallery", ref: `gallery/${img.id}`, url: img.url })
+              }
+            />
             <button
               type="button"
               className="chip"

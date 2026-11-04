@@ -10,6 +10,7 @@ import { useNav, useRecipeReceiver } from "../../app/nav";
 import { useShortcuts } from "../../app/shortcuts";
 import { useStudio } from "../../app/studio";
 import { useToasts } from "../../app/Toasts";
+import { GalleryPicker } from "../../components/GalleryPicker";
 import { useImageActions } from "../actions";
 import { AdvancedDrawer } from "./AdvancedDrawer";
 import { baselineSeconds, formatSeconds, remainingSeconds } from "./eta";
@@ -303,6 +304,11 @@ export function GenerateView({ active }: { active: boolean }) {
                   void takePhoto(e.target.files?.[0]);
                   e.target.value = "";
                 }}
+              />
+              <GalleryPicker
+                label="Start from a photo"
+                disabled={uploading}
+                onPick={(img) => setForm((f) => ({ ...f, photo: photoFromImage(img) }))}
               />
               <p className="field-help" aria-live="polite">
                 {uploading

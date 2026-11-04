@@ -10,6 +10,7 @@ import { useNav } from "../../app/nav";
 import { useShortcuts } from "../../app/shortcuts";
 import { useStudio } from "../../app/studio";
 import { useToasts } from "../../app/Toasts";
+import { GalleryPicker } from "../../components/GalleryPicker";
 import { useImageActions } from "../actions";
 import { newRecipeId } from "../generate/form";
 import { ImageActions } from "../generate/ResultPanel";
@@ -171,6 +172,7 @@ export function InpaintView({ active }: { active: boolean }) {
             disabled={busy}
             onChange={(e) => void uploadPhoto(e.target.files?.[0])}
           />
+          <GalleryPicker label="Upload photo" disabled={busy} onPick={fromImage} />
           <p className="field-help">
             Or use <strong>Inpaint</strong> on a result or a gallery image.
           </p>
@@ -212,6 +214,9 @@ export function InpaintView({ active }: { active: boolean }) {
           />
           Only masked area at full resolution
         </label>
+        <p className="field-help">
+          On suits small fixes such as a hand or a face. Off suits anything large, such as clothes.
+        </p>
         <div className="row">
           <span className="grow" />
           {running ? (
