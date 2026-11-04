@@ -330,3 +330,15 @@ can seek; it does not enter the image gallery index.
 - **Models page.** `api/routes/models.py` wraps `ModelManager` (plan, install, verify, add, enable, remove, licences). Installs run in a worker thread, one at a time, and publish `models` events; `models-changed` tells the page to re-read `/api/models`. The UI is `frontend/src/features/models/ModelsView.tsx`; the store keeps `modelOps` and `modelsRev`.
 - **Optional steps.** `_Step.skippable_if_unbound` (face swap): `compile()` drops a step whose optional image slot is empty; `previous` only moves when a step produced a plan item.
 - **Upscale.** `upscaleRecipe(…, options)` builds `scale` or `width`+`height` and `chain` `model` (Speed) or `latent` (Quality); Generate's Speed/Quality toggle sets `Generate.quality`, which picks the preset's `quality_chain`.
+
+## Installer, update and desktop integration (Phase 15, ADR-0036)
+```
+install.sh ──► checks (os-release, nvidia-smi ≥ 580) ─► pacman list + ask ─► uv (pinned) ─► 0700 dirs
+          ├─► frontend build (npm) ─► uv tool install --editable <checkout>   (python 3.12)
+          ├─► scripts/engine_setup.sh (pinned ComfyUI, torch check) ─► p11 models install <set>
+          └─► p11 doctor ─► ~/.local/share/applications/p11.desktop + icon (Exec = p11 open)
+state: ~/.local/share/p11/install-state   (digests of pyproject/uv.lock and of the engine pin)
+p11 update    ─► p11.updater: clean-tree check, fetch tags, CHANGELOG diff, checkout vX.Y.Z, install.sh --yes --models none
+p11 uninstall ─► exec uninstall.sh (app, engine, desktop entry, caches; asks about models / config / images)
+```
+The checkout is the application (editable install), so the lock file, manifest, node pack and built UI need no copies. `install.sh` and `uninstall.sh` are plain bash with `--dry-run`; tests fake `os-release`, `nvidia-smi`, `pacman` and `sudo` through `P11_OS_RELEASE` and `PATH` (`tests/unit/test_install_scripts.py`), and `tests/install/run.sh` runs the whole thing in a stock Arch container with the host GPU. Hyprland integration is opt-in (`--keybinding`) and appends one marked line to the user's `bindings.lua`.

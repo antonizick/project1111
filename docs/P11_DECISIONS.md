@@ -39,6 +39,7 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0033 | 2026-11-03 14:08 CST | Video face-swap: CPU face path per frame, ffmpeg extract/stitch, resumable job rows | Accepted | 13 |
 | ADR-0034 | 2026-11-03 14:08 CST | The S5 guard on video: every swapped frame plus a sampled pre-pass, no switch | Accepted | 13 |
 | ADR-0035 | 2026-11-03 17:45 CST | Text overlay in Pillow, logo exports, Models page operations, optional-step skipping | Accepted | 14 |
+| ADR-0036 | 2026-11-03 17:53 CST | Installer: editable `uv tool` install from the checkout, state file, tag-based update | Accepted | 15 |
 
 ---
 
@@ -434,3 +435,11 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 - A test-only hook, `P11_ALLOW_LOOPBACK_MANIFEST=1`, lets the manifest and downloader accept `http://127.0.0.1` so the Playwright Models walkthrough installs a 22-byte fixture from a local server. It cannot allow any other host.
 **Quality chain (ADR-0010).** Measured on the laptop (warm, performance profile, `tests/gpu/test_quality_upscale_gpu.py`): Speed 15.8 s at 1920x1080 and 16.5 s at 2560x1440; Quality (`latent`) 34.9 s and 76.6 s, no OOM. `latent` stays the Quality chain: it is the faster of the two refinement chains in Phase 03's measurements (`both` was 55 / 88 s) and fits the VRAM budget. I did not redo a by-eye `latent` versus `both` comparison in this phase, so the choice rests on time and memory plus Phase 03's contact sheet.
 **Consequences.** Logo starters carry a `logo_text` slot and lose the `mark-only` tag; existing users keep their old copies because of the starter marker (user guide). Phase 16 re-runs the action counts. Left as follow-ups: 3D-avatar prompt/LoRA tuning and the 10-prompt defaults review (Phase 14 Phase Log).
+
+## ADR-0036: Installer: editable `uv tool` install from the checkout, state file, tag-based update
+**Recorded.** 2026-11-03 17:53 CST (Phase 15)
+**Status.** Accepted
+**Context.** ADR-0012 fixed clone + `./install.sh` and no driver installs. Phase 15 had to choose how the app is installed, how "already done" is detected, and how updates work, while `engine.lock.toml`, `models/manifest.toml`, `engine/custom_nodes/` and the frontend build (`src/p11/web/`, git-ignored) are all found relative to the repo.
+**Options considered.** (a) Non-editable `uv tool install` plus copying the lock file, manifest and node pack to `~/.local/share/p11`; (b) editable `uv tool install` from the checkout; (c) a venv under `~/.local/share/p11/app`.
+**Decision.** (b). The checkout is the application: `find_lock_file()`, the manifest loader, the node pack and the built UI resolve with no copies to keep in sync, and `p11 update` is `git checkout <tag>` plus the idempotent installer steps. Costs: deleting the checkout breaks the install (documented), and the UI needs node/npm at install time (`nodejs npm` join the pacman list only when `src/p11/web/` is missing). Idempotency uses `~/.local/share/p11/install-state` (digests of `pyproject.toml`+`uv.lock`, and of the engine lock, requirements lock, node pack and path template) instead of parsing tool output; unchanged digests skip the step and the script ends with "Nothing to do". The driver floor is 580 because CUDA 13.x needs driver 580 or newer (NVIDIA CUDA release notes, checked 2026-11-03). The Hyprland binding is opt-in (`--keybinding`); only the owner's own install uses it. Model licences are never accepted by the script; the InsightFace pair needs the owner's own prompt answer or `--accept-licences`. `p11 update` takes release tags (`vX.Y.Z`) only and refuses a checkout with modified tracked files.
+**Consequences.** Moving the checkout requires re-running `./install.sh`. A future AUR package (follow-up) would use option (a). Phase 16 re-checks the finished set with the container test.

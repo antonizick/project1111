@@ -258,3 +258,42 @@ acknowledge that first).
 **3D animated avatar.** The avatar starter has an optional **Face photo**; fill it to swap the face in afterwards (the face tools and their consent notice are in section 7), leave it empty to get the avatar only.
 
 **The Models page.** Open **Models** in the left bar. Models are grouped by kind with their state (Installed, Not installed, Damaged, Yours), size, sets and licence, with a plain "commercial OK" or "non-commercial" label. **Install a set** (default, full, optional, face, control) or **Install** on one model shows the download size and, where a licence has terms, the licence and a checkbox to accept it; progress then shows in the page. **Verify** re-checks the file's hash, **Disable** hides a model from recipes without deleting it, **Remove** deletes the file (a model you added can be only forgotten), and **Add model** takes a file path or an https link, with the same safe-format rule as `p11 models add` (pickle files need the explicit opt-in).
+
+## 11. Install, update and uninstall (written in Phase 15)
+**Supported:** Arch Linux and Omarchy on x86_64 with an NVIDIA GPU (8 GB or more) and driver 580 or newer (the pinned PyTorch uses CUDA 13). Other distributions and GPUs are not supported. P11 never installs or changes drivers.
+
+**Install.**
+```bash
+git clone https://github.com/antonizick/project1111.git
+cd project1111
+./install.sh                 # asks before anything that needs sudo
+./install.sh --dry-run       # show every step, change nothing
+```
+Options: `--yes` (do not ask; the pacman packages are still listed), `--models default|face|control|full|none` (comma-separated; default `default`, 14.6 GB), `--accept-licences` (accept the licences of the chosen models; otherwise `p11 models install` asks, and fails without a terminal), `--prefix DIR` (where the `p11` command, desktop entry and icon go; default `~/.local`), `--keybinding "SUPER + ALT + I"` (also add an Omarchy launch binding; it refuses a combination that is already in your `bindings.lua`), `--no-desktop`, `--skip-engine`.
+
+What it does, in order: checks the OS and the NVIDIA driver (and stops with a link if either is missing or too old); lists missing pacman packages (`git ffmpeg curl diffutils xdg-utils`, plus `nodejs npm` to build the UI and `uv` if the distribution has it) and asks before `sudo pacman -S --needed`; installs uv from a pinned, checksummed release when the distribution has none; creates `~/.config/p11`, `~/.local/share/p11` and `~/.cache/p11` with mode `0700`; builds the UI; installs `p11` with `uv tool install --editable` on the managed Python 3.12 (the checkout is the app: keep it); sets up the pinned engine (`scripts/engine_setup.sh`); shows the size of each model set and downloads it; runs `p11 doctor`; installs the desktop entry. Run it again any time: it changes nothing that is already right and prints "Nothing to do".
+
+The **face** model set contains two InsightFace models that are for non-commercial research only (`p11 models licences` shows them). The installer never accepts them for you: you either answer the prompt or pass `--accept-licences` yourself.
+
+**One-liner (tags only).** `curl -fsSL https://raw.githubusercontent.com/antonizick/project1111/v1.0.0/install.sh | P11_INSTALL_TAG=v1.0.0 bash -s -- --dry-run` clones that tag and runs the installer from it. The script refuses to run from a pipe without a `vX.Y.Z` tag, and the repository is private until Nick publishes it, so this works only after release. The clone path above is the recommended one.
+
+**Start.** Launch **P11 Studio** from the app menu, press the keybinding if you added one, or run `p11 open`. The desktop entry runs `p11 open`, which starts the Studio and opens an app window like an Omarchy web app. For a Hyprland window rule, the window class is the one Omarchy gives web apps (`hyprctl clients` shows it while P11 is open).
+
+**Update.** `p11 update` fetches the release tags, shows the CHANGELOG difference, asks, checks out the newest tag (`--to vX.Y.Z` for a specific one, `--dry-run` to only look) and re-runs the installer steps that changed (dependencies, engine pin, desktop entry). It refuses when tracked files in the checkout are modified. Your settings, templates, models and images are kept. New models are not downloaded silently: see `p11 models list`.
+
+**Uninstall.** `p11 uninstall` (or `./uninstall.sh`) stops P11, removes the command, the engine, the desktop entry, the icon and the caches, and **asks separately** about the models (size shown), your settings/templates/gallery index and your generated images. The default for all three is to keep them; `--models`, `--config` and `--outputs` delete them without asking, `--dry-run` shows the plan. It never removes pacman packages, drivers, or a keybinding you added (delete the `P11 Studio launch` line in `~/.config/hypr/bindings.lua`).
+
+**Laptop power and heat.** Generation is much faster plugged in with the performance profile (`powerprofilesctl set performance`). On battery or the power-saver profile the GPU clocks drop; the Studio still pauses long jobs at 87 °C and resumes at 80 °C. Keep the vents clear.
+
+**Troubleshooting.**
+
+| Symptom | Do this |
+|---|---|
+| "No NVIDIA driver found" / "driver is too old" | Install or update the driver yourself (https://wiki.archlinux.org/title/NVIDIA), reboot, run `./install.sh` again. |
+| "Required packages are missing" | Run the `sudo pacman -S --needed …` line it prints, or re-run with a terminal so it can ask. |
+| "Port 8111 is already in use" | `p11 status`; stop the other program or set `studio_port` in `~/.config/p11/config.toml`. |
+| Out of GPU memory | P11 retries in low-memory mode; pick a smaller preset and close other GPU programs (`nvidia-smi`). |
+| `p11 open` shows nothing / opens the wrong browser | `p11 open --print-url` and open the link yourself, or set `P11_BROWSER="chromium --app"`. On Wayland the Omarchy web-app launcher is used when present. |
+| `p11: command not found` | Add `~/.local/bin` (or your `--prefix`/bin) to `PATH`. |
+| Model download stopped | Run `./install.sh` or `p11 models install default` again; downloads resume and are checked by SHA-256. |
+| `p11 update` says the checkout is modified | `git status`; commit, stash or discard your edits first. |

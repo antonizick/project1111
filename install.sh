@@ -11,6 +11,7 @@
 #   --keybinding KEYS  also add a Hyprland launch binding (Omarchy bindings.lua); off by default
 #   --no-desktop       skip the desktop entry and icon
 #   --skip-engine      skip the engine setup (containers and CI without a GPU)
+#   P11_MODELS_FROM=DIR reuses already-downloaded model files from DIR (hard links) instead of downloading.
 # Never installs drivers, never edits system files, runs sudo only for the pacman packages it lists.
 # Idempotent: a second run changes nothing and says so.
 set -euo pipefail
@@ -33,7 +34,7 @@ while [[ $# -gt 0 ]]; do
     --keybinding) KEYBIND="${2:?--keybinding needs a key combination}"; shift ;;
     --no-desktop) DESKTOP=0 ;;
     --skip-engine) ENGINE=0 ;;
-    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -117,7 +118,7 @@ say "Driver $driver >= $MIN_DRIVER: ok"
 # --- 2. packages (pacman, asked first, S7) ---------------------------------------------------------
 step "System packages"
 need=()
-for p in git ffmpeg curl xdg-utils; do
+for p in git ffmpeg curl diffutils xdg-utils; do
   pacman -Q "$p" >/dev/null 2>&1 || need+=("$p")
 done
 if [[ ! -f $REPO_ROOT/src/p11/web/index.html ]]; then
@@ -129,7 +130,8 @@ if ((${#need[@]})); then
   if [[ $DRY == 1 ]]; then
     say "(dry run) would run: sudo pacman -S --needed ${need[*]}"
   elif confirm "Install them now with sudo pacman -S --needed ${need[*]}?"; then
-    sudo pacman -S --needed "${need[@]}"; changed
+    pm=(--needed); [[ $YES == 1 ]] && pm+=(--noconfirm)
+    sudo pacman -S "${pm[@]}" "${need[@]}"; changed
   else
     die "Required packages are missing." "Run: sudo pacman -S --needed ${need[*]}  then re-run ./install.sh" 4
   fi
@@ -210,6 +212,7 @@ else
     fi
     [[ $DRY == 1 ]] && { say "(dry run) would run: p11 models install $s"; continue; }
     flags=(); [[ $ACCEPT == 1 ]] && flags+=(--accept-licences)
+    [[ -n ${P11_MODELS_FROM:-} ]] && flags+=(--from "$P11_MODELS_FROM")
     if ! confirm "Download model set '$s' now?"; then say "skipped; run: p11 models install $s"; continue; fi
     "$P11" models install "$s" "${flags[@]}" || die "Model set '$s' is not fully installed." \
       "Re-run ./install.sh (downloads resume), or add --accept-licences after reading: p11 models licences" 6
