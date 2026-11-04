@@ -71,5 +71,9 @@ export default defineConfig({
     env: studioEnv as Record<string, string>,
     reuseExistingServer: false,
   },
-  use: { baseURL: `http://127.0.0.1:${port}` },
+  use: {
+    baseURL: `http://127.0.0.1:${port}`,
+    // P11_E2E_BROWSER=/usr/bin/brave runs the specs in Nick's real browser (Phase 17e).
+    launchOptions: { executablePath: process.env.P11_E2E_BROWSER || undefined },
+  },
 });

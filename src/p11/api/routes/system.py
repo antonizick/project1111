@@ -8,9 +8,9 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
-from p11 import __version__
+from p11 import __version__, webbundle
 from p11.api.studio import gpu_json
 from p11.models.registry import ModelManager
 from p11.recipe.presets import ASPECTS, STYLES, AspectPreset, StylePreset
@@ -81,7 +81,7 @@ def _disk(path: Path) -> dict[str, object]:
 
 
 @router.get("/system")
-async def system(studio: StudioDep) -> dict[str, Any]:
+async def system(studio: StudioDep, request: Request) -> dict[str, Any]:
     health = await studio.engine.health()
     sample = await studio.gpu_sample()
     disks = await asyncio.to_thread(
@@ -93,6 +93,7 @@ async def system(studio: StudioDep) -> dict[str, Any]:
     )
     return {
         "version": __version__,
+        "web": webbundle.build_id(request.app.state.web_dir),
         "fake": studio.fake,
         "started_at": studio.started_at,
         "port": studio.port,

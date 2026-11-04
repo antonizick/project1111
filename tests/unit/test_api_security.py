@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from tests.studio import BASE, studio_client
 
-from p11 import logs
+from p11 import logs, webbundle
 from p11.api import security
 from p11.api.security import CSP, Session, body_cap, request_token
 
@@ -93,6 +95,34 @@ def test_static_files_get_the_csp(tmp_path):
         r = c.get("/")
         assert r.status_code == 200 and "hi" in r.text
         assert r.headers["content-security-policy"] == CSP
+
+
+def test_index_is_revalidated_and_hashed_assets_stay_cacheable(tmp_path):
+    """A rebuilt bundle must reach an open app window (ADR-0043)."""
+    web = tmp_path / "web"
+    (web / "assets").mkdir(parents=True)
+    (web / "index.html").write_text("<h1>hi</h1>")
+    (web / "assets" / "index-abc123.js").write_text("1")
+    with studio_client(tmp_path, web_dir=web) as c:
+        for path in ("/", "/index.html"):
+            first = c.get(path)
+            assert first.headers["cache-control"] == "no-cache", path
+            again = c.get(path, headers={"if-none-match": first.headers["etag"]})
+            assert again.status_code == 304 and again.headers["cache-control"] == "no-cache"
+        assert "cache-control" not in c.get("/assets/index-abc123.js").headers
+        assert c.get("/api/system", headers=c.auth).headers["cache-control"] == "no-store"
+
+
+def test_healthz_and_system_name_the_build_and_nothing_else_about_it(tmp_path):
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "index.html").write_text("<h1>hi</h1>")
+    (web / webbundle.STAMP).write_text(
+        json.dumps({"source_hash": "abcdef0123456789", "built_at": "x", "version": "1"})
+    )
+    with studio_client(tmp_path, web_dir=web) as c:
+        assert c.get("/healthz").json()["web"] == "abcdef01"
+        assert c.get("/api/system", headers=c.auth).json()["web"] == "abcdef01"
 
 
 def test_launch_code_is_one_time_and_expires(client):

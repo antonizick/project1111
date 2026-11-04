@@ -19,6 +19,9 @@ const ENGINE_LABEL: Record<string, string> = {
   failed: "Engine failed",
 };
 
+/** The build this window loaded; the server's `web` id is the build on disk (ADR-0043). */
+export const BUILD = __P11_BUILD__;
+
 export function StatusBar() {
   const { state } = useStudio();
   const { system, gpu } = state;
@@ -51,6 +54,14 @@ export function StatusBar() {
         <span className="status-item muted">GPU: no readings</span>
       )}
       <span className="status-item">Model: {state.currentModel ?? "style default"}</span>
+      <span className="status-item muted" title="Studio build; `p11 status` shows the same id">
+        Build {BUILD}
+      </span>
+      {system?.web && BUILD !== "dev" && system.web !== BUILD && (
+        <button type="button" className="btn-link" onClick={() => location.reload()}>
+          New build ready: reload
+        </button>
+      )}
     </footer>
   );
 }

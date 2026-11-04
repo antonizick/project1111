@@ -11,6 +11,8 @@
   but a forged POST never does. The browser gets the token by redeeming a one-time **launch code**
   (``p11 open`` puts it in the URL fragment) at ``POST /api/session``.
 * **Headers**: strict CSP, ``nosniff``, ``no-referrer``, no framing, no caching of ``/api``.
+  ``index.html`` is revalidated on every load, so a rebuilt bundle reaches an open app window;
+  the content-hashed ``/assets`` stay cacheable (ADR-0043).
 * **Size caps**: ``Content-Length`` and the streamed body are both counted.
 """
 
@@ -222,6 +224,7 @@ class SecurityMiddleware:
         method: str = scope["method"]
         path: str = scope["path"]
         is_api = path == "/api" or path.startswith("/api/")
+        is_asset = path.startswith("/assets/")
 
         if headers.get("host") not in self.hosts:
             await _problem(
@@ -295,8 +298,8 @@ class SecurityMiddleware:
                 hdrs: list[tuple[bytes, bytes]] = list(message.get("headers", []))
                 present = {k.lower() for k, _ in hdrs}
                 hdrs += [(k, v) for k, v in SECURITY_HEADERS if k not in present]
-                if is_api and b"cache-control" not in present:
-                    hdrs.append((b"cache-control", b"no-store"))
+                if b"cache-control" not in present and not is_asset:
+                    hdrs.append((b"cache-control", b"no-store" if is_api else b"no-cache"))
                 message = {**message, "headers": hdrs}
             await send(message)
 

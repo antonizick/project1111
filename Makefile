@@ -68,8 +68,9 @@ gpu-test:
 e2e: build
 	cd frontend && npx playwright install chromium && npm run e2e
 
+# Through webbundle: it bakes the build id into the bundle and stamps it (ADR-0043).
 build:
-	cd frontend && npm run build
+	uv run python -m p11.webbundle build
 
 audit:
 	uv export --locked --no-emit-project --format requirements-txt -o /tmp/p11-audit-reqs.txt >/dev/null

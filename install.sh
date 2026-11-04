@@ -84,6 +84,15 @@ state_set() { # key value
   echo "$1=$2" >> "$STATE.new"; mv "$STATE.new" "$STATE"
 }
 digest() { cat "$@" 2>/dev/null | sha256sum | cut -d' ' -f1; }
+webbundle() { # webbundle status|id|build, on uv's Python 3.12 (never the host's); stdlib only
+  local py
+  py="$(uv python find --managed-python 3.12 2>/dev/null)" || {
+    [[ $DRY == 1 ]] && return 1
+    uv python install --quiet 3.12 || return 1
+    py="$(uv python find --managed-python 3.12)" || return 1
+  }
+  PYTHONPATH="$REPO_ROOT/src" "$py" -P -m p11.webbundle "$@"
+}
 
 say "P11 installer: $REPO_ROOT -> prefix $PREFIX$([[ $DRY == 1 ]] && echo ' (dry run)')"
 
@@ -121,7 +130,7 @@ need=()
 for p in git ffmpeg curl diffutils xdg-utils; do
   pacman -Q "$p" >/dev/null 2>&1 || need+=("$p")
 done
-if [[ ! -f $REPO_ROOT/src/p11/web/index.html ]]; then
+if [[ -d $REPO_ROOT/frontend/src ]]; then
   command -v node >/dev/null && command -v npm >/dev/null || need+=(nodejs npm)
 fi
 if ! command -v uv >/dev/null && pacman -Si uv >/dev/null 2>&1; then need+=(uv); fi
@@ -164,11 +173,24 @@ done
 
 # --- 5. frontend + app -------------------------------------------------------------------------------
 step "P11 application"
-if [[ ! -f $REPO_ROOT/src/p11/web/index.html ]]; then
-  if [[ $DRY == 1 ]]; then say "(dry run) would build the frontend (npm ci && npm run build)"; else
-    (cd "$REPO_ROOT/frontend" && npm ci --no-audit --no-fund && npm run build); changed
-  fi
-fi
+bundle="$(webbundle status || echo unknown)"
+case $bundle in
+  current)    say "Studio frontend is current (build $(webbundle id))" ;;
+  no-sources) say "Studio frontend: no sources in this tree, keeping the prebuilt one" ;;
+  unknown)
+    [[ $DRY == 1 ]] || die "Could not check the Studio frontend build." "Check that \`uv python find 3.12\` works, then run ./install.sh again."
+    say "(dry run) would check the Studio frontend and rebuild it if its sources changed"
+    ;;
+  *)
+    if [[ $bundle == missing ]]; then why="it has not been built yet"; else
+      why="sources changed since the last build"
+    fi
+    if [[ $DRY == 1 ]]; then say "(dry run) would rebuild the frontend ($why)"; else
+      say "Rebuilding the Studio frontend ($why)"
+      (cd "$REPO_ROOT/frontend" && npm ci --no-audit --no-fund); webbundle build; changed
+    fi
+    ;;
+esac
 app_sum="$(digest "$REPO_ROOT/pyproject.toml" "$REPO_ROOT/uv.lock")"
 if [[ $(state_get app) == "$app_sum:$REPO_ROOT" && -x $BIN_DIR/p11 ]]; then
   say "p11 already installed ($BIN_DIR/p11)"

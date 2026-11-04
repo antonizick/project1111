@@ -51,7 +51,7 @@ def serve(
     demo: bool = typer.Option(True, "--demo/--no-demo", help="With --fake: seed a demo gallery."),
 ) -> None:
     """Run P11 Studio in the foreground on 127.0.0.1."""
-    from p11 import lifecycle, logs
+    from p11 import lifecycle, logs, webbundle
     from p11.api.app import create_app
     from p11.api.security import Session
     from p11.api.studio import StudioPaths
@@ -62,6 +62,9 @@ def serve(
     settings = load_settings()
     port = port or settings.studio_port
     log_file = logs.setup_logging(debug=debug)
+    bundle = webbundle.status()
+    if bundle in ("stale", "missing"):
+        log.warning("Studio frontend is %s. %s", bundle, webbundle.REBUILD_HINT)
     if lifecycle.running() is not None or port_in_use(settings.host, port):
         _fail(f"Port {port} is already in use.", "Is P11 already running? Try `p11 status`.")
     engine: Engine
@@ -154,18 +157,24 @@ def status(
     ),
 ) -> None:
     """Show whether the Studio, engine and GPU are up, and what is queued."""
-    from p11 import lifecycle
+    from p11 import lifecycle, webbundle
     from p11.api.security import token_path
 
     if token_file:
         typer.echo(token_path())
         return
+    bundle = webbundle.status()
+    web = {"build": webbundle.build_id(), "status": bundle}
+    web_line = f"Web     build {web['build'] or 'unknown'} ({bundle})"
+    if bundle in ("stale", "missing"):
+        web_line += f". {webbundle.REBUILD_HINT}"
     state = lifecycle.running()
     if state is None:
         if as_json:
-            typer.echo(json.dumps({"running": False}))
+            typer.echo(json.dumps({"running": False, "web": web}))
         else:
             typer.echo("P11 Studio is not running. Start it with `p11 start`.")
+            typer.echo(web_line)
         raise typer.Exit(EXIT_NOT_RUNNING)
     try:
         r = lifecycle.api(state, "GET", "/api/system")
@@ -173,10 +182,13 @@ def status(
     except (lifecycle.StudioError, OSError, ValueError):
         system = {}
     if as_json:
-        typer.echo(json.dumps({"running": True, "pid": state.pid, "url": state.url, **system}))
+        typer.echo(
+            json.dumps({"running": True, "pid": state.pid, "url": state.url, **system, "web": web})
+        )
         return
     mode = " (fake engine)" if state.fake else ""
     typer.echo(f"Studio  running{mode} at {state.url}, pid {state.pid}, since {state.started}")
+    typer.echo(web_line)
     if not system:
         typer.echo("        (the API did not answer; see `p11 doctor`)")
         return

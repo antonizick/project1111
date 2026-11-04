@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import shutil
 import stat
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -62,6 +64,122 @@ def test_dry_run_changes_nothing(env: dict[str, str]) -> None:
     assert "Dry run finished: nothing was changed." in r.stdout
     assert not (Path(env["HOME"]) / ".local").exists()
     assert not Path(env["FAKE_LOG"]).exists()
+
+
+@pytest.fixture
+def checkout(env: dict[str, str], tmp_path: Path) -> Path:
+    """A small tree with the real install.sh and webbundle, a fake uv and a fake npm.
+
+    The fake npm "builds" like Vite: a fresh output directory, so the old stamp is gone.
+    """
+    root = tmp_path / "checkout"
+    (root / "src" / "p11").mkdir(parents=True)
+    shutil.copy(ROOT / "install.sh", root)
+    for name in ("__init__.py", "webbundle.py"):
+        shutil.copy(ROOT / "src" / "p11" / name, root / "src" / "p11")
+    (root / "frontend" / "src").mkdir(parents=True)
+    (root / "frontend" / "src" / "main.tsx").write_text("one")
+    (root / "engine").mkdir()
+    for name in ("pyproject.toml", "uv.lock", "engine/engine.lock.toml"):
+        (root / name).write_text("")
+    bin_dir = tmp_path / "bin"
+    fake(
+        bin_dir,
+        "uv",
+        f'echo "uv $*" >> "$FAKE_LOG"\ncase "$*" in *"python find"*) echo {sys.executable};; esac',
+    )
+    fake(
+        bin_dir,
+        "npm",
+        'echo "npm $* build=${P11_BUILD_ID:-}" >> "$FAKE_LOG"\n'
+        'if [[ $* == "run build" ]]; then rm -rf ../src/p11/web; mkdir -p ../src/p11/web; '
+        "echo built > ../src/p11/web/index.html; fi",
+    )
+    fake(bin_dir, "p11", 'echo "p11 $*" >> "$FAKE_LOG"')
+    fake(bin_dir, "node", "exit 0")
+    return root
+
+
+def install(root: Path, env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
+    opts = ("--skip-engine", "--no-desktop", "--models", "none", "--yes", *args)
+    r = subprocess.run(
+        [str(root / "install.sh"), *opts], env=env, capture_output=True, text=True, check=False
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    return r
+
+
+def test_install_builds_a_missing_bundle_then_leaves_it_alone(
+    checkout: Path, env: dict[str, str]
+) -> None:
+    assert "would rebuild the frontend (it has not been built yet)" in (
+        install(checkout, env, "--dry-run").stdout
+    )
+    assert not (checkout / "src/p11/web").exists()
+    assert "Rebuilding the Studio frontend (it has not been built yet)" in (
+        install(checkout, env).stdout
+    )
+    log = Path(env["FAKE_LOG"]).read_text()
+    assert "npm ci --no-audit --no-fund" in log
+    stamp = (checkout / "src/p11/web/build-info.json").read_text()
+    assert f"npm run build build={stamp.split(chr(34))[3][:8]}" in log
+    second = install(checkout, env)
+    assert "Studio frontend is current" in second.stdout and "Rebuilding" not in second.stdout
+
+
+def test_install_rebuilds_when_the_sources_changed(checkout: Path, env: dict[str, str]) -> None:
+    """The update path: `p11 update` checks out a tag, then re-runs install.sh (ADR-0043)."""
+    install(checkout, env)
+    (checkout / "frontend/src/main.tsx").write_text("two")
+    log = Path(env["FAKE_LOG"])
+    dry = install(checkout, env, "--dry-run")
+    assert "would rebuild the frontend (sources changed since the last build)" in dry.stdout
+    log.write_text("")
+    r = install(checkout, env)
+    assert "Rebuilding the Studio frontend (sources changed since the last build)" in r.stdout
+    assert "npm run build" in log.read_text()
+
+
+def test_install_rebuilds_a_bundle_from_before_the_stamp(
+    checkout: Path, env: dict[str, str]
+) -> None:
+    """Going from v1.0.1 (no stamp) to the first stamped release must rebuild."""
+    web = checkout / "src/p11/web"
+    web.mkdir()
+    (web / "index.html").write_text("old")
+    assert "Rebuilding the Studio frontend" in install(checkout, env).stdout
+    assert (web / "build-info.json").is_file()
+
+
+def test_install_keeps_a_prebuilt_tree_without_sources(checkout: Path, env: dict[str, str]) -> None:
+    shutil.rmtree(checkout / "frontend")
+    r = install(checkout, env)
+    assert "no sources in this tree" in r.stdout
+    assert "npm" not in Path(env["FAKE_LOG"]).read_text()
+
+
+def test_install_stops_plainly_when_python_cannot_be_fetched(
+    checkout: Path, env: dict[str, str], tmp_path: Path
+) -> None:
+    """A failed `uv python install` must not run the check with an empty interpreter."""
+    fake(tmp_path / "bin", "uv", "exit 1")
+    r = subprocess.run(
+        [
+            str(checkout / "install.sh"),
+            "--skip-engine",
+            "--no-desktop",
+            "--models",
+            "none",
+            "--yes",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode != 0
+    assert "Could not check the Studio frontend build." in r.stderr
+    assert "command not found" not in r.stderr
 
 
 def test_rejects_non_arch(env: dict[str, str], tmp_path: Path) -> None:

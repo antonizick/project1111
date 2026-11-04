@@ -286,6 +286,11 @@ export function GenerateView({ active }: { active: boolean }) {
               <button type="button" className="btn btn-small" onClick={removePhoto}>
                 Remove photo
               </button>
+              <p className="field-help">
+                Describe the picture you want, not the change: "a man in an adventurer outfit,
+                fedora and leather jacket", not "dress him as…". Strength Change is the place to
+                start.
+              </p>
             </div>
           ) : (
             <>

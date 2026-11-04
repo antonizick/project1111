@@ -92,8 +92,10 @@ def test_start_status_open_stop_with_the_fake_engine(tmp_path, monkeypatch):
         assert "already running" in runner.invoke(app, ["start", "--fake"]).output
         r = runner.invoke(app, ["status"])
         assert r.exit_code == 0 and "fake engine" in r.output and "Queue" in r.output
+        assert "Web     build" in r.output
         data = json.loads(runner.invoke(app, ["status", "--json"]).output)
         assert data["running"] and data["engine"]["vram_mode"] == "dynamic"
+        assert set(data["web"]) == {"build", "status"}
         assert (
             runner.invoke(app, ["status", "--token-file"]).output.strip().endswith("studio.token")
         )
@@ -171,3 +173,25 @@ def test_browser_override_and_none(monkeypatch):
     monkeypatch.setattr(lifecycle.shutil, "which", lambda n: None)
     with pytest.raises(lifecycle.StudioError, match="No browser"):
         lifecycle.browser_command("http://x/#launch=secret")
+
+
+def test_status_says_stale_and_how_to_fix_it(monkeypatch):
+    monkeypatch.setattr(lifecycle, "running", lambda: None)
+    monkeypatch.setattr("p11.webbundle.status", lambda: "stale")
+    monkeypatch.setattr("p11.webbundle.build_id", lambda: "abcd1234")
+    r = runner.invoke(app, ["status"])
+    assert r.exit_code == 3
+    assert "Web     build abcd1234 (stale)" in r.output and "`make build`" in r.output
+    data = json.loads(runner.invoke(app, ["status", "--json"]).output)
+    assert data == {"running": False, "web": {"build": "abcd1234", "status": "stale"}}
+
+
+@pytest.mark.parametrize(("bundle", "warned"), [("stale", True), ("current", False)])
+def test_serve_warns_when_the_bundle_is_stale(monkeypatch, caplog, bundle, warned):
+    monkeypatch.setenv("P11_STUDIO_PORT", str(_free_port()))
+    monkeypatch.setattr("p11.webbundle.status", lambda: bundle)
+    monkeypatch.setattr("p11.cli.uvicorn.run", lambda *a, **k: None)
+    with caplog.at_level("WARNING", logger="p11.cli"):
+        r = runner.invoke(app, ["serve", "--fake", "--no-demo"])
+    assert r.exit_code == 0, r.output
+    assert ("Studio frontend is stale" in caplog.text) is warned

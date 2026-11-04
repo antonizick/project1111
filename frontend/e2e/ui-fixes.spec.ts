@@ -68,10 +68,16 @@ async function dragAndCheck(page: Page, fy: number, expectPainted: boolean) {
   };
 }
 
-for (const opacity of [100, 50]) {
-  test(`the brush and eraser leave their stroke while drawing (opacity ${opacity} %)`, async ({
+for (const [opacity, vw, vh] of [
+  [100, 1280, 720],
+  [50, 1280, 720],
+  [100, 1918, 2130],
+  [50, 1918, 2130],
+] as const) {
+  test(`the brush and eraser leave their stroke while drawing (${opacity} %, ${vw}×${vh})`, async ({
     page,
   }) => {
+    await page.setViewportSize({ width: vw, height: vh });
     await openInpaint(page);
     const toolbar = page.getByRole("toolbar", { name: "Mask tools" });
     await toolbar
@@ -108,13 +114,19 @@ for (const opacity of [100, 50]) {
   });
 }
 
+// 1918×2130 is Nick's real Brave window, 3840×2160 the same monitor maximised (Phase 17e). Photos
+// larger than the pane are the common case there; the small ones never hit a size cap.
 for (const [vw, vh] of [
   [1280, 720],
   [1920, 1080],
+  [1918, 2130],
+  [3840, 2160],
 ] as const) {
   for (const [iw, ih, kind] of [
     [1024, 640, "landscape"],
     [600, 900, "portrait"],
+    [3000, 2000, "large landscape"],
+    [2000, 3000, "large portrait"],
   ] as const) {
     test(`the Background mask overlay sits on the image (${kind}, ${vw}×${vh})`, async ({
       page,
@@ -154,52 +166,58 @@ for (const [vw, vh] of [
   }
 }
 
-test("Face & Pose bounds large pictures and scrolls to every control", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await openStudio(page);
-  await view(page, "Face & Pose");
-  const big = await syntheticPng(page, 3000, 2000);
-  const pane = page.getByRole("region", { name: "Face & Pose" });
-  await pane
-    .getByLabel("Picture")
-    .setInputFiles({ name: "big.png", mimeType: "image/png", buffer: big });
-  await pane
-    .getByLabel("Face photo")
-    .setInputFiles({ name: "big2.png", mimeType: "image/png", buffer: big });
-  const thumbs = pane.locator("img.thumb");
-  await expect(thumbs).toHaveCount(2);
-  for (const t of await thumbs.all()) {
-    const b = (await t.boundingBox())!;
-    expect(b.height, "thumbnail height").toBeLessThanOrEqual(160);
-    expect(b.width, "thumbnail width").toBeLessThan(1280);
-  }
-  // The pane scrolls itself, and the Run button is reachable.
-  const run = pane.getByRole("button", { name: "Swap face" }).last();
-  await run.scrollIntoViewIfNeeded();
-  await expect(run).toBeInViewport();
-  // Nothing runs off the right edge of the page.
-  const overflow = await page.evaluate(() => ({
-    doc: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  }));
-  expect(overflow.doc).toBeLessThanOrEqual(0);
-  const paneBox = (await pane.boundingBox())!;
-  expect(paneBox.x + paneBox.width).toBeLessThanOrEqual(1280);
+for (const [vw, vh] of [
+  [1280, 720],
+  [1918, 2130],
+] as const)
+  test(`Face & Pose bounds large pictures and scrolls to every control (${vw}×${vh})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: vw, height: vh });
+    await openStudio(page);
+    await view(page, "Face & Pose");
+    const big = await syntheticPng(page, 3000, 2000);
+    const pane = page.getByRole("region", { name: "Face & Pose" });
+    await pane
+      .getByLabel("Picture")
+      .setInputFiles({ name: "big.png", mimeType: "image/png", buffer: big });
+    await pane
+      .getByLabel("Face photo")
+      .setInputFiles({ name: "big2.png", mimeType: "image/png", buffer: big });
+    const thumbs = pane.locator("img.thumb");
+    await expect(thumbs).toHaveCount(2);
+    for (const t of await thumbs.all()) {
+      const b = (await t.boundingBox())!;
+      expect(b.height, "thumbnail height").toBeLessThanOrEqual(160);
+      expect(b.width, "thumbnail width").toBeLessThan(vw);
+    }
+    // The pane scrolls itself, and the Run button is reachable.
+    const run = pane.getByRole("button", { name: "Swap face" }).last();
+    await run.scrollIntoViewIfNeeded();
+    await expect(run).toBeInViewport();
+    // Nothing runs off the right edge of the page.
+    const overflow = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }));
+    expect(overflow.doc).toBeLessThanOrEqual(0);
+    const paneBox = (await pane.boundingBox())!;
+    expect(paneBox.x + paneBox.width).toBeLessThanOrEqual(vw);
 
-  // The pose editor fits the pane width, and the pane scrolls when it is taller than the window.
-  await pane.getByRole("button", { name: "Apply pose" }).first().click();
-  const editor = page.getByRole("application", { name: "Pose editor" });
-  const eb = (await editor.boundingBox())!;
-  expect(eb.x + eb.width).toBeLessThanOrEqual(paneBox.x + paneBox.width + 1);
-  const scroll = await pane.evaluate((e) => ({
-    sh: e.scrollHeight,
-    ch: e.clientHeight,
-    overflowY: getComputedStyle(e).overflowY,
-  }));
-  expect(["auto", "scroll"]).toContain(scroll.overflowY);
-  const apply = pane.getByRole("button", { name: "Apply", exact: true });
-  await apply.scrollIntoViewIfNeeded();
-  await expect(apply).toBeInViewport();
-});
+    // The pose editor fits the pane width, and the pane scrolls when it is taller than the window.
+    await pane.getByRole("button", { name: "Apply pose" }).first().click();
+    const editor = page.getByRole("application", { name: "Pose editor" });
+    const eb = (await editor.boundingBox())!;
+    expect(eb.x + eb.width).toBeLessThanOrEqual(paneBox.x + paneBox.width + 1);
+    const scroll = await pane.evaluate((e) => ({
+      sh: e.scrollHeight,
+      ch: e.clientHeight,
+      overflowY: getComputedStyle(e).overflowY,
+    }));
+    expect(["auto", "scroll"]).toContain(scroll.overflowY);
+    const apply = pane.getByRole("button", { name: "Apply", exact: true });
+    await apply.scrollIntoViewIfNeeded();
+    await expect(apply).toBeInViewport();
+  });
 
 // Sweep (Phase 17a): the other views with the same two classes of defect.
 test("Video and Models scroll inside the pane at 1280×720", async ({ page }) => {

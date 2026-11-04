@@ -2,6 +2,19 @@
 
 All notable changes are recorded here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [Semantic Versioning](https://semver.org/). Release headings carry a timestamp (`YYYY-MM-DD HH:MM TZ`).
 
+## [Unreleased]
+
+### Added
+- Phase 17e: the Studio shows which build it is (ADR-0043). **Build** at the end of the status bar is the id baked into the JavaScript the window loaded; `p11 status` prints the same id, `p11 doctor` has a "Studio frontend" check, `p11 serve` logs a warning when the bundle is stale, and `/healthz` adds `web` (the short id only). When the server has a newer build than the window, the status bar offers **New build ready: reload**.
+- Phase 17e: a hint on Generate once a photo is set: describe the picture you want, not the change, and start with Change (ADR-0044).
+- Phase 17e: `frontend/e2e` covers 1918×2130 and 3840×2160 windows and photos larger than the pane, and `P11_E2E_BROWSER=/usr/bin/brave npx playwright test` runs the specs in Brave.
+
+### Changed
+- Phase 17e: `index.html` is served `Cache-Control: no-cache`, so an open app window picks up a rebuilt interface on reload; the hashed `/assets` stay cacheable. Node is required whenever the checkout has `frontend/src`, not only for a first build.
+
+### Fixed
+- Phase 17e: `./install.sh` and `p11 update` now rebuild the Studio frontend when its sources changed; before, they kept the first build, so v1.0.1's interface fixes and photo edit never appeared after an update. `src/p11/webbundle.py` records a hash of the sources in `src/p11/web/build-info.json`; `make build` writes it.
+
 ## [1.0.1] - 2026-11-04 11:36 CST
 
 Feedback release after v1.0.0: editor and layout fixes (17a), photo edit (17b) and P11 Studio in the Omarchy Control Center (17c). The version is **1.0.1** by the owner's choice, although photo edit is a feature and SemVer would say 1.1.0.

@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from p11 import __version__
+from p11 import __version__, webbundle
 from p11.config import Settings, load_settings
 from p11.engine import create_engine
 from p11.engine.base import Engine, EngineError
@@ -46,7 +46,7 @@ from .routes import ROUTERS
 from .security import SecurityMiddleware, Session
 from .studio import Studio, StudioPaths
 
-WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+WEB_DIR = webbundle.WEB_DIR
 log = logging.getLogger("p11.api")
 
 #: FastAPI's native OpenTelemetry hooks, all off: P11 sends no telemetry anywhere (S1).
@@ -230,14 +230,17 @@ def create_app(
         lifespan=lifespan,
         telemetry=NO_TELEMETRY,  # type: ignore[arg-type]
     )
+    static_dir = web_dir or WEB_DIR
     app.state.engine = engine
     app.state.studio = studio
+    app.state.web_dir = static_dir
     _install_handlers(app)
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict[str, object]:
         # Token-free and loopback-only, like the rest of the Studio (S1/S2). The busy signal
         # is what OCC reads; it carries counts only, never a job id, prompt or file name (S6).
+        # `web` is the bundle's short build id (ADR-0043).
         # The queue is opened with the lifespan; before that, nothing can be running.
         queue = getattr(studio, "queue", None)
         running, waiting = (queue.running, queue.waiting) if queue is not None else (0, 0)
@@ -246,12 +249,12 @@ def create_app(
             "version": __version__,
             "busy": "busy" if running or waiting else "idle",
             "queue": {"running": running, "waiting": waiting},
+            "web": webbundle.build_id(static_dir),
         }
 
     for router in ROUTERS:
         app.include_router(router)
 
-    static_dir = web_dir or WEB_DIR
     if static_dir.is_dir():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="web")
     app.add_middleware(SecurityMiddleware, session=studio.session, port=port)

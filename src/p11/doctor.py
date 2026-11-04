@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from p11 import paths
+from p11 import paths, webbundle
 from p11.config import Settings, load_settings
 from p11.engine.lockfile import EngineLock, find_lock_file, load_lock
 from p11.engine.process import pid_alive, port_in_use, read_pid_file
@@ -216,6 +216,27 @@ def check_ffmpeg(report: Report) -> None:
         report.checks.append(Check("ffmpeg", "installed (video uploads and video face-swap)"))
 
 
+def check_frontend(report: Report) -> None:
+    """The bundle the Studio serves must be the build of this checkout's sources (ADR-0043)."""
+    state = webbundle.status()
+    shown = webbundle.build_id()
+    if state == "current":
+        report.checks.append(Check("Studio frontend", f"current (build {shown})"))
+    elif state == "no-sources":
+        detail = f"build {shown}" if shown else "no build stamp"
+        report.checks.append(Check("Studio frontend", f"prebuilt, no sources here ({detail})"))
+    else:
+        what = "has not been built" if state == "missing" else "is older than its sources"
+        report.problems.append(
+            Problem(
+                "warning",
+                f"frontend.{state}",
+                f"The Studio frontend {what}, so the Studio does not show the current code.",
+                webbundle.REBUILD_HINT,
+            )
+        )
+
+
 def check_models(report: Report) -> None:
     from p11 import models
     from p11.models.registry import ModelManager
@@ -348,6 +369,7 @@ def run_checks(*, quick: bool = False, settings: Settings | None = None) -> Repo
     report = Report()
     check_gpu(report)
     check_engine(report, quick=quick)
+    check_frontend(report)
     check_models(report)
     check_ffmpeg(report)
     check_ports(report, settings)

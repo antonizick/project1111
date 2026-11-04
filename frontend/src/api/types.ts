@@ -73,6 +73,7 @@ export type EngineState = "stopped" | "starting" | "ready" | "stopping" | "faile
 
 export type SystemInfo = {
   version: string;
+  web?: string | null;
   fake: boolean;
   started_at: string;
   port: number;

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from tests.helpers import recipe
 from tests.studio import studio_client
 
-from p11 import __version__
+from p11 import __version__, webbundle
 from p11.api.app import NO_TELEMETRY, create_app
 from p11.engine.fake import FakeConfig, FakeEngine
 from p11.recipe.model import Generate
@@ -27,6 +27,7 @@ def test_healthz():
         "version": __version__,
         "busy": "idle",
         "queue": {"running": 0, "waiting": 0},
+        "web": webbundle.build_id(),
     }
 
 
@@ -47,7 +48,7 @@ def test_healthz_busy_while_a_job_runs_and_while_jobs_wait(tmp_path):
             raise AssertionError(f"queue never showed one running and one waiting: {health}")
 
         assert health["busy"] == "busy"
-        assert set(health) == {"status", "version", "busy", "queue"}
+        assert set(health) == {"status", "version", "busy", "queue", "web"}
         assert set(health["queue"]) == {"running", "waiting"}
         text = json.dumps(health)
         for leaked in (first["id"], second["id"], "quiet harbour", "recipe"):

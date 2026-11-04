@@ -26,6 +26,30 @@ def codes(report: Report) -> set[str]:
     return {p.code for p in report.problems}
 
 
+@pytest.mark.parametrize(
+    ("state", "built", "code", "text"),
+    [
+        ("current", "abcd1234", None, "current (build abcd1234)"),
+        ("no-sources", "abcd1234", None, "prebuilt, no sources here (build abcd1234)"),
+        ("no-sources", None, None, "no build stamp"),
+        ("stale", "abcd1234", "frontend.stale", "older than its sources"),
+        ("missing", None, "frontend.missing", "has not been built"),
+    ],
+)
+def test_frontend_check(monkeypatch, state, built, code, text):
+    monkeypatch.setattr(doctor.webbundle, "status", lambda: state)
+    monkeypatch.setattr(doctor.webbundle, "build_id", lambda: built)
+    report = Report()
+    doctor.check_frontend(report)
+    if code is None:
+        assert not report.problems and text in report.checks[0].detail
+    else:
+        problem = report.problems[0]
+        assert problem.code == code and problem.severity == "warning" and report.ok
+        assert text in problem.message and "`make build`" in problem.hint
+        assert "p11 stop && p11 start" in problem.hint
+
+
 def test_gpu_present_missing_and_broken(monkeypatch):
     monkeypatch.setattr(doctor.shutil, "which", lambda n: None)
     r = Report()

@@ -19,6 +19,16 @@ docker run --rm "${GPU[@]}" -v "$tmp/src.tar:/src.tar:ro" "$IMAGE" bash -euo pip
   out="$(./install.sh --yes --models none ${P11_INSTALL_ARGS:-})"
   echo "$out" | tail -4
   grep -q "Nothing to do" <<<"$out"
+  # A source change must be visible, and the next install must rebuild it (ADR-0043).
+  echo "// changed" >> frontend/src/main.tsx
+  out="$(p11 doctor --quick || true)"
+  grep -q "older than its sources" <<<"$out"
+  out="$(./install.sh --dry-run --yes --models none ${P11_INSTALL_ARGS:-})"
+  grep -q "would rebuild the frontend" <<<"$out"
+  out="$(./install.sh --yes --models none ${P11_INSTALL_ARGS:-})"
+  grep -q "Rebuilding the Studio frontend" <<<"$out"
+  out="$(p11 doctor --quick || true)"
+  grep -q "Studio frontend: current" <<<"$out"
   p11 start --fake
   sleep 1
   tok="$(cat "$(p11 status --token-file)")"; : "$tok"
