@@ -65,28 +65,8 @@ export type Action =
   | { type: "cache"; images: ImageEntry[] }
   | { type: "deleted"; id: number };
 
-const STAGE: Record<Job["state"], number> = {
-  queued: 0,
-  running: 1,
-  paused: 1,
-  done: 2,
-  failed: 2,
-  cancelled: 2,
-};
-
-/** Keep the newest snapshot of a job. A job often starts before its POST response arrives, so
- * the response's "queued" must not overwrite the "running" the event stream already delivered
- * (Phase 09/16 e2e bug). `updated_at` is UTC ISO with milliseconds, so strings compare in order. */
 function putJob(state: StudioState, job: Job): StudioState {
-  const known = state.jobs[job.id];
-  if (
-    known &&
-    (known.updated_at > job.updated_at ||
-      (known.updated_at === job.updated_at && STAGE[known.state] > STAGE[job.state]))
-  ) {
-    return state;
-  }
-  return { ...state, jobs: { ...state.jobs, [job.id]: { ...known, ...job } } };
+  return { ...state, jobs: { ...state.jobs, [job.id]: { ...state.jobs[job.id], ...job } } };
 }
 
 function withImage(state: StudioState, image: ImageEntry): StudioState {
@@ -114,8 +94,11 @@ export function reduce(state: StudioState, action: Action): StudioState {
     case "models":
       return { ...state, models: action.models };
     case "submitted": {
+      // The event stream is ordered and starts with the same "queued" snapshot, and a job often
+      // starts before the browser reads its POST response: never let that late response undo
+      // what the stream already delivered ("Waiting in the queue" while running, Phase 09/16).
       let next = state;
-      for (const job of action.jobs) next = putJob(next, job);
+      for (const job of action.jobs) if (!next.jobs[job.id]) next = putJob(next, job);
       return action.model !== undefined ? { ...next, currentModel: action.model } : next;
     }
     case "image":

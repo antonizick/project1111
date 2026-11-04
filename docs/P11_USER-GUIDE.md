@@ -204,7 +204,10 @@ decides how closely the generation follows it.
 
 **Use as reference.** Generate in a picture's style: choose the reference image, keep **Style and
 colours** or **The person or character**, and set the strength. Lower strengths keep more of your
-prompt; near 1.0 the picture's look dominates.
+prompt; near 1.0 the picture's look dominates. **The person or character** carries a real face into
+the picture, so it gets the same content check as a face swap, and so does anything you later make
+from such a picture (an inpaint, a new background, an upscale) or from a face-swapped one. That needs
+the `face` models too.
 
 **Restore faces.** For an existing picture: every face, or just one, at a chosen strength. Use it on
 old photos, small faces or an avatar that came out soft.
