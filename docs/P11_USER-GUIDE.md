@@ -277,7 +277,7 @@ The **face** model set contains two InsightFace models that are for non-commerci
 
 **One-liner (tags only).** `curl -fsSL https://raw.githubusercontent.com/antonizick/project1111/v1.0.0/install.sh | P11_INSTALL_TAG=v1.0.0 bash -s -- --dry-run` clones that tag and runs the installer from it. The script refuses to run from a pipe without a `vX.Y.Z` tag, and the repository is private until Nick publishes it, so this works only after release. The clone path above is the recommended one.
 
-**Start.** Launch **P11 Studio** from the app menu, press the keybinding if you added one, or run `p11 open`. The desktop entry runs `p11 open`, which starts the Studio and opens an app window like an Omarchy web app. For a Hyprland window rule, the window class is the one Omarchy gives web apps (`hyprctl clients` shows it while P11 is open).
+**Start.** Launch **P11 Studio** from the app menu, press the keybinding if you added one, or run `p11 open`. The desktop entry runs `p11 open`, which starts the Studio and opens an app window like an Omarchy web app. For a Hyprland window rule, the window class is the one Omarchy gives web apps (on the reference laptop: class `brave-127.0.0.1__-Default`, title `P11 Studio`; `hyprctl clients` shows yours while P11 is open).
 
 **Update.** `p11 update` fetches the release tags, shows the CHANGELOG difference, asks, checks out the newest tag (`--to vX.Y.Z` for a specific one, `--dry-run` to only look) and re-runs the installer steps that changed (dependencies, engine pin, desktop entry). It refuses when tracked files in the checkout are modified. Your settings, templates, models and images are kept. New models are not downloaded silently: see `p11 models list`.
 
