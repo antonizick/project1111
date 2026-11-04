@@ -44,6 +44,7 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0038 | 2026-11-04 07:43 CST | Photo edit on the Generate tab is SDXL image-to-image; edits of uploaded photos showing a face go through the S5 guard | Accepted (planning; 17b records measured consequences) | planning, 17b |
 | ADR-0039 | 2026-11-04 07:43 CST | P11 joins OCC as a transient service; Open via a new OCC `open_exec` field (OCC phase 10a); token-free busy flag on `/healthz` | Accepted (planning) | planning, 17c |
 | ADR-0040 | 2026-11-04 07:43 CST | v1.0.1 is released without an in-session go; repo visibility unchanged | Accepted (amends ADR-0016 for v1.0.1 only) | planning, 17d |
+| ADR-0041 | 2026-11-04 07:54 CST | Preflight for 17a–17d: upload guard without the `face` set, Open after OCC 10a, all Gates `auto`, public visibility left to Nick | Accepted | preflight, 17b, 17c, 17d |
 
 ---
 
@@ -479,3 +480,14 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 **Context.** ADR-0016 / spec H13 made the v1.0.0 GitHub release wait for an in-session "go?". For the feedback round 17a–17c Nick answered: "Yes add a v1.0.1 release to auto release and publish to GitHub no approval from me (user owner) needed I will test immediately after the publication".
 **Decision.** Phase 17d tags `v1.0.1` and publishes the GitHub release on `antonizick/project1111` without asking, after a green pre-flight (a red build blocks instead). The version number is Nick's choice, even though 17b adds a feature. **Repo visibility is not part of this authorization:** the repo was PRIVATE at 2026-11-04 07:43 CST (`gh repo view --json visibility`) and stays so. Making it public remains a separate explicit owner decision, as the Phase 17 log recorded.
 **Consequences.** 17d's Gate is `review` so a hands-off run pauses after the release for Nick's test. Later releases need their own authorization.
+
+## ADR-0041: Preflight decisions for 17a–17d
+**Recorded.** 2026-11-04 07:54 CST (phx preflight)
+**Status.** Accepted
+**Context.** The hands-off preflight for the four phases inserted at 2026-11-04 07:47 CST found three open points: ADR-0038 refuses edits of uploaded photos when the `face` model set is missing (not in the `default` set); OCC phase 10a (`open_exec`) is ⬜ Not started, so 17c's Open may not be possible; and Nick's v1.0.0 "Go" mentioned a public repo, which Phase 17 did not act on. Gates were also reviewed.
+**Decision.**
+1. 17b keeps ADR-0038's refusal with the `p11 models install face` hint. The installer and the `default` set are not changed. (Options: refuse with hint; move YuNet and the NSFW classifiers into `default`.)
+2. Nick runs OCC 10a in the OCC repo. 17c uses a live `open_exec` if OCC 10a is ✅ on OCC `main` when 17c runs; otherwise it writes the commented line and records a follow-up. 17c does not block on OCC. (Options: no Open at all; Nick runs 10a, 17c adapts; 17c blocks until 10a.)
+3. All four phases are Gate `auto`. 17d no longer pauses after the release; Nick tests on his own. This changes ADR-0040's consequence about the `review` Gate; the plan's Gate column overrides the 17d prompt header. (Options: 17d `review`; 17b also `review`; all `auto`.)
+4. Nick intends to make `antonizick/project1111` public after v1.0.1 (owner question 21). This is recorded as an intent, not an approval: making a repo public is irreversible and stays a confirmation Nick gives at that moment. 17d does not change visibility.
+**Consequences.** A hands-off run can carry 17a through 17d to a published v1.0.1 with no stop, unless a check fails. Whether v1.0.1 has a working Open on the card depends on when OCC 10a merges. Owner question 21 stays open until Nick runs the visibility change himself.
