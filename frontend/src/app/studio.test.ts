@@ -96,3 +96,26 @@ it("reconnects with backoff after the stream closes", () => {
   expect(FakeSource.last!.closed).toBe(true);
   vi.useRealTimers();
 });
+
+it("a late POST response does not undo the state the stream already delivered", () => {
+  // The job starts before the browser reads the POST response (Phase 16 fix of the Phase 09 bug).
+  let s = ev(
+    initialState,
+    "job",
+    job({ state: "running", updated_at: "2026-11-03T01:00:00.200Z" }),
+  );
+  s = reduce(s, {
+    type: "submitted",
+    jobs: [job({ state: "queued", updated_at: "2026-11-03T01:00:00.100Z" })],
+  });
+  expect(s.jobs.job1?.state).toBe("running");
+  // Same timestamp: the later lifecycle stage wins.
+  s = reduce(s, {
+    type: "submitted",
+    jobs: [job({ state: "queued", updated_at: "2026-11-03T01:00:00.200Z" })],
+  });
+  expect(s.jobs.job1?.state).toBe("running");
+  // A genuinely newer snapshot still applies.
+  s = ev(s, "job", job({ state: "done", updated_at: "2026-11-03T01:00:01.000Z" }));
+  expect(s.jobs.job1?.state).toBe("done");
+});

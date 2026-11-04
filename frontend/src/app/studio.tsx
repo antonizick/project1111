@@ -65,8 +65,28 @@ export type Action =
   | { type: "cache"; images: ImageEntry[] }
   | { type: "deleted"; id: number };
 
+const STAGE: Record<Job["state"], number> = {
+  queued: 0,
+  running: 1,
+  paused: 1,
+  done: 2,
+  failed: 2,
+  cancelled: 2,
+};
+
+/** Keep the newest snapshot of a job. A job often starts before its POST response arrives, so
+ * the response's "queued" must not overwrite the "running" the event stream already delivered
+ * (Phase 09/16 e2e bug). `updated_at` is UTC ISO with milliseconds, so strings compare in order. */
 function putJob(state: StudioState, job: Job): StudioState {
-  return { ...state, jobs: { ...state.jobs, [job.id]: { ...state.jobs[job.id], ...job } } };
+  const known = state.jobs[job.id];
+  if (
+    known &&
+    (known.updated_at > job.updated_at ||
+      (known.updated_at === job.updated_at && STAGE[known.state] > STAGE[job.state]))
+  ) {
+    return state;
+  }
+  return { ...state, jobs: { ...state.jobs, [job.id]: { ...known, ...job } } };
 }
 
 function withImage(state: StudioState, image: ImageEntry): StudioState {

@@ -213,7 +213,10 @@ class ProcessSupervisor:
         rotate_log(spec.log_path)
         self.state = "starting"
         self.exited = asyncio.Event()
-        with spec.log_path.open("ab") as logf:
+        # 0600 like the Studio log (S6): engine errors can quote file names and node inputs.
+        fd = os.open(spec.log_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "ab") as logf:
             logf.write(f"\n=== p11: starting engine at {time.strftime('%F %T %Z')} ===\n".encode())
             logf.flush()
             self._proc = await asyncio.create_subprocess_exec(

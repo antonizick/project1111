@@ -61,6 +61,10 @@ export const studioEnv: NodeJS.ProcessEnv = {
 
 export default defineConfig({
   testDir: "e2e",
+  // Every spec shares one Studio and its single FIFO job queue: parallel workers made specs wait
+  // behind each other's jobs and time out depending on order (Phase 14/16). One worker is
+  // deterministic and still takes about a minute.
+  workers: 1,
   webServer: {
     command: "cd .. && uv run p11 serve --fake",
     url: `http://127.0.0.1:${port}/healthz`,

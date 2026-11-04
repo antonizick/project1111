@@ -67,7 +67,8 @@ test("replace a background in ≤ 5 actions; the result is a child with mask + p
   });
   await actions.click(form.getByRole("button", { name: "Replace Background" })); // 3
   const done = page.getByRole("region", { name: "Background result" });
-  await expect(done.getByRole("img", { name: /New background/ })).toBeVisible();
+  // The first background job of a run also warms up the engine and segmenter (cold start).
+  await expect(done.getByRole("img", { name: /New background/ })).toBeVisible({ timeout: 20_000 });
   const download = page.waitForEvent("download");
   await actions.click(done.getByRole("button", { name: "Download" })); // 4
   await download;

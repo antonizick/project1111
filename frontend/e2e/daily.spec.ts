@@ -33,7 +33,7 @@ test("Esc cancels a running batch", async ({ page }) => {
     .fill("snow-capped mountains above a misty valley");
   await page.getByLabel("Number of images").fill("4");
   await page.getByRole("button", { name: "▸ Advanced" }).click();
-  await page.getByLabel("Steps").fill("60"); // ~3 s per image on the fake engine
+  await page.getByLabel("Steps", { exact: true }).fill("60"); // ~3 s per image on the fake engine
   await generateButton(page).click();
   await expect(page.getByText(/Generating · /)).toBeVisible();
   await page.getByLabel("Prompt", { exact: true }).focus();
