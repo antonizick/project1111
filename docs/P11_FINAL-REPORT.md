@@ -1,6 +1,6 @@
 # P11: Final Report (v1.0.1)
 
-Project_1111 (P11) is a fully local image-generation system for Omarchy Linux on an 8 GB RTX 2070 Mobile laptop. **P11 Studio** (Vite + React + TypeScript, FastAPI, Typer, SQLite, Python 3.12 via uv) drives a pinned headless ComfyUI on 127.0.0.1. This report covers phases 00–16 as shipped in v1.0.0 and phases 17a–17c in v1.0.1. The repository is public (Nick's own change per owner question 21, 2026-11-04 07:57 CST); Phase 17d did not change its visibility (ADR-0040).
+Project_1111 (P11) is a fully local image-generation system for Omarchy Linux on an 8 GB RTX 2070 Mobile laptop. **P11 Studio** (Vite + React + TypeScript, FastAPI, Typer, SQLite, Python 3.12 via uv) drives a pinned headless ComfyUI on 127.0.0.1. This report covers phases 00–16 as shipped in v1.0.0 and phases 17a–17c in v1.0.1. The repository is public at the start of Phase 17d (owner question 21: Nick makes the visibility change himself); Phase 17d did not change its visibility (ADR-0040).
 
 ## What was built against the spec
 | Spec goal (§1, §10) | Result | Phase |
@@ -36,7 +36,7 @@ The first feedback round after v1.0.0. The version is **1.0.1** by Nick's choice
 - Verified: `occ check` 0 errors / 0 warnings, cold start 898 ms, Busy observed during a real generation, and Stop ends the whole cgroup including the engine child. Open awaits OCC phase 10a (`open_exec`); `Super + Alt + I` / `p11 open` work meanwhile.
 
 ### Release
-Annotated tag `v1.0.1` and a GitHub release with the changelog notes (no binaries or weights), on `antonizick/project1111`. Visibility is unchanged by this release: public, as Nick made it before this phase (owner question 21; ADR-0040, ADR-0041), recorded before and after in the Phase Log.
+Annotated tag `v1.0.1` and a GitHub release with the changelog notes (no binaries or weights), on `antonizick/project1111`. Visibility is unchanged by this release: public at the start of the phase (Nick's own change, owner question 21; ADR-0040, ADR-0041), recorded before and after in the Phase Log.
 
 ## Measured results against targets
 Full tables: `docs/P11_BENCHMARKS.md` → "Success criteria (Phase 16 …)".

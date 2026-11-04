@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 Please report vulnerabilities privately through a [GitHub security advisory](https://github.com/antonizick/project1111/security/advisories/new). Do not open a public issue, and do not attach personal images, videos or model files to a report.
 
-P11 is pre-release. Expect an acknowledgement within a few days; fixes are tracked in [`CHANGELOG.md`](CHANGELOG.md).
+P11 is released (v1.0.1). Expect an acknowledgement within a few days; fixes are tracked in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Scope
 In scope:
