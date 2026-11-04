@@ -917,12 +917,24 @@ input:disabled {
 }
 
 /* Background replacement (Phase 11) */
+/* The stage shrink-wraps the subject image (a stretched flex item was wider than a height-capped
+   image, so the inset-0 overlay sat to the right of it; Phase 17a). The overlay has the image's
+   aspect ratio and fills the stage, so the two boxes are the same at every window size. */
 .background-stage {
   position: relative;
-  display: inline-block;
+  align-self: flex-start;
+  width: fit-content;
   max-width: 100%;
 }
-.background-stage > img {
+.background-stage > .progress-label {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--panel);
+}
+.background-stage > img:not(.background-overlay) {
   display: block;
   max-width: 100%;
   max-height: 58vh;
@@ -998,4 +1010,175 @@ input:disabled {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+/* Single-column views (Phase 17a): the shell is fixed-height and `.main` clips, so each of these
+   views scrolls itself, like the Generate and Inpaint forms do. Pictures are bounded. */
+.face-view,
+.video-view,
+.models {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+.face-view > *,
+.video-view > * {
+  max-width: 760px;
+}
+.video-view > .generate-form {
+  padding: 0;
+  border-right: 0;
+  overflow: visible;
+}
+.video-view video {
+  max-width: 100%;
+  max-height: 70vh;
+}
+
+/* Face & Pose (Phase 12 markup) */
+.tool-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.hint,
+.notice {
+  color: var(--muted);
+  font-size: 0.9em;
+  margin: 0 0 12px;
+}
+.form-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 0 0 12px;
+}
+.form-row > label {
+  font-weight: 600;
+}
+.form-row > label:has(> input[type="checkbox"]) {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: normal;
+}
+.form-row.actions {
+  flex-direction: row;
+}
+.thumb {
+  display: block;
+  margin-top: 8px;
+  max-width: 100%;
+  max-height: 160px;
+  width: auto;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.face-view .result img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.pose-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.pose-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  border-radius: 8px;
+  touch-action: none;
+}
+.pose-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Models (Phase 14 markup) */
+.models-head,
+.models-sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+.models-group {
+  margin: 0 0 16px;
+}
+.models-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.models-table th,
+.models-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.models-table tr.disabled {
+  opacity: 0.6;
+}
+.licence-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+/* Text & logo dialog (Phase 14 markup): the drag area shrink-wraps the preview, so the
+   crosshair's percentages and the drag distances are relative to the picture itself. */
+.text-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 16px;
+  min-height: 0;
+}
+.text-drag {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+.text-drag img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 6px;
+}
+.text-preview-empty {
+  padding: 32px 16px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-radius: 6px;
+}
+.text-crosshair {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.text-editor-fields {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .text-editor {
+    grid-template-columns: 1fr;
+  }
 }
