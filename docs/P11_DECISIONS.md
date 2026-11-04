@@ -48,6 +48,8 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0042 | 2026-11-04 10:30 CST | Engine output names carry a per-run token: ComfyUI's cache must never name a file P11 deleted | Accepted | 17b |
 | ADR-0043 | 2026-11-04 15:12 CST | The served Studio frontend must match the checkout's sources: build stamp, rebuild on install/update when stale, visible staleness, `index.html` not cached, rebuild-and-restart at close-out | Accepted (planning; 17e implements) | planning, 17e |
 | ADR-0044 | 2026-11-04 15:12 CST | Photo edit stays SDXL img2img until Nick has tried it; v1.0.2 released after Nick confirms the four items in his own window | Accepted | planning, 17e, 17f |
+| ADR-0045 | 2026-11-04 17:34 CST | Inpaint form defaults to Only masked area off; the schema default stays | Accepted | planning, 17g |
+| ADR-0046 | 2026-11-04 17:34 CST | The gallery picker passes `gallery/<id>` references, never a re-upload | Accepted | planning, 17g |
 
 ---
 
@@ -523,3 +525,19 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 **Options considered.** Edit model: ship img2img and evaluate first; add CosXL Edit; add FLUX Kontext (GGUF). Release: v1.0.2 after Nick's check; no release now.
 **Decision.** Nick, 2026-11-04 15:07 CST: "Ship img2img, evaluate first" and "Yes, v1.0.2 after your check". 17e makes the help text and guide say how to prompt img2img (describe the result; start at Change). 17f tags and publishes v1.0.2 without an in-session go, **only once owner question 23 records Nick's confirmation** that the four items work in his window. Visibility is unchanged (PUBLIC by Nick's own change, owner question 21).
 **Consequences.** The instruction-edit model stays a deferred follow-up for a later `/phase-add` if img2img falls short. Hands-off runs stop at 17e's Gate `review` and at question 23.
+
+## ADR-0045: Inpaint form defaults to Only masked area off
+**Recorded.** 2026-11-04 17:34 CST (Planning: phase 17g inserted)
+**Status.** Accepted
+**Context.** ADR-0025 made the crop the default for small fixes. Nick's dress test on 2026-11-04 (his photo and mask, same prompt, no negative prompt) showed that with the crop on, a large mask produces a small complete person inside the mask at 3479×5218 and at 1067×1600; with it off, the gown fits her. Nick then asked for it to be off by default.
+**Options considered.** (a) Form default only. (b) Change the schema default too. (c) Choose automatically by mask size.
+**Decision.** (a), Nick's request. (b) would silently change any recipe, API script or golden that omits `crop`, which breaks schema v1's stability. (c) stays a deferred follow-up.
+**Consequences.** Small fixes on large images now need the box ticked to keep full detail and speed: with the crop off the whole image is painted at up to 2560×1440 (about 2 min 10 s measured on 3479×5218, 17e). Saved recipes and templates keep the value they recorded. The guide must explain when to turn it on.
+
+## ADR-0046: The gallery picker passes references, never a re-upload
+**Recorded.** 2026-11-04 17:34 CST (Planning: phase 17g inserted)
+**Status.** Accepted
+**Context.** Nick asked to choose a gallery image wherever a photo can be uploaded. The S5 likeness flag (ADR-0037) lives in the gallery image's run record, and `Runner.inputs_carry_likeness` finds it through `gallery/<id>` references. ADR-0037 already lists a picture exported and uploaded again as a residual risk.
+**Options considered.** (a) Pass `gallery/<id>` through the existing hand-offs. (b) Fetch the bytes and upload them, which needs no change in the views but makes a new, unflagged input.
+**Decision.** (a). The picker returns the gallery entry; no control turns it into bytes. Each control is tested with a picture from a likeness run, and a gap found there is closed at the root or blocks that control.
+**Consequences.** Edit chains (`parent`) work as they do from a result. The picker offers images only: the Video clip input, JSON template import and `mask` slots keep their file input.

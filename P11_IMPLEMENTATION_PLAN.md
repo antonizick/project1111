@@ -1,7 +1,7 @@
 # P11: Project_1111 Implementation Plan
 
 **Spec:** [`docs/P11_SPECIFICATION.md`](docs/P11_SPECIFICATION.md). **Decisions:** [`docs/P11_DECISIONS.md`](docs/P11_DECISIONS.md). **Agent rules:** [`CLAUDE.md`](CLAUDE.md). **Shared phase instructions:** [`prompts/P11_shared-instructions.md`](prompts/P11_shared-instructions.md)
-**Last updated:** 2026-11-04 15:12 CST (phases 17e, 17f inserted: ship the v1.0.1 fixes to the running Studio, v1.0.2)
+**Last updated:** 2026-11-04 17:34 CST (phase 17g inserted: Inpaint default, gallery thumbnail sizes, gallery picker)
 
 > ⚠️ **Mandatory:** every agent that works on this project keeps this file accurate. **Before doing any other work, set your phase to `🔄 In progress` and commit that change to `main`** (claim protocol: `prompts/P11_shared-instructions.md` §1a). Other agents read this table from `main`. At the end, set it to `✅ Complete` or `⛔ Blocked` and add a Phase Log entry. See `CLAUDE.md`.
 
@@ -25,7 +25,7 @@ Each phase is claimed by a `chore(plan): start phase NN` commit on `main` and ru
 - After **08**, **09** (templates UI), **10** (inpainting) and **12** (face/pose) can run in parallel; then **11** after 10, **13** after 12, **14** after 09. All of them add views under `frontend/src/features/` and routes under `src/p11/api/routes/`; they share `frontend/src/App.tsx` and the router, so merge one first and `git merge main` in the others.
 - GPU work in parallel phases is serialized by the advisory GPU lock (spec R24, ADR-0014); expect GPU tests to wait.
 - After **17** (v1.0.0 feedback round), **17a** (editor and layout fixes), **17b** (photo edit) and **17c** (P11 in OCC) can run in parallel; merge 17a first (17a and 17b both touch `frontend/src/app/theme.css` and the Generate/Inpaint/Background views), then `git merge main` in the others. **17d** (release v1.0.1) waits for all three. 17c's Open button depends on OCC phase 10a (`~/Work/OCC_OmarchyControlCenter`), which is not a P11 dependency.
-- **17e** (ship the fixes to the running Studio) then **17f** (release v1.0.2) run in sequence after 17d; nothing runs in parallel with them. 17f waits for Nick's confirmation (owner question 23).
+- **17e** (ship the fixes to the running Studio), **17g** (Inpaint default, gallery sizes, picker) and **17f** (release v1.0.2) run in that order after 17d; nothing runs in parallel with them. The letter only names 17g: it runs **before** 17f, which depends on it.
 
 **Gate column** (read only by PhaseHypervisor; manual `/phase` ignores it): `auto` = may run unattended; `review` = pause for Nick after it; `owner` = Nick starts it. Empty means `auto`.
 
@@ -58,7 +58,8 @@ Each phase is claimed by a `chore(plan): start phase NN` commit on `main` and ru
 | 17c | P11 in OCC | P11 Studio card in the Omarchy Control Center (transient `p11 serve`, health, busy flag on `/healthz`, logs, External match), Open via OCC `open_exec` once OCC 10a lands (ADR-0039), OSMods | Sonnet 5.5 (`claude-sonnet-5-5`) | 17 | ✅ Complete | [`prompts/P11_phase-17c-occ-service.md`](prompts/P11_phase-17c-occ-service.md) | auto |
 | 17d | Release v1.0.1 | Pre-flight, version 1.0.1, changelog, tag and GitHub release without an in-session go (ADR-0040), visibility unchanged, post-release check, hand-off for Nick's test | Sonnet 5.5 (`claude-sonnet-5-5`) | 17a, 17b, 17c | ✅ Complete | [`prompts/P11_phase-17d-release-1-0-1.md`](prompts/P11_phase-17d-release-1-0-1.md) | auto |
 | 17e | Ship the fixes to the running Studio | The four v1.0.1 items never reached Nick's Studio (stale `src/p11/web` bundle since 2026-11-03 18:41): build stamp, rebuild on install/update when stale, doctor/status/Studio build id, `index.html` no-cache, rebuild-and-restart close-out rule, checks at Nick's 1918×2130 Brave window, walk-through with Nick (ADR-0043) | Opus 5.5 (`claude-opus-5-5`) | 17d | ✅ Complete | [`prompts/P11_phase-17e-ship-fixes.md`](prompts/P11_phase-17e-ship-fixes.md) | review |
-| 17f | Release v1.0.2 | After Nick confirms the four items (owner question 23): pre-flight, version 1.0.2, tag and GitHub release, `p11 update` from v1.0.1 rebuilds the frontend (ADR-0044) | Sonnet 5.5 (`claude-sonnet-5-5`) | 17e | ⬜ Not started | [`prompts/P11_phase-17f-release-1-0-2.md`](prompts/P11_phase-17f-release-1-0-2.md) | review |
+| 17f | Release v1.0.2 | After Nick confirms the four items (owner question 23): pre-flight, version 1.0.2, tag and GitHub release, `p11 update` from v1.0.1 rebuilds the frontend (ADR-0044) | Sonnet 5.5 (`claude-sonnet-5-5`) | 17e, 17g | ⬜ Not started | [`prompts/P11_phase-17f-release-1-0-2.md`](prompts/P11_phase-17f-release-1-0-2.md) | review |
+| 17g | Inpaint default, gallery sizes and picker | Inpaint form defaults to Only masked area off (ADR-0045), gallery Small/Medium thumbnails, From gallery on all ten image inputs with `gallery/<id>` references only so the S5 flag travels (ADR-0046); walk-through with Nick | Opus 5.5 (`claude-opus-5-5`) | 17e | ⬜ Not started | [`prompts/P11_phase-17g-inpaint-gallery-picker.md`](prompts/P11_phase-17g-inpaint-gallery-picker.md) | review |
 
 ## Timeline
 Generated by `scripts/phase_timeline.py` from the Phase Log and git; refreshed on `main` at every close-out, block, resume and `/phase-add`. Do not edit between the markers.
@@ -66,7 +67,7 @@ Generated by `scripts/phase_timeline.py` from the Phase Log and git; refreshed o
 <!-- phase-timeline:start (generated by scripts/phase_timeline.py; do not edit) -->
 ![P11 timeline](docs/P11_TIMELINE.svg)
 
-*Generated from the Phase Log Timeline bullets and git, as of 2026-11-04 17:21 CST. ≈ marks a time inferred from git or a heading. Idle gaps over 60 min start a new chart below and are collapsed in the image. Regenerate with `python3 scripts/phase_timeline.py --write`; do not edit by hand.*
+*Generated from the Phase Log Timeline bullets and git, as of 2026-11-04 17:34 CST. ≈ marks a time inferred from git or a heading. Idle gaps over 60 min start a new chart below and are collapsed in the image. Regenerate with `python3 scripts/phase_timeline.py --write`; do not edit by hand.*
 
 ```mermaid
 gantt
@@ -116,11 +117,12 @@ gantt
 
 ```mermaid
 gantt
-    title P11 session 3, 2026-11-04 15:05 to 17:21 CST
+    title P11 session 3, 2026-11-04 15:05 to 17:34 CST
     dateFormat YYYY-MM-DD HH:mm
     axisFormat %H:%M
     section Planning
     +17e, 17f Phases 17e, 17f inserted :done, plan5, 2026-11-04 15:05, 2026-11-04 15:13
+    +17g Phase 17g inserted :done, plan6, 2026-11-04 17:31, 2026-11-04 17:34
     section Phases
     17e Ship the fixes to the running Studio :done, p17es3, 2026-11-04 15:15, 2026-11-04 17:21
 ```
@@ -135,6 +137,7 @@ gantt
 | +17a, 17d | Phases 17a–17d inserted | 2026-11-04 07:25 CST | 07:47 |  | 22 m |  | n/a |
 | plan | phx preflight | 2026-11-04 07:54 CST |  |  |  |  | n/a |
 | +17e, 17f | Phases 17e, 17f inserted | 2026-11-04 15:05 CST | 15:13 |  | 8 m |  | n/a |
+| +17g | Phase 17g inserted | 2026-11-04 17:31 CST | 17:34 |  | 3 m |  | n/a |
 | 01 | Repository foundation & governance | 2026-11-02 15:05 CST | 15:08 | 15:08 | 3 m |  | `9f87dd5` |
 | 02 | Python + React scaffold, toolchain & CI | 2026-11-02 15:09 CST | 15:18 | 15:18 | 9 m |  | `d55b209` |
 | 03 | Hardware bake-off & engine baseline | 2026-11-02 15:19 CST | 18:10 | 18:10 | 2 h 51 m |  | `54750e3` |
@@ -158,9 +161,9 @@ gantt
 | 17d | Release v1.0.1 | 2026-11-04 11:35 CST | 12:09 | 12:09 | 34 m |  | `ee59047` |
 | 17e | Ship the fixes to the running Studio | 2026-11-04 15:15 CST | 17:21 | 17:21 | 2 h 6 m |  | `f2e07a6` |
 
-**Totals:** elapsed 2 d 8 h (first recorded start to 2026-11-04 17:21 CST) · active phase time 1 d 11 h (sum over phases) · blocked or paused 8 h 37 m · idle 4 h 12 m in 2 gap(s) over 60 min.
+**Totals:** elapsed 2 d 8 h (first recorded start to 2026-11-04 17:34 CST) · active phase time 1 d 11 h (sum over phases) · blocked or paused 8 h 37 m · idle 4 h 12 m in 2 gap(s) over 60 min.
 
-**Not started:** 17f.
+**Not started:** 17f, 17g.
 <!-- phase-timeline:end -->
 
 ### Model rationale
@@ -199,7 +202,7 @@ gantt
                                                                     17d (release v1.0.1)
                                                                              │
                                                                              ▼
-                                                                    17e (ship fixes to the running Studio) ─► 17f (release v1.0.2, after owner question 23)
+                                                                    17e (ship fixes to the running Studio) ─► 17g (Inpaint default, gallery sizes, picker) ─► 17f (release v1.0.2)
 ```
 
 ### Definition of done (checked in the final phase)
@@ -235,7 +238,7 @@ Non-security items that were not closed in Phase 16, each with its reason; liste
 | 14 | 3D-avatar prompt/negative/LoRA tuning and consistency across seeds; the 10-prompt defaults review; exact-text check with a real-engine logo generation | need the owner's eye on images (the text path is unit- and FakeEngine-tested) |
 | 15 | Omarchy shell status indicator (H11 c allows skipping); the one-liner URL and `p11 update` against a real tag (Phase 17 makes the tag); first-ever torch download time; AUR package | Phase 17 / features |
 | 17b | **Instruction-edit model** ("make him wear…", literal edit instructions; ADR-0038 follow-up). Candidates checked at Hugging Face 2026-11-04 08:44 CST: **FLUX.1 Kontext [dev]** (`black-forest-labs/FLUX.1-Kontext-dev`, 12B, FLUX.1 [dev] Non-Commercial licence, gated; bf16 needs ~24 GB, so 8 GB means a GGUF quant: `QuantStack/FLUX.1-Kontext-dev-GGUF` Q4_K_M 6.93 GB / Q3_K_M 5.37 GB plus T5/CLIP/VAE, needs the ComfyUI-GGUF custom node, S3 ADR); **Qwen-Image-Edit** (`Qwen/Qwen-Image-Edit`, 20B, Apache-2.0; too large for 8 GB without heavy quantization and offload); **CosXL Edit** (`stabilityai/cosxl`, SDXL-based, Stability Non-Commercial Research Community licence, gated; fits 8 GB; the pinned ComfyUI has the core `InstructPixToPixConditioning` node it needs) | needs a model choice, a licence acknowledgement, a download beyond the budget and possibly a custom node (owner decision); plain img2img covers the requested examples |
-| 17e | **Inpaint: large masks with Only masked area on.** Crop sends only the box around the mask, so a dress-sized mask gives the model no head or body for scale and it paints a small complete person inside the mask (reproduced on Nick's photo at 3479×5218 and 1067×1600, with the crop off the gown fits). Candidates: warn or switch the crop off when the mask covers a large share of the image; also a negative prompt field on Inpaint (the form sends `""`) | product decision for Nick; the user guide documents the working settings |
+| 17e | **Inpaint: large masks with Only masked area on.** Crop sends only the box around the mask, so a dress-sized mask gives the model no head or body for scale and it paints a small complete person inside the mask (reproduced on Nick's photo at 3479×5218 and 1067×1600, with the crop off the gown fits). 17g makes the crop off the form default (ADR-0045). Still open: warn or switch automatically by mask size, and a negative prompt field on Inpaint (the form sends `""`) | product decision for Nick; the user guide documents the working settings |
 | 17e | **`tests/install/run.sh` not run with the new stale checks:** the image build failed three times on stalled Arch mirror downloads | run it in 17f pre-flight; the same path was checked with the real `install.sh`, `uv` and `npm` on a throwaway copy |
 | 16 | Vitest specs with Testing Library's 1 s `findBy` timeout fail under heavy CPU load (seen while the GPU soak ran; 94/94 when idle) | test robustness; raise the timeout if CI shows it |
 | 17c | ~~**Open on the OCC P11 card** needs OCC phase 10a (`open_exec`)~~ **Resolved 2026-11-04 13:31 CST:** OCC phase 10a merged to OCC `main` (`7743778`) and the installed build is `7d66de3`; the live `~/.config/occ/services.toml` line is `open_exec = ["~/.local/bin/p11", "open"]`, and Nick confirmed the card's Open opens the Studio. Recorded in OCC ADR-0039 and OSMods `P11 in OCC`. `Super + Alt + I` and `p11 open` still work | Closed |
@@ -575,3 +578,13 @@ Newest entries at the bottom. Format: `### YYYY-MM-DD HH:MM TZ: Phase NN: <title
 - Tests: `make check` exit 0: 842 passed / 1 skipped, 91 % coverage, 106 Vitest, pip-audit and npm audit 0, gitleaks clean. `make e2e` 52 passed, 2 skipped (run before the final `install.sh` and `run.sh` fixes). 26 UI specs pass in Chromium and in Brave 156.1.98.60 at 1918×2130 and 3840×2160, including 3000×2000 and 2000×3000 photos; they passed before any layout change too.
 - Deviations: `webbundle build` runs npm itself so the id can be baked in, and a plain `npm run build` is reported stale on purpose (ADR-0043 note). Node is now required whenever `frontend/src` exists. The real install found a defect the fakes could not: a failed `uv python install` ran the check with an empty interpreter; fixed, with a regression test. `tests/install/run.sh` gained the stale checks, but its image build failed three times on stalled Arch mirrors, so **the container test did not run** (follow-up for 17f). Brave picking up a rebuild on reload is covered by the header test only so far. `p11 update` itself was not run from a tag; 17f does.
 - Inpaint clothing swap (Nick's question at close-out): on his photo, Replace with **Only masked area** on painted a small complete person inside the mask at both photo sizes; with it off the gown fits her. Documented in the user guide; product change recorded as a deferred follow-up. Test images are gallery ids 40–44; two reduced uploads remain in inputs.
+
+### 2026-11-04 17:34 CST: Planning: phase 17g inserted (Planned)
+- **Timeline:** started 2026-11-04 17:31 CST · finished 2026-11-04 17:34 CST
+- Request (Nick, right after closing 17e): Inpaint "Only masked area" off by default; gallery Small and Medium thumbnails; choose an existing gallery image wherever a photo can be uploaded.
+- Scope: one phase, because all three are Studio UI and the picker is most of it. Ten image controls; the Video clip input, the JSON template import and `mask` slots are excluded because a gallery picture does not fit them.
+- Placement: after 17e, whose fix makes UI changes reach Nick's window. ID 17g because 17f is taken; it runs before 17f, which now depends on it, so this work ships in v1.0.2. Gate `review`: Nick checks it in his own window (17e rule).
+- Model: Opus 5.5, because the picker is shared interactive UI across ten controls and touches the S5 likeness rule.
+- Decisions: ADR-0045 (form default only; schema default unchanged) and ADR-0046 (`gallery/<id>` references, never a re-upload, which would launder the likeness flag). No owner questions.
+- Grounding found one thing to check in the phase: `inputs_carry_likeness` covers the source, bound slots and parent, so pose, reference and background inputs must be confirmed to reach it (task 5).
+- Other files: `prompts/P11_phase-17f-release-1-0-2.md` (depends on 17g, changelog note), `docs/P11_DECISIONS.md`, the vault note.
