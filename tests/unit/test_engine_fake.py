@@ -26,7 +26,10 @@ from p11.engine.recovery import OOM_MESSAGE, run_with_oom_retry
 REPO = Path(__file__).resolve().parents[2]
 GOLDEN_ALL = sorted((REPO / "tests/golden/compile").glob("*.json"))
 # Goldens whose LoadImage/LoadImageMask placeholders are bound to uploads before running.
-GOLDEN = [p for p in GOLDEN_ALL if not p.stem.startswith(("inpaint__", "background__"))]
+# Photo-edit goldens (`img2img__`, Phase 17b) run in `test_photo_edit.py` with their photo bound.
+GOLDEN = [
+    p for p in GOLDEN_ALL if not p.stem.startswith(("inpaint__", "background__", "img2img__"))
+]
 INPAINT_GOLDEN = [p for p in GOLDEN_ALL if p.stem.startswith(("inpaint__", "background__"))]
 
 

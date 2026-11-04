@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 import logging
 import random
 import time
@@ -19,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
 from pydantic import TypeAdapter
 
 from p11 import __version__
@@ -37,11 +39,11 @@ from p11.engine.recovery import run_with_oom_retry
 from p11.media import composite as composite_media
 from p11.media import text as text_media
 from p11.media.control import Controls
-from p11.media.faces import FaceKit, run_face_restore, run_face_swap
+from p11.media.faces import FaceError, FaceKit, detect_faces, run_face_restore, run_face_swap
 from p11.media.imageio import open_rgb
 from p11.media.inpaint import Prepared, check_mask, prepare, stitch
 from p11.media.inputs import ID_RE, InputStore, UnknownInput
-from p11.media.nsfw import check_likeness, check_target
+from p11.media.nsfw import GuardUnavailable, check_likeness, check_target
 from p11.media.segment import Segmenters, Segments
 from p11.outputs import metadata
 from p11.outputs.index import GalleryIndex, entry_from_record
@@ -49,7 +51,7 @@ from p11.outputs.layout import output_path
 from p11.recipe.compile import EngineGraph, GraphInput, LocalStep, PlanItem, compile, resolve_seed
 from p11.recipe.likeness import recipe_carries_likeness
 from p11.recipe.migrate import migrate
-from p11.recipe.model import FileRef, Recipe
+from p11.recipe.model import FileRef, Generate, Inpaint, Recipe, ReplaceBackground
 from p11.recipe.registry import ModelRegistry
 
 log = logging.getLogger("p11.jobs")
@@ -59,6 +61,11 @@ BINDINGS = TypeAdapter(dict[str, str | FileRef])
 GALLERY_PREFIX = "gallery/"
 PREVIEW_INTERVAL = 0.5
 RETRY_NOTE = "Out of GPU memory: retrying in low-memory mode."
+#: S5 for edits of uploaded photos (ADR-0038): the check needs the face set, and fails closed.
+EDIT_NEEDS_GUARD = (
+    "Editing an uploaded photo needs the face safety models: run `p11 models install face`, "
+    "then try again."
+)
 Publish = Callable[[str, dict[str, Any]], object]
 
 
@@ -181,6 +188,72 @@ class Runner:
                     rels.append(entry.path)
         return any(self.made_with_likeness(r) for r in rels)
 
+    @staticmethod
+    def edited_uploads(recipe: Recipe, bindings: Bindings) -> list[FileRef]:
+        """Uploaded photos (not gallery images) that a photo-edit ``generate``, an ``inpaint`` or a
+        ``replace_background`` step of this recipe edits or composites (ADR-0038)."""
+        found: list[FileRef] = []
+        for i, step in enumerate(recipe.steps):
+            if isinstance(step, Generate):
+                if not step.is_img2img:
+                    continue
+                # A photo edit never starts from the previous step: its slot, else the source.
+                fallback = recipe.source_image if step.image_slot is None else None
+            elif isinstance(step, (Inpaint, ReplaceBackground)):
+                # Without a slot these take the previous step's output; only the first takes the
+                # recipe's source photo.
+                first = not any(not s.is_modifier for s in recipe.steps[:i])
+                fallback = recipe.source_image if first and step.image_slot is None else None
+            else:
+                continue
+            refs = [fallback] if fallback is not None else []
+            for _, name, kinds in step.image_slots():
+                bound = bindings.get(name)
+                if "mask" not in kinds and isinstance(bound, FileRef):
+                    refs.append(bound)
+            found += [r for r in refs if not r.ref.startswith(GALLERY_PREFIX) and r not in found]
+        return found
+
+    def upload_shows_face(self, ref: FileRef) -> bool:
+        """An uploaded photo shows a face (YuNet on the CPU); a missing detector fails closed."""
+        try:
+            self.faces.detector()
+        except FaceError:
+            raise GuardUnavailable(EDIT_NEEDS_GUARD) from None
+        faces, _ = detect_faces(self.resolve_file(ref), self.faces)
+        return bool(faces)
+
+    def uploads_show_face(self, recipe: Recipe, bindings: Bindings) -> bool:
+        """S5 (ADR-0038): an uploaded photo this job edits shows a face, so its outputs are
+        checked by the guard and marked ``likeness`` like a face swap's."""
+        return any(self.upload_shows_face(r) for r in self.edited_uploads(recipe, bindings))
+
+    def require_edit_guard(self, recipe: Recipe, bindings: Bindings) -> None:
+        """Refuse, before queueing, an edit of an uploaded photo when the face set is missing."""
+        if not self.edited_uploads(recipe, bindings):
+            return
+        try:
+            self.faces.detector()
+            self.faces.guard()
+        except (FaceError, GuardUnavailable):
+            raise GuardUnavailable(EDIT_NEEDS_GUARD) from None
+
+    def image_sizes(self, recipe: Recipe, bindings: Bindings) -> dict[str, tuple[int, int]]:
+        """Pixel sizes of the bound and source images, which a photo edit's graph is sized by."""
+        if not any(isinstance(s, Generate) and s.is_img2img for s in recipe.steps):
+            return {}
+        refs = [b for b in bindings.values() if isinstance(b, FileRef)]
+        if recipe.source_image is not None:
+            refs.append(recipe.source_image)
+        sizes: dict[str, tuple[int, int]] = {}
+        for ref in refs:
+            try:
+                with Image.open(io.BytesIO(self.resolve_file(ref))) as img:
+                    sizes[ref.ref] = img.size
+            except (OSError, UnknownInput):
+                continue  # check_files reports a missing file in plain English
+        return sizes
+
     def guard_targets(self, items: list[PlanItem], recipe: Recipe) -> None:
         """S5 (ADR-0029): refuse a face swap onto a sexual or nude target before it is queued.
 
@@ -201,8 +274,10 @@ class Runner:
 
     def validate(self, recipe: Recipe, bindings: Bindings) -> list[PlanItem]:
         """Compile with a fixed seed: slot, model and step errors surface before queueing."""
-        items = compile(recipe, bindings, self.registry(), seed=0)
+        sizes = self.image_sizes(recipe, bindings)
+        items = compile(recipe, bindings, self.registry(), seed=0, image_sizes=sizes)
         self.check_files(recipe, bindings)
+        self.require_edit_guard(recipe, bindings)
         self.guard_targets(items, recipe)
         if any(isinstance(i, EngineGraph) and i.likeness for i in items) or (
             self.inputs_carry_likeness(recipe, bindings)
@@ -244,12 +319,17 @@ class Runner:
         health = await self.engine.health()
         previews = _Throttle(PREVIEW_INTERVAL)
         inherited = self.inputs_carry_likeness(recipe, bindings, parent)  # gallery: this thread
+        # ADR-0038: an edit of an uploaded photo showing a face is checked like a face swap.
+        inherited = inherited or await asyncio.to_thread(self.uploads_show_face, recipe, bindings)
+        sizes = self.image_sizes(recipe, bindings)
         for run_index in range(count):
             # S5 (ADR-0037): from the first step that carries a person's likeness on (or from the
             # start, when an input image was made that way), every output passes the guard.
             likeness = inherited
             seed = resolve_seed(recipe.seed, run_index, rng)
-            graphs = compile(recipe, bindings, registry, seed=seed, run_index=run_index)
+            graphs = compile(
+                recipe, bindings, registry, seed=seed, run_index=run_index, image_sizes=sizes
+            )
             total = count * len(graphs)
             long = total > 1
             images: dict[int, bytes] = {}

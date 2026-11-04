@@ -17,6 +17,7 @@ Deterministic: the same recipe, bindings, registry and seed give byte-identical 
 from __future__ import annotations
 
 import json
+import math
 import random
 import re
 from collections.abc import Callable, Mapping
@@ -40,16 +41,22 @@ from .model import (
 )
 from .presets import (
     ASPECTS,
+    BUCKETS,
     DEFAULT_MODEL,
     DEFAULT_UPSCALER,
     HIRES_DENOISE,
+    IMG2IMG_DEFAULT_PRESET,
+    IMG2IMG_MAX_PIXELS,
+    IMG2IMG_MIN_STEPS,
+    IMG2IMG_MIN_UPSCALE,
+    IMG2IMG_PRESETS,
     STYLES,
     VAE_OVERLAP,
     VAE_TILE,
     AspectPreset,
     StylePreset,
 )
-from .registry import ModelInfo, ModelKind, ModelRegistry, UnknownModelError
+from .registry import Family, ModelInfo, ModelKind, ModelRegistry, UnknownModelError
 
 # ComfyUI v0.43.0 comfy/samplers.py: KSAMPLER_NAMES + ["ddim", "uni_pc", "uni_pc_bh2"] and
 # SCHEDULER_HANDLERS. Checked at compile time, not in the schema, so an engine bump never
@@ -72,6 +79,8 @@ SCHEDULERS: frozenset[str] = frozenset(_SCHEDULER_NAMES.split())
 _EMPTY_PHRASES = re.compile(r"\s*,(?:\s*,)+\s*")
 
 Bindings = Mapping[str, str | FileRef]
+#: Pixel size of input files by ``FileRef.ref``, read by the job runner (the compiler stays pure).
+ImageSizes = Mapping[str, tuple[int, int]]
 Ref = list[Any]  # [node_id, output_index], ComfyUI's link format
 
 
@@ -238,6 +247,8 @@ class CompileContext:
     previous_step: int | None = None
     #: The last ``generate`` step before this one, for defaults (upscale's refinement model).
     last_generate: Generate | None = None
+    #: Known pixel sizes of input files (``ImageSizes``), for steps that size their graph by them.
+    image_sizes: ImageSizes = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -438,13 +449,15 @@ def compile(
     *,
     seed: int | None = None,
     run_index: int = 0,
+    image_sizes: ImageSizes | None = None,
 ) -> list[PlanItem]:
     """Compile ``recipe`` into plan items (engine graphs and local steps), in order.
 
     A step compiles to one item, or (``replace_background``) to a local step plus its engine tail;
     each item's output is the input of the next, and the last item of a step is the step's output.
     ``seed`` overrides the recipe's strategy (the job runner resolves random seeds with
-    ``resolve_seed`` and passes them here so the run is reproducible).
+    ``resolve_seed`` and passes them here so the run is reproducible). ``image_sizes`` gives the
+    pixel size of input files; a photo-edit ``generate`` sizes its graph by its photo.
     """
     if seed is None:
         seed = resolve_seed(recipe.seed, run_index)
@@ -466,7 +479,15 @@ def compile(
                 break
             modifiers.append(later)
         ctx = CompileContext(
-            recipe, resolved, registry, seed, i, tuple(modifiers), previous, last_generate
+            recipe,
+            resolved,
+            registry,
+            seed,
+            i,
+            tuple(modifiers),
+            previous,
+            last_generate,
+            image_sizes or {},
         )
         plan_fn = _PLAN_COMPILERS.get(step.type)
         before = len(graphs)
@@ -605,9 +626,36 @@ def compile_generate(step: Generate, ctx: CompileContext, g: GraphBuilder) -> Re
     width, height = aspect.size_for(family)
     out = aspect.output or (width, height)
     chain = step.chain or (aspect.quality_chain if step.quality else aspect.chain)
+    denoise = 1.0
+    if step.is_img2img:
+        # Start from a photo (ADR-0038): its own aspect, the nearest native bucket, then the
+        # usual chain toward its own size; the aspect preset applies only if the size is unknown.
+        photo, ref = _photo_input(step, ctx)
+        size = ctx.image_sizes.get(ref)
+        if size is not None:
+            width, height = nearest_bucket(family, *size)
+            out = photo_output((width, height), *size)
+            chain = step.chain or ("latent" if step.quality else "model")
+        denoise = img2img_denoise(step)
+        if not (step.sampler and step.sampler.steps):
+            steps = max(steps, IMG2IMG_MIN_STEPS[img2img_preset(step)])
+        load = g.node("LoadImage", image=photo.placeholder)
+        g.inputs.append(replace(photo, node_id=load[0]))
+        pixels = g.node(
+            "ImageScale",
+            image=load,
+            upscale_method="lanczos",
+            width=width,
+            height=height,
+            crop="center",
+        )
+        latent = g.node("VAEEncode", pixels=pixels, vae=cond.vae)
+        if step.batch_size > 1:
+            latent = g.node("RepeatLatentBatch", samples=latent, amount=step.batch_size)
+    else:
+        latent = g.node("EmptyLatentImage", width=width, height=height, batch_size=step.batch_size)
     if out == (width, height):
         chain = "native"
-    latent = g.node("EmptyLatentImage", width=width, height=height, batch_size=step.batch_size)
     base = g.node(
         "KSampler",
         "base",
@@ -620,7 +668,7 @@ def compile_generate(step: Generate, ctx: CompileContext, g: GraphBuilder) -> Re
         positive=cond.positive,
         negative=cond.negative,
         latent_image=latent,
-        denoise=1.0,
+        denoise=denoise,
     )
 
     def hires(samples: Ref, denoise: float) -> Ref:
@@ -667,6 +715,53 @@ def compile_generate(step: Generate, ctx: CompileContext, g: GraphBuilder) -> Re
         enc = _tiled(g, "VAEEncodeTiled", pixels=image, vae=cond.vae)
         return _tiled(g, "VAEDecodeTiled", samples=hires(enc, HIRES_DENOISE["both"]), vae=cond.vae)
     return image
+
+
+def img2img_preset(step: Generate) -> str:
+    """The photo-edit preset a step runs as (its own, else the one nearest its ``denoise``)."""
+    if step.denoise_preset is not None:
+        return step.denoise_preset
+    if step.denoise is None:
+        return IMG2IMG_DEFAULT_PRESET
+    return min(IMG2IMG_PRESETS, key=lambda k: abs(IMG2IMG_PRESETS[k] - (step.denoise or 0.0)))
+
+
+def img2img_denoise(step: Generate) -> float:
+    """The strength a photo edit samples with: the preset's tuned value, else ``denoise``."""
+    if step.denoise_preset is None and step.denoise is not None:
+        return step.denoise
+    return IMG2IMG_PRESETS[img2img_preset(step)]
+
+
+def nearest_bucket(family: Family, width: int, height: int) -> tuple[int, int]:
+    """The family's native bucket whose aspect ratio is nearest ``width:height`` (log scale)."""
+    if width <= 0 or height <= 0:
+        raise CompileError("The photo has no size.")
+    want = math.log(width / height)
+    return min(BUCKETS[family], key=lambda b: abs(math.log(b[0] / b[1]) - want))
+
+
+def photo_output(bucket: tuple[int, int], width: int, height: int) -> tuple[int, int]:
+    """Final size of a photo edit: the bucket scaled toward the photo's own pixel count, capped
+    at the largest wallpaper preset; the bucket itself when that would be no real upscale."""
+    bw, bh = bucket
+    factor = math.sqrt(min(width * height, IMG2IMG_MAX_PIXELS) / (bw * bh))
+    if factor < IMG2IMG_MIN_UPSCALE:
+        return bucket
+    return (int(bw * factor) // 8 * 8, int(bh * factor) // 8 * 8)
+
+
+def _photo_input(step: Generate, ctx: CompileContext) -> tuple[GraphInput, str]:
+    """The photo a photo edit starts from: its slot, else the recipe's source (never the
+    previous step), and the file reference its size is looked up by."""
+    if step.image_slot is not None:
+        inp = ctx.resolve_input(step.image_slot)
+    elif ctx.recipe.source_image is not None:
+        inp = GraphInput("", "source", "p11:source", file=ctx.recipe.source_image)
+    else:
+        raise CompileError(f"{ctx.where}: add a photo to start from, or turn the photo edit off.")
+    assert inp.file is not None
+    return inp, inp.file.ref
 
 
 def _model_upscale(g: GraphBuilder, ctx: CompileContext, ref: ModelRef | None, image: Ref) -> Ref:

@@ -17,6 +17,7 @@ from tests.studio import png_bytes, studio_client
 
 from p11.engine.fake import FakeEngine
 from p11.jobs.runner import JobControl, Runner
+from p11.media.faces import FaceKit
 from p11.media.inpaint import MaskError
 from p11.media.inputs import InputStore
 from p11.media.segment import Segmenters
@@ -48,6 +49,7 @@ async def test_local_only_step_never_runs_the_engine(tmp_path):
         gallery,
         inputs,
         segmenters=Segmenters(stub=True),
+        faces=FaceKit(stub=True),  # S5 for edits of uploaded photos (ADR-0038)
     )
     r = recipe(
         ReplaceBackground(background_colour="#336699"),
@@ -85,6 +87,7 @@ async def test_relight_runs_one_engine_pass_and_saves_one_output(tmp_path):
         gallery,
         inputs,
         segmenters=Segmenters(stub=True),
+        faces=FaceKit(stub=True),  # S5 for edits of uploaded photos (ADR-0038)
     )
     r = recipe(
         ReplaceBackground(background_slot="bg", relight=True),
@@ -122,6 +125,7 @@ async def test_empty_manual_mask_is_refused_before_queueing(tmp_path):
         gallery,
         inputs,
         segmenters=Segmenters(stub=True),
+        faces=FaceKit(stub=True),  # S5 for edits of uploaded photos (ADR-0038)
     )
     r = recipe(
         ReplaceBackground(

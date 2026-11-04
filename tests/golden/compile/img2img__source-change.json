@@ -1,0 +1,151 @@
+{
+ "1": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "RealVisXL_V5.0_Lightning_fp16.safetensors"
+  }
+ },
+ "10": {
+  "class_type": "UpscaleModelLoader",
+  "inputs": {
+   "model_name": "4xNomosWebPhoto_RealPLKSR.safetensors"
+  }
+ },
+ "11": {
+  "class_type": "ImageUpscaleWithModel",
+  "inputs": {
+   "image": [
+    "9",
+    0
+   ],
+   "upscale_model": [
+    "10",
+    0
+   ]
+  }
+ },
+ "12": {
+  "class_type": "ImageScale",
+  "inputs": {
+   "crop": "disabled",
+   "height": 1088,
+   "image": [
+    "11",
+    0
+   ],
+   "upscale_method": "lanczos",
+   "width": 1904
+  }
+ },
+ "13": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "p11/step-00",
+   "images": [
+    "12",
+    0
+   ]
+  }
+ },
+ "2": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "sdxl_vae.safetensors"
+  }
+ },
+ "3": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "1",
+    1
+   ],
+   "text": "photo, the same house painted green, highly detailed, natural light, sharp focus"
+  }
+ },
+ "4": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "1",
+    1
+   ],
+   "text": "worst quality, low quality, blurry, deformed, disfigured, bad anatomy, extra fingers, watermark, signature, jpeg artifacts"
+  }
+ },
+ "5": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "p11:source"
+  }
+ },
+ "6": {
+  "class_type": "ImageScale",
+  "inputs": {
+   "crop": "center",
+   "height": 768,
+   "image": [
+    "5",
+    0
+   ],
+   "upscale_method": "lanczos",
+   "width": 1344
+  }
+ },
+ "7": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "6",
+    0
+   ],
+   "vae": [
+    "2",
+    0
+   ]
+  }
+ },
+ "8": {
+  "_meta": {
+   "title": "base"
+  },
+  "class_type": "KSampler",
+  "inputs": {
+   "cfg": 1.5,
+   "denoise": 0.55,
+   "latent_image": [
+    "7",
+    0
+   ],
+   "model": [
+    "1",
+    0
+   ],
+   "negative": [
+    "4",
+    0
+   ],
+   "positive": [
+    "3",
+    0
+   ],
+   "sampler_name": "dpmpp_sde",
+   "scheduler": "karras",
+   "seed": 1111,
+   "steps": 6
+  }
+ },
+ "9": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "8",
+    0
+   ],
+   "vae": [
+    "2",
+    0
+   ]
+  }
+ }
+}

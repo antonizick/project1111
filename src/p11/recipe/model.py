@@ -154,7 +154,15 @@ class _Step(_Frozen):
 
 
 class Generate(_Step):
-    """Text-to-image at an aspect preset's native bucket, plus the preset's upscale chain (R3)."""
+    """Text-to-image at an aspect preset's native bucket, plus the preset's upscale chain (R3).
+
+    Image-to-image (Phase 17b, ADR-0038): when ``image_slot``, ``denoise`` or ``denoise_preset``
+    is set, the step starts from a photo (``image_slot``, else the recipe's ``source_image``, never
+    the previous step) instead of an empty latent. The photo keeps its own aspect: it is scaled to
+    the model's nearest native bucket and the aspect preset is ignored. ``denoise_preset`` (UI:
+    Light touch / Change / Reimagine) overrides ``denoise`` with the tuned strength from
+    ``presets.IMG2IMG_PRESETS``. With none of the three set the step is text-to-image as before.
+    """
 
     type: Literal["generate"] = "generate"
     prompt: str = Field(max_length=4000)
@@ -169,8 +177,21 @@ class Generate(_Step):
     chain: Chain | None = None
     quality: bool = False
     batch_size: int = Field(default=1, ge=1, le=4)
+    image_slot: str | None = None
+    denoise: Unit | None = None
+    denoise_preset: Literal["light", "change", "reimagine"] | None = None
 
+    image_fields = (("image_slot", IMAGE_KINDS - {"mask"}),)
     text_fields = ("prompt", "negative")
+
+    @property
+    def is_img2img(self) -> bool:
+        """The step starts from a photo (ADR-0038)."""
+        return (
+            self.image_slot is not None
+            or self.denoise is not None
+            or self.denoise_preset is not None
+        )
 
 
 class Upscale(_Step):
