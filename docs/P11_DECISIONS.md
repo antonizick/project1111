@@ -484,6 +484,8 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 **Decision.** Phase 17d tags `v1.0.1` and publishes the GitHub release on `antonizick/project1111` without asking, after a green pre-flight (a red build blocks instead). The version number is Nick's choice, even though 17b adds a feature. **Repo visibility is not part of this authorization:** the repo was PRIVATE at 2026-11-04 07:43 CST (`gh repo view --json visibility`) and stays so. Making it public remains a separate explicit owner decision, as the Phase 17 log recorded.
 **Consequences.** 17d's Gate is `review` so a hands-off run pauses after the release for Nick's test. Later releases need their own authorization.
 
+**Update (2026-11-04 12:10 CST, Phase 17d).** The repository was **PUBLIC** when 17d ran (`gh repo view --json visibility`: PUBLIC before and after the release), after Nick made the visibility change himself under owner question 21. 17d published the release on the public repo and did **not** run `gh repo edit`; visibility is unchanged by the phase. The Gate actually used was `auto`, per the plan column and owner question 22 / ADR-0041 (which overrides the `review` sentence above).
+
 ## ADR-0041: Preflight decisions for 17a–17d
 **Recorded.** 2026-11-04 07:54 CST (phx preflight)
 **Status.** Accepted
