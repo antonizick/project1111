@@ -76,9 +76,13 @@ CACHE_SIZE = 256
 
 #: What the user sees. Neutral on purpose: no score, no hint how to get past it.
 REFUSED = "P11 does not put faces onto nude or sexual images. Choose a different target image."
+REFUSED_LIKENESS = (
+    "P11 does not save pictures with a person's face from a photo that look nude or sexual. "
+    "Change the prompt or the image."
+)
 REFUSED_RESULT = "P11 does not save face swaps that look nude or sexual. Choose a different image."
 MISSING = (
-    "Face swap needs its image check models ({ids}). Install them with "
+    "Face swap and face reference need their image check models ({ids}). Install them with "
     "`p11 models install face`, then try again."
 )
 
@@ -235,6 +239,13 @@ def check_result(guard: Guard, image: Image.Image) -> None:
     """Refuse to save a swapped image that looks sexual or nude."""
     if guard.verdict(image).unsafe:
         raise GuardRefused(REFUSED_RESULT)
+
+
+def check_likeness(guard: Guard, image: Image.Image) -> None:
+    """Refuse to save a picture that carries a real face (reference, or an edit of a swap) and
+    looks sexual or nude (ADR-0037)."""
+    if guard.verdict(image).unsafe:
+        raise GuardRefused(REFUSED_LIKENESS)
 
 
 # ---------------------------------------------------------------------------------------------

@@ -94,8 +94,11 @@ export function reduce(state: StudioState, action: Action): StudioState {
     case "models":
       return { ...state, models: action.models };
     case "submitted": {
+      // The event stream is ordered and starts with the same "queued" snapshot, and a job often
+      // starts before the browser reads its POST response: never let that late response undo
+      // what the stream already delivered ("Waiting in the queue" while running, Phase 09/16).
       let next = state;
-      for (const job of action.jobs) next = putJob(next, job);
+      for (const job of action.jobs) if (!next.jobs[job.id]) next = putJob(next, job);
       return action.model !== undefined ? { ...next, currentModel: action.model } : next;
     }
     case "image":

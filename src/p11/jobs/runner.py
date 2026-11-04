@@ -41,12 +41,13 @@ from p11.media.faces import FaceKit, run_face_restore, run_face_swap
 from p11.media.imageio import open_rgb
 from p11.media.inpaint import Prepared, check_mask, prepare, stitch
 from p11.media.inputs import ID_RE, InputStore, UnknownInput
-from p11.media.nsfw import check_target
+from p11.media.nsfw import check_likeness, check_target
 from p11.media.segment import Segmenters, Segments
 from p11.outputs import metadata
 from p11.outputs.index import GalleryIndex, entry_from_record
 from p11.outputs.layout import output_path
 from p11.recipe.compile import EngineGraph, GraphInput, LocalStep, PlanItem, compile, resolve_seed
+from p11.recipe.likeness import recipe_carries_likeness
 from p11.recipe.migrate import migrate
 from p11.recipe.model import FileRef, Recipe
 from p11.recipe.registry import ModelRegistry
@@ -152,6 +153,34 @@ class Runner:
         for ref in refs:
             self.resolve_file(ref)
 
+    def made_with_likeness(self, rel: str) -> bool:
+        """True when a gallery image (path relative to the outputs root) came from a run that
+        carried a person's likeness (ADR-0037); its sidecar says so."""
+        path = (self.outputs_root / rel).resolve()
+        if not path.is_relative_to(self.outputs_root.resolve()):
+            return False
+        try:
+            record = metadata.read_sidecar(metadata.sidecar_path(path))
+        except (OSError, ValueError):
+            return False
+        return record.likeness or recipe_carries_likeness(record.recipe)
+
+    def inputs_carry_likeness(
+        self, recipe: Recipe, bindings: Bindings, parent: str | None = None
+    ) -> bool:
+        """An input of this job is a gallery image made with a face swap or face reference."""
+        refs = [b for b in bindings.values() if isinstance(b, FileRef)]
+        if recipe.source_image is not None:
+            refs.append(recipe.source_image)
+        rels = [parent] if parent else []
+        for ref in refs:
+            tail = ref.ref.removeprefix(GALLERY_PREFIX)
+            if ref.ref.startswith(GALLERY_PREFIX) and tail.isdigit():
+                entry = self.gallery.get(int(tail))
+                if entry is not None:
+                    rels.append(entry.path)
+        return any(self.made_with_likeness(r) for r in rels)
+
     def guard_targets(self, items: list[PlanItem], recipe: Recipe) -> None:
         """S5 (ADR-0029): refuse a face swap onto a sexual or nude target before it is queued.
 
@@ -175,6 +204,10 @@ class Runner:
         items = compile(recipe, bindings, self.registry(), seed=0)
         self.check_files(recipe, bindings)
         self.guard_targets(items, recipe)
+        if any(isinstance(i, EngineGraph) and i.likeness for i in items) or (
+            self.inputs_carry_likeness(recipe, bindings)
+        ):
+            self.faces.guard()  # S5 fails closed: the check models must be installed (ADR-0037)
         for item in items:
             if isinstance(item, LocalStep):
                 masks = [i for i in item.inputs if i.kind == "mask"]
@@ -210,7 +243,11 @@ class Runner:
         slot_kinds = {s.name: s.kind for s in recipe.slots}
         health = await self.engine.health()
         previews = _Throttle(PREVIEW_INTERVAL)
+        inherited = self.inputs_carry_likeness(recipe, bindings, parent)  # gallery: this thread
         for run_index in range(count):
+            # S5 (ADR-0037): from the first step that carries a person's likeness on (or from the
+            # start, when an input image was made that way), every output passes the guard.
+            likeness = inherited
             seed = resolve_seed(recipe.seed, run_index, rng)
             graphs = compile(recipe, bindings, registry, seed=seed, run_index=run_index)
             total = count * len(graphs)
@@ -260,6 +297,13 @@ class Runner:
                     images[item.step_index] = found[0].data
                     timings[f"step-{item.step_index:02d}"] = round(result.seconds, 3)
                     outs = [o.data for o in found]
+                swapped = isinstance(item, LocalStep) and item.op == "face_swap"
+                if not swapped and (likeness or (isinstance(item, EngineGraph) and item.likeness)):
+                    guard = self.faces.guard()
+                    for out_data in outs:
+                        await asyncio.to_thread(check_likeness, guard, open_rgb(out_data))
+                    likeness = True
+                likeness = likeness or swapped  # the swap checked its own result
                 if intermediate:
                     outs = []
                 first_rel: str | None = None
@@ -295,6 +339,7 @@ class Runner:
                 template=template,
                 job_id=job_id,
                 publish=publish,
+                likeness=likeness,
             )
         return report
 
@@ -380,6 +425,7 @@ class Runner:
         template: str | None,
         job_id: str,
         publish: Publish,
+        likeness: bool = False,
     ) -> list[int]:
         model_hashes: dict[str, str | None] = {}
         for g in graphs:
@@ -396,6 +442,7 @@ class Runner:
             timings=timings,
             step_outputs=tuple(s.output for s in saved),
             template=template,
+            likeness=likeness,
         )
         ids = []
         for item in saved:

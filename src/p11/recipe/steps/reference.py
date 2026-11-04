@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from ..compile import CompileContext, Conditioning, GraphBuilder, register_modifier
+from ..likeness import carries_likeness
 from ..model import Reference
 from ..presets import DEFAULT_CLIPVISION, DEFAULT_IPADAPTER, DEFAULT_IPADAPTER_FACE
 
@@ -26,6 +27,7 @@ def compile_reference(
     adapter = ctx.model(step.ipadapter, default, "ipadapter")
     encoder = ctx.model(None, DEFAULT_CLIPVISION, "clipvision")
     g.use_model(adapter)
+    g.likeness = g.likeness or carries_likeness(step)
     g.use_model(encoder)
 
     loader = g.node("P11IPAdapterLoader", ipadapter_file=adapter.filename)

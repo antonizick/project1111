@@ -148,6 +148,9 @@ class EngineGraph:
     size: tuple[int, int] | None
     #: Mask preparation and paste-back the runner does around this graph (inpaint steps).
     prep: MaskPrep | None = None
+    #: A modifier carried a person's likeness into this graph (``p11.recipe.likeness``, S5): the
+    #: runner checks its output with the guard.
+    likeness: bool = False
 
     def to_json(self) -> bytes:
         """Canonical API-format JSON: sorted keys, no whitespace, UTF-8."""
@@ -195,6 +198,7 @@ class GraphBuilder:
         self.models: list[str] = []
         self.size: tuple[int, int] | None = None
         self.prep: MaskPrep | None = None
+        self.likeness = False
 
     def node(self, class_type: str, title: str | None = None, **inputs: Any) -> Ref:
         nid = str(len(self.nodes) + 1)
@@ -423,6 +427,7 @@ def graph_from(g: GraphBuilder, ctx: CompileContext, image: Ref) -> EngineGraph:
         ctx.seed,
         g.size,
         g.prep,
+        g.likeness,
     )
 
 

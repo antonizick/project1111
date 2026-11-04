@@ -32,6 +32,8 @@ TOKEN_FILE = "studio.token"
 COOKIE = "p11_session"
 TOKEN_HEADER = "x-p11-token"
 LAUNCH_TTL = 120.0
+#: Outstanding launch codes kept at most; minting more drops the oldest (Phase 16 hardening).
+MAX_LAUNCH_CODES = 16
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 #: Paths under ``/api`` that work without the token.
 PUBLIC_API = frozenset({("POST", "/api/session")})
@@ -83,11 +85,12 @@ class Session:
         logs.register_secret(self.token)
 
     def check(self, candidate: str | None) -> bool:
-        return candidate is not None and hmac.compare_digest(candidate, self.token)
+        return candidate is not None and _same(candidate, self.token)
 
     def mint_launch_code(self, now: float | None = None) -> str:
         now = time.monotonic() if now is None else now
-        self._codes = {c: t for c, t in self._codes.items() if t > now}
+        live = sorted(((t, c) for c, t in self._codes.items() if t > now), reverse=True)
+        self._codes = {c: t for t, c in live[: MAX_LAUNCH_CODES - 1]}
         code = secrets.token_urlsafe(24)
         logs.register_secret(code)
         self._codes[code] = now + LAUNCH_TTL
@@ -96,7 +99,7 @@ class Session:
     def redeem(self, code: str, now: float | None = None) -> bool:
         """True once per unexpired code; the code is spent either way."""
         now = time.monotonic() if now is None else now
-        match = next((c for c in self._codes if hmac.compare_digest(c, code)), None)
+        match = next((c for c in self._codes if _same(c, code)), None)
         if match is None:
             return False
         expires = self._codes.pop(match)
@@ -112,6 +115,12 @@ class Session:
             fh.write(self.token)
         tmp.replace(path)
         return path
+
+
+def _same(a: str, b: str) -> bool:
+    """Constant-time compare that also takes non-ASCII input (headers decode as latin-1;
+    ``hmac.compare_digest`` raises ``TypeError`` on non-ASCII ``str``)."""
+    return hmac.compare_digest(a.encode("utf-8", "surrogateescape"), b.encode("utf-8"))
 
 
 def token_path() -> Path:

@@ -87,6 +87,7 @@ async def test_start_waits_for_ready_and_holds_gpu_lock(
     assert sup.state == "ready" and sup.running and sup.holds_gpu_lock
     assert sup.spec.pid_path.exists()
     assert "dummy engine listening" in sup.spec.log_path.read_text()
+    assert sup.spec.log_path.stat().st_mode & 0o777 == 0o600  # private like the Studio log (S6)
     with pytest.raises(GpuLockTimeout), gpu_lock(0, path=tmp_path / "gpu.lock"):
         pass
     await sup.start()  # idempotent

@@ -1,8 +1,8 @@
 # Project_1111 (P11)
 
-P11 is a fully local image-generation system for Omarchy Linux, tuned for a laptop with an 8 GB NVIDIA GPU. **P11 Studio** is its own browser form UI (Vite, React, TypeScript) with a Python service (FastAPI, Typer CLI, SQLite) that drives a pinned, headless ComfyUI engine reachable only on `127.0.0.1`. Planned features: photoreal text-to-image at wallpaper resolutions, one-click templates, inpainting, background replacement with your own photos, face-swap, pose and reference control, short-video face-swap, and a curated, hash-pinned model set.
+P11 is a fully local image-generation system for Omarchy Linux, tuned for a laptop with an 8 GB NVIDIA GPU. **P11 Studio** is its own browser form UI (Vite, React, TypeScript) with a Python service (FastAPI, Typer CLI, SQLite) that drives a pinned, headless ComfyUI engine reachable only on `127.0.0.1`. Features: photoreal text-to-image at wallpaper resolutions, one-click templates, inpainting, background replacement with your own photos, face-swap, pose and reference control, short-video face-swap, and a curated, hash-pinned model set.
 
-> **Status: pre-release, under construction.** The repository holds the specification, the implementation plan, the project governance files and the Python/React scaffold (CLI, `/healthz`, placeholder page), the pinned engine with its benchmarks, and the recipe core (recipe schema, presets, recipe → engine graph compiler, output layout and metadata, gallery index, template store), the engine adapter, the model manager, the Studio API with its job queue and `p11 start/stop/status/open/doctor`, and the Studio UI's Generate view, gallery, status bar and templates (save, run, starters), inpainting with a mask editor, and background replacement (subject segmentation on the CPU, colour-matched blending, photo/colour/transparent backgrounds), and face, pose and reference control (face swap and face restore on the CPU with the non-removable NSFW target guard, a pose editor with OpenPose/depth/line controls, and IP-Adapter style and character reference), and short-video face-swap (clip + face photo in, MP4 with the original audio out, resumable per frame, guarded on every frame). Upscaling, logo text and the Models page, and the installer (`install.sh`, `p11 update`, `p11 uninstall`, desktop entry) are in. Progress is tracked in [`P11_IMPLEMENTATION_PLAN.md`](P11_IMPLEMENTATION_PLAN.md).
+> **Status: feature-complete, pre-release.** Every planned feature is built: Generate with wallpaper presets and Speed/Quality upscaling, templates, inpainting, background replacement, face swap, pose and reference control, short-video face-swap, logo text, the Models page and the installer. Phase 16 hardened and measured it on the reference laptop (threat model, scanners, guard-bypass review, success criteria: [`docs/P11_BENCHMARKS.md`](docs/P11_BENCHMARKS.md)); v1.0.0 is next. Progress is tracked in [`P11_IMPLEMENTATION_PLAN.md`](P11_IMPLEMENTATION_PLAN.md).
 
 ![P11 Studio: Generate view](docs/images/p11-generate.png)
 
@@ -13,7 +13,7 @@ make build        # builds the frontend into src/p11/web/
 uv run p11 start && uv run p11 open   # Studio in the background, app window with a one-time session link
 uv run p11 status / stop / doctor     # state, stop, health checks with fix hints
 uv run p11 serve --fake  # foreground, with the FakeEngine and a demo gallery (no GPU or ComfyUI needed)
-uv run p11 models list   # curated models and their state; `p11 models install default` (14.4 GB)
+uv run p11 models list   # curated models and their state; `p11 models install default` (14.6 GB)
 make check        # all quality gates (no GPU)
 make e2e          # Playwright walkthroughs on the fake engine (action counts, axe, network guard)
 ```
@@ -35,13 +35,14 @@ Arch Linux / Omarchy, NVIDIA GPU with driver 580 or newer. The installer will no
 Everything runs on your machine. The service listens on `127.0.0.1` only, has no telemetry, loads no network assets in the UI, and downloads only the pinned models you approve (spec S1). Your prompts, uploads and outputs are never committed to this repository.
 
 ## Content stance
-Image generation is unfiltered: P11 makes fictional imagery without a content filter. Face-swap and video face-swap require that you have the consent of the person pictured, and they refuse sexual target material. That guard cannot be turned off (spec S5).
+Image generation is unfiltered: P11 makes fictional imagery without a content filter. Face-swap, video face-swap and the face reference require that you have the consent of the person pictured. They refuse sexual target material, and so does any picture made from such a result. That guard cannot be turned off (spec S5, ADR-0037).
 
 ## Documentation
 - [Specification](docs/P11_SPECIFICATION.md) (the Amendments section overrides earlier sections)
 - [Decisions (ADR log)](docs/P11_DECISIONS.md)
 - [Architecture](docs/P11_ARCHITECTURE.md)
-- [User guide](docs/P11_USER-GUIDE.md) (outline)
+- [User guide](docs/P11_USER-GUIDE.md)
+- [Benchmarks and measured success criteria](docs/P11_BENCHMARKS.md) · [Threat model](docs/P11_THREAT-MODEL.md) · [Publication readiness](docs/P11_PUBLICATION-READINESS.md)
 - [Implementation plan](P11_IMPLEMENTATION_PLAN.md)
 - [Security policy](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Changelog](CHANGELOG.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 

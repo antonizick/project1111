@@ -36,7 +36,7 @@ P11 Studio is a web server on your own machine, and any web page you visit can t
 - **Content-Security-Policy** `default-src 'self'` (no remote scripts, styles, fonts or frames), `nosniff`, `no-referrer`, no framing.
 - **Uploads** are checked by content, not name: images are decoded and re-saved as PNG without EXIF (GPS included); videos are probed by ffprobe, limited to known containers and codecs, and re-muxed without metadata. Stored names are generated; the browser only ever sees an opaque ID.
 - **Request size limits:** 1 MB for API calls, 64 MB per image, 1 GB per video.
-- **Logs** (`~/.cache/p11/logs/studio.log`, `0600`) never contain the token, launch codes, prompt text or file contents at the default level; `--debug` adds prompt text but still redacts the token.
+- **Logs** (`~/.cache/p11/logs/studio.log` and `engine.log`, both `0600`) never contain the token, launch codes, prompt text or file contents at the default level; `--debug` adds prompt text but still redacts the token.
 - FastAPI's built-in OpenTelemetry hooks are switched off; nothing is sent anywhere.
 
 **The UI (Phase 08)** loads nothing from the network: no CDN, fonts or analytics (Playwright fails the build if a page request leaves `127.0.0.1:<port>`). Downloads are made from an in-memory `blob:` URL. "Delete" moves files into P11's own trash folder (`~/.local/share/p11/trash/`, `0700`); "Empty trash" deletes only that folder, after a confirmation.
@@ -69,6 +69,19 @@ stub, and P11-generated portraits for the real classifiers. Never add an explici
 or to fixtures.
 
 **Video face-swap carries the same guard (Phase 13).** Every frame the video pipeline swaps goes through the same two-classifier check on its target and on its result, and a sampled pre-pass (about one frame per second plus scene changes) refuses the whole clip before any swapping; a refusal stops the job and deletes its scratch frames. There is no switch (ADR-0034).
+
+**Likeness beyond the swap (Phase 16, ADR-0037).** A **face reference** (Use as reference → The
+person or character) also keeps a real person recognisable, and so does any later edit of a swapped
+picture. P11 therefore runs the same two-classifier check on: the output of a face reference; every
+step that follows a face swap or face reference in the same run; and every job whose input is a
+gallery picture made that way (the picture's sidecar records it). Plain generation and style
+references stay unfiltered (A5). The check models must be installed or these jobs refuse.
+
+**Residual risks (Phase 16 threat model, `docs/P11_THREAT-MODEL.md`).** The engine port
+(`127.0.0.1:8188`) has no authentication, so any program running as your user can drive ComfyUI
+directly, outside P11's checks; such a program could equally read your pictures, so this is the same
+privilege boundary as the token file. A picture exported with metadata stripped and uploaded again
+is a new input with no likeness record. The classifiers can miss.
 
 **Using other people's likenesses.** The Studio shows a one-line notice in the face panel: "Use
 faces of people who agreed." Face photos are private data (S6): uploads are stored under

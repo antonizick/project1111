@@ -1,10 +1,14 @@
-import multiprocessing as mp
+import multiprocessing
 import os
 import time
 
 import pytest
 
 from p11 import gpulock
+
+# spawn, not fork: earlier tests leave TestClient threads running, and fork() in a threaded
+# process is deprecated (Phase 07 follow-up).
+mp = multiprocessing.get_context("spawn")
 
 
 def _hold(path, ready, release):

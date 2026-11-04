@@ -5,6 +5,8 @@
 ## Read first
 `CLAUDE.md` (Risk rule, git authority), `prompts/P11_shared-instructions.md`, spec §1, §11.1 A3, §11.4. Phase Log entry for 16 and its publication-readiness note. ADR-0003, ADR-0004, ADR-0005, ADR-0015, ADR-0016; spec §11.6 H10, H12, H13. The plan's Definition of done.
 
+**Phase 16 results (2026-11-03 20:30 CST):** the publication-readiness note is `docs/P11_PUBLICATION-READINESS.md` (no blocker for the private release; keep the InsightFace non-commercial flag visible); residual risks are in `docs/P11_THREAT-MODEL.md` §3 (T6 engine port, T8 re-uploaded likeness, classifier misses); measured results vs targets are in `docs/P11_BENCHMARKS.md` → "Success criteria (Phase 16 …)"; the deferred misses for task 5 (a) are the plan's "Deferred follow-ups (Phase 16, H12)" table. ADR-0037 (Phase 16) extends the S5 guard to face references and edits of likeness pictures. The Playwright suite now runs with one worker and has a CI job (`e2e`); the e2e and Vitest suites are green when the machine is idle. Phase 16 used bandit and Semgrep from `uv tool` (user level); `make check` does not run them.
+
 ## Goal
 P11 v1.0.0 is tagged with a complete changelog and a final report that embeds the generated timeline. Only if Nick confirms in this session ("go?") is a GitHub release published, **on the private repo**; the repo stays private (spec H13, ADR-0016).
 

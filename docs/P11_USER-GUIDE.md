@@ -1,18 +1,8 @@
-# P11 User Guide (outline)
+# P11 User Guide
 
-Outline only; written out as features land (finished in Phase 15).
-
-1. Install (`./install.sh`) and first run (`p11 doctor`, `p11 open`); running the Studio (below)
-2. Generate: Simple and Advanced modes, wallpaper presets, seeds and variations
-3. Gallery: compare, export, re-run
-4. Templates: save, apply, slots, import/export
-5. Inpainting and the mask editor
-6. Background replacement
-7. Face-swap, pose and reference control (consent, NSFW target guard)
-8. Video face-swap
-9. Models: curated set, licence flags, adding your own
-10. Troubleshooting: out-of-memory, thermals, `p11 doctor`
-11. Uninstall and data locations
+Contents: 1 Running P11 Studio · 2 Generate · 3 Gallery · 4 Templates · 5 Inpainting · 6 Background
+replacement · 7 Face & Pose · 8 Video face-swap · 9 Models · 10 Upscaling, logos and the Models page ·
+11 Install, update and uninstall · 12 Troubleshooting.
 
 ## 1. Running P11 Studio (written in Phase 07)
 P11 Studio is a small local web service plus the engine it drives. Everything stays on `127.0.0.1`.
@@ -147,41 +137,6 @@ mask in the template**, or **Ask for a mask each time**. The background photo be
 input ("Background photo"), so a template like "product on my studio background" asks for two
 photos and runs. Photos are never stored in a template.
 
-## 9. Models (written in Phase 06)
-P11 ships a list of tested models (`models/manifest.toml`), not the models themselves. Each one is downloaded from its original host and checked against a pinned SHA-256 before P11 uses it.
-
-```bash
-p11 models list                       # what P11 knows and what is installed
-p11 models licences                   # licence, "commercial use" flag, your acknowledgements
-p11 models install default --dry-run  # size before downloading (default set: 14.4 GB)
-p11 models install default            # asks you to accept licences with terms (or --accept-licences)
-p11 models install full               # adds the SD 1.5 low-VRAM model
-p11 models verify                     # re-hash every installed file; exit 1 if one is damaged
-```
-An interrupted download resumes when you run the same command again. A file that does not match its hash is deleted and reported, never used. Licence acknowledgements are kept in `~/.config/p11/licences.toml` with the time you accepted them; delete an entry to be asked again.
-
-**Licences.** Several models use OpenRAIL-family licences: commercial use is allowed, but the licence lists uses you agree not to make. CC-BY models need credit when you share results. `p11 models licences` shows the flags for each.
-
-**Adding your own models.**
-```bash
-p11 models add ~/Downloads/MyLora.safetensors          # copied into the right folder
-p11 models add ~/Models/big.safetensors --link         # symlink instead of copying
-p11 models add https://huggingface.co/<repo>/resolve/<commit>/<file>.safetensors
-p11 models add file.safetensors --kind upscale --id my-upscaler   # when detection cannot tell
-p11 models disable my-upscaler / enable my-upscaler
-p11 models remove my-upscaler                          # forget it; --delete-file also deletes it
-```
-P11 recognises the file type by its content, not its name. `.safetensors` and GGUF files are accepted. Pickle-based files (`.ckpt`, `.pt`, `.pth`, `.bin`) can run code on your computer when loaded, so P11 refuses them unless you pass `--allow-pickle`; prefer a `.safetensors` version. If the file you add is one of the curated models, P11 installs it as that model. Files you drop into a model folder by hand show up as `unregistered` until you `add` them.
-
-**Optional models that need a login.** The curated set needs no account. For a model behind a login, put a token in `~/.config/p11/secrets.toml` (mode `600`, or P11 refuses it):
-```toml
-[tokens]
-"huggingface.co" = "hf_…"
-```
-The token is only sent to that exact host, never to the CDN the host redirects to, and never logged.
-
-**Moving models to another disk:** set `models_root = "/path"` in `~/.config/p11/config.toml`, move the folders, then run `p11 models install default` once (it checks the files and updates the engine's `extra_model_paths.yaml`).
-
 ## 7. Face & Pose (written in Phase 12)
 
 Open **Face & Pose** in the left nav, or press **Face** on any result or gallery picture.
@@ -204,7 +159,10 @@ decides how closely the generation follows it.
 
 **Use as reference.** Generate in a picture's style: choose the reference image, keep **Style and
 colours** or **The person or character**, and set the strength. Lower strengths keep more of your
-prompt; near 1.0 the picture's look dominates.
+prompt; near 1.0 the picture's look dominates. **The person or character** carries a real face into
+the picture, so it gets the same content check as a face swap, and so does anything you later make
+from such a picture (an inpaint, a new background, an upscale) or from a face-swapped one. That needs
+the `face` models too.
 
 **Restore faces.** For an existing picture: every face, or just one, at a chosen strength. Use it on
 old photos, small faces or an avatar that came out soft.
@@ -247,6 +205,41 @@ picking **Fast** is the way to shorten a run. A finished video is saved next to 
 **Models.** The video path uses the same face models as **Swap face**:
 `p11 models install face` (they are licensed for non-commercial research, so the install asks you to
 acknowledge that first).
+
+## 9. Models (written in Phase 06)
+P11 ships a list of tested models (`models/manifest.toml`), not the models themselves. Each one is downloaded from its original host and checked against a pinned SHA-256 before P11 uses it.
+
+```bash
+p11 models list                       # what P11 knows and what is installed
+p11 models licences                   # licence, "commercial use" flag, your acknowledgements
+p11 models install default --dry-run  # size before downloading (default set: 14.6 GB)
+p11 models install default            # asks you to accept licences with terms (or --accept-licences)
+p11 models install full               # adds the SD 1.5 low-VRAM model
+p11 models verify                     # re-hash every installed file; exit 1 if one is damaged
+```
+An interrupted download resumes when you run the same command again. A file that does not match its hash is deleted and reported, never used. Licence acknowledgements are kept in `~/.config/p11/licences.toml` with the time you accepted them; delete an entry to be asked again.
+
+**Licences.** Several models use OpenRAIL-family licences: commercial use is allowed, but the licence lists uses you agree not to make. CC-BY models need credit when you share results. `p11 models licences` shows the flags for each.
+
+**Adding your own models.**
+```bash
+p11 models add ~/Downloads/MyLora.safetensors          # copied into the right folder
+p11 models add ~/Models/big.safetensors --link         # symlink instead of copying
+p11 models add https://huggingface.co/<repo>/resolve/<commit>/<file>.safetensors
+p11 models add file.safetensors --kind upscale --id my-upscaler   # when detection cannot tell
+p11 models disable my-upscaler / enable my-upscaler
+p11 models remove my-upscaler                          # forget it; --delete-file also deletes it
+```
+P11 recognises the file type by its content, not its name. `.safetensors` and GGUF files are accepted. Pickle-based files (`.ckpt`, `.pt`, `.pth`, `.bin`) can run code on your computer when loaded, so P11 refuses them unless you pass `--allow-pickle`; prefer a `.safetensors` version. If the file you add is one of the curated models, P11 installs it as that model. Files you drop into a model folder by hand show up as `unregistered` until you `add` them.
+
+**Optional models that need a login.** The curated set needs no account. For a model behind a login, put a token in `~/.config/p11/secrets.toml` (mode `600`, or P11 refuses it):
+```toml
+[tokens]
+"huggingface.co" = "hf_…"
+```
+The token is only sent to that exact host, never to the CDN the host redirects to, and never logged.
+
+**Moving models to another disk:** set `models_root = "/path"` in `~/.config/p11/config.toml`, move the folders, then run `p11 models install default` once (it checks the files and updates the engine's `extra_model_paths.yaml`).
 
 ## 10. Upscaling, logos and the Models page (written in Phase 14)
 **Upscale: Speed or Quality.** On any result or gallery image press **Upscale…**, pick ×1.5, ×2, **To 1920 × 1080** or **To 2560 × 1440**, and **Speed** or **Quality**. Speed uses only the model upscaler: crisp and quick (about 16 s at wallpaper size on the reference laptop). Quality adds a refinement pass that invents fine detail (about 35 s at 1920 × 1080, about 77 s at 2560 × 1440). For a new wallpaper, the **Upscale quality** chips in Generate do the same during generation. Neither mode ran out of GPU memory in testing.
@@ -297,3 +290,11 @@ The **face** model set contains two InsightFace models that are for non-commerci
 | `p11: command not found` | Add `~/.local/bin` (or your `--prefix`/bin) to `PATH`. |
 | Model download stopped | Run `./install.sh` or `p11 models install default` again; downloads resume and are checked by SHA-256. |
 | `p11 update` says the checkout is modified | `git status`; commit, stash or discard your edits first. |
+
+## 12. Troubleshooting (written in Phase 16)
+- **Something is off:** run `p11 doctor`. Every problem comes with the command that fixes it; "optional models" says whether the `face` and `control` sets are installed.
+- **Out of GPU memory:** P11 retries once in a low-memory mode and tells you so ("Out of GPU memory: retrying in low-memory mode."); the next idle period switches back. On the reference laptop, 100 wallpapers in a row and a 30-minute mixed session never needed it. If it keeps happening, close other GPU programs (games, video editors) or pick Speed instead of Quality.
+- **Long jobs pause when hot:** video and batch jobs wait when the GPU reaches 87 °C and continue at 80 °C; the status bar shows it. Single images run at about 80 °C on the reference laptop.
+- **"Face swap and face reference need their image check models":** run `p11 models install face`. The content check cannot be skipped.
+- **"Could not find a subject in this image":** the Background tool found nothing to keep (a landscape, say). Press **Refine** and paint the subject.
+- **Logs:** `~/.cache/p11/logs/studio.log` and `engine.log` (private to you; they do not contain your prompts unless you start with `--debug`).

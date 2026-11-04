@@ -262,6 +262,15 @@ The model IDs and thresholds are module constants; `FaceSwap` has no guard field
 (`tests/unit/test_media_faces.py`). A missing classifier refuses the swap (`GuardUnavailable`) —
 fail closed.
 
+**Likeness beyond the swap (Phase 16, ADR-0037).** `p11.recipe.likeness.carries_likeness` (pure)
+marks a `face_swap` and any `reference` that is not the stock style adapter in `style` mode; the
+compiler sets `EngineGraph.likeness`. In `Runner.run` a `likeness` flag starts true when an input
+(source image, bound slot or parent) is a gallery image whose sidecar says `likeness` (or whose
+recipe carries one), and turns true at the first likeness step; from then on every output passes
+`check_likeness` before it is saved, and the run's `RunRecord.likeness` is written to the sidecar so
+later edits inherit it. `Runner.validate` calls `faces.guard()` for such jobs, so missing guard
+models refuse at submit time. Generation without a likeness never reaches the guard (A5).
+
 **Controls are made in P11 and consumed by the engine.** A `pose` step's slot picture becomes the
 control map through `GraphInput.transform` (applied by the runner before upload): `pose` extracts a
 body skeleton with DWPose (`media/pose.py`) or takes the pose editor's drawing unchanged,
