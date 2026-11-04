@@ -86,6 +86,8 @@ export function useImageActions(onJobs?: (jobs: Job[]) => void) {
         .then((image) => dispatch({ type: "image", image }))
         .catch(fail),
     saveTemplate: (img: ImageEntry) => templates.saveImage(img),
+    /** Photo edit (Phase 17b): the image becomes the Generate view's starting photo. */
+    startFrom: (img: ImageEntry) => nav.edit("generate", img),
     inpaint: (img: ImageEntry) => nav.edit("inpaint", img),
     background: (img: ImageEntry) => nav.edit("background", img),
     face: (img: ImageEntry) => nav.edit("face", img),

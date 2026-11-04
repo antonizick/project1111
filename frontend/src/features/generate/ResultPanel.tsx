@@ -54,6 +54,9 @@ export function ImageActions({
       <button type="button" className="btn" onClick={() => setTexting(true)}>
         Add text / Logo
       </button>
+      <button type="button" className="btn" onClick={() => actions.startFrom(image)}>
+        Use as starting photo
+      </button>
       <button type="button" className="btn" onClick={() => actions.inpaint(image)}>
         Inpaint
       </button>

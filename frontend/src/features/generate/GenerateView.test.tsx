@@ -201,3 +201,54 @@ it("runs follow-up actions on the result and opens the shortcut overlay", async 
   await user.keyboard("g");
   expect(screen.getByRole("button", { name: "Gallery" })).toHaveAttribute("aria-current", "page");
 });
+
+it("starts from an uploaded photo: strength chips, aspect locked, recipe with a source", async () => {
+  const user = userEvent.setup();
+  const { calls } = await start({
+    "POST /api/uploads": () => ({ id: "img-1", kind: "image", width: 1600, height: 1200 }),
+    "POST /api/jobs": () => job(),
+  });
+  const file = new File(["png"], "room.png", { type: "image/png" });
+  await user.upload(screen.getByLabelText("Start from a photo (optional)"), file);
+  expect(await screen.findByAltText("Starting photo")).toBeVisible();
+  // The aspect chips are disabled with a note: the photo keeps its shape.
+  expect(screen.getByRole("button", { name: "Square 1024" })).toBeDisabled();
+  expect(screen.getByText(/keeps the photo's own shape \(1600 × 1200\)/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Change" })).toHaveAttribute("aria-pressed", "true");
+  await user.click(screen.getByRole("button", { name: "Light touch" }));
+  await user.type(screen.getByLabelText("Prompt"), "a modern furnished living room");
+  await user.click(genButton());
+  const submit = calls.find((c) => c.method === "POST" && c.path === "/api/jobs");
+  const body = submit?.body as { recipe: Recipe; parent: number | null };
+  expect(body.recipe.source_image).toEqual({ ref: "img-1" });
+  expect(body.recipe.steps[0]).toMatchObject({
+    prompt: "a modern furnished living room",
+    denoise_preset: "light",
+    denoise: null,
+    image_slot: null,
+  });
+  expect(body.parent).toBeNull();
+  // Remove brings back text to image.
+  await user.click(screen.getByRole("button", { name: "Remove photo" }));
+  expect(screen.getByRole("button", { name: "Square 1024" })).toBeEnabled();
+  expect(screen.queryByRole("button", { name: "Light touch" })).toBeNull();
+});
+
+it("uses a result as the starting photo", async () => {
+  const user = userEvent.setup();
+  const { calls } = await start({ "POST /api/jobs": () => job() });
+  await user.type(screen.getByLabelText("Prompt"), "a house");
+  await user.click(genButton());
+  emit("image", { job: "job1", image: image(5) });
+  emit("job", job({ state: "done", images: [5], progress: 1 }));
+  const result = await screen.findByRole("region", { name: "Result" });
+  await user.click(within(result).getByRole("button", { name: "Use as starting photo" }));
+  expect(await screen.findByAltText("Starting photo")).toHaveAttribute("src", "/api/images/5");
+  await user.click(screen.getByRole("button", { name: "Reimagine" }));
+  await user.click(genButton());
+  const submits = calls.filter((c) => c.method === "POST" && c.path === "/api/jobs");
+  const body = submits[submits.length - 1]?.body as { recipe: Recipe; parent: number | null };
+  expect(body.recipe.source_image).toEqual({ ref: "gallery/5" });
+  expect(body.recipe.steps[0]).toMatchObject({ denoise_preset: "reimagine" });
+  expect(body.parent).toBe(5);
+});

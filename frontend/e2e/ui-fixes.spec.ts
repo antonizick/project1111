@@ -4,34 +4,7 @@
 // (d) Face & Pose bounds its pictures and scrolls instead of running off screen.
 
 import { expect, test, type Page } from "@playwright/test";
-import { generateButton, openStudio } from "./studio";
-
-/** A synthetic photo made in the page (no files in the repo; S6). */
-async function syntheticPng(page: Page, w: number, h: number): Promise<Buffer> {
-  const b64 = await page.evaluate(
-    ([w, h]) => {
-      const c = document.createElement("canvas");
-      c.width = w;
-      c.height = h;
-      const g = c.getContext("2d")!;
-      const grad = g.createLinearGradient(0, 0, w, h);
-      grad.addColorStop(0, "#245");
-      grad.addColorStop(1, "#c96");
-      g.fillStyle = grad;
-      g.fillRect(0, 0, w, h);
-      return new Promise<string>((resolve) =>
-        c.toBlob(async (blob) => {
-          const bytes = new Uint8Array(await blob!.arrayBuffer());
-          let s = "";
-          for (const x of bytes) s += String.fromCharCode(x);
-          resolve(btoa(s));
-        }, "image/png"),
-      );
-    },
-    [w, h] as const,
-  );
-  return Buffer.from(b64, "base64");
-}
+import { generateButton, openStudio, syntheticPng } from "./studio";
 
 const view = (page: Page, name: string) =>
   page.getByRole("navigation", { name: "Views" }).getByRole("button", { name }).click();

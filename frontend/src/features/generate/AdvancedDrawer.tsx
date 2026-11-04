@@ -3,10 +3,14 @@
 
 import type { Chain, ModelInfo, Presets } from "../../api/types";
 import {
+  clampDenoise,
   defaultsFor,
+  DENOISE_MAX,
+  DENOISE_MIN,
   effectiveAspect,
   effectiveModel,
   MAX_SEED,
+  PHOTO_PRESETS,
   resetAdvanced,
   withModel,
   type FormState,
@@ -60,8 +64,31 @@ export function AdvancedDrawer({
   const aspect = presets?.aspects.find((a) => a.id === effectiveAspect(form, presets));
   const set = (patch: Partial<FormState>) => setForm({ ...form, ...patch });
 
+  const chip = PHOTO_PRESETS.find((p) => p.id === form.strength);
+
   return (
     <section className="advanced" aria-label="Advanced settings">
+      {form.photo && (
+        <div className="field">
+          <label htmlFor="adv-denoise">
+            Photo strength: {(form.denoise ?? chip?.denoise ?? 0.55).toFixed(2)}
+          </label>
+          <input
+            id="adv-denoise"
+            type="range"
+            min={DENOISE_MIN}
+            max={DENOISE_MAX}
+            step={0.05}
+            value={form.denoise ?? chip?.denoise ?? 0.55}
+            onChange={(e) => set({ denoise: clampDenoise(Number(e.target.value)) })}
+          />
+          <p className="field-help">
+            {form.denoise === null
+              ? `Following the ${chip?.label ?? "Change"} chip. Lower keeps more of the photo.`
+              : "Custom strength. Pick a Strength chip to go back to a tuned value."}
+          </p>
+        </div>
+      )}
       <div className="field">
         <label htmlFor="adv-model">Model</label>
         <select
