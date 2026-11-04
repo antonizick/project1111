@@ -1,6 +1,6 @@
 # P11 Publication Readiness (for Phase 17)
 
-**Last updated:** 2026-11-03 20:29 CST (Phase 16 licence audit). Target: v1.0.0 as an annotated tag plus a GitHub release **on the private repo** (H13, ADR-0016). Making the repo public is out of scope for v1.0.0.
+**Last updated:** 2026-11-04 11:36 CST (Phase 17d: v1.0.1 released). The audit below was made for the v1.0.0 **private** release (H13, ADR-0016). Since then Nick made `antonizick/project1111` **public** himself (owner question 21, answered 2026-11-04 07:57 CST); Phase 17d did not change visibility (ADR-0040). The restrictions to keep visible below apply unchanged in public.
 
 ## Verdict
 **No blocker for the private v1.0.0 release.** Nothing third-party is vendored that would stop P11's own code being MIT, no weights are in git, and every licence restriction is flagged where the owner sees it. Phase 17 still asks Nick "go?" before tagging (the planned stop).
@@ -19,7 +19,7 @@
 ## Restrictions to keep visible (not blockers)
 - **InsightFace `arcface-w600k-r50` and `inswapper-128`: non-commercial research only.** In the optional `face` set, never `default`; the installer and Models page require an explicit acknowledgement (verified on a TTY in Phase 16: both prompts shown, "no" aborts, "yes" records `licences.toml`; without a TTY the install stops and names `--accept-licences`). The owner makes logos and game assets: **face swap output is not cleared for commercial use.**
 - **CreativeML OpenRAIL-M checkpoints** (Juggernaut XL v9, the default set's Quality model, and Realistic Vision V6.0 in `full`): use-based restrictions travel with the weights; flagged in THIRD_PARTY_NOTICES. Check each SDXL checkpoint's own row there before commercial use.
-- **If the repo is ever made public** (out of scope for v1.0.0): re-check that the README's install path names a tag; nothing else in the tree changes.
+- **The repo is public since 2026-11-04** (Nick's own change; owner question 21). The README's install path and the tag one-liner now work as written; the licence flags above are what a public reader sees, so keep them current. Nothing else in the tree needed to change.
 
 ## Open items for the Phase 17 review (H10, H12)
 Listed in the plan's Phase 16 Phase Log entry ("For the owner's review" and "Deferred").

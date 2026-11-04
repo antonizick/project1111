@@ -293,7 +293,7 @@ What it does, in order: checks the OS and the NVIDIA driver (and stops with a li
 
 The **face** model set contains two InsightFace models that are for non-commercial research only (`p11 models licences` shows them). The installer never accepts them for you: you either answer the prompt or pass `--accept-licences` yourself.
 
-**One-liner (tags only).** `curl -fsSL https://raw.githubusercontent.com/antonizick/project1111/v1.0.0/install.sh | P11_INSTALL_TAG=v1.0.0 bash -s -- --dry-run` clones that tag and runs the installer from it. The script refuses to run from a pipe without a `vX.Y.Z` tag, and the repository is private until Nick publishes it, so this works only after release. The clone path above is the recommended one.
+**One-liner (tags only).** `curl -fsSL https://raw.githubusercontent.com/antonizick/project1111/v1.0.1/install.sh | P11_INSTALL_TAG=v1.0.1 bash -s -- --dry-run` clones that tag and runs the installer from it. The script refuses to run from a pipe without a `vX.Y.Z` tag. The clone path above is the recommended one.
 
 **Start.** Launch **P11 Studio** from the app menu, press the keybinding if you added one, or run `p11 open`. The desktop entry runs `p11 open`, which starts the Studio and opens an app window like an Omarchy web app. For a Hyprland window rule, the window class is the one Omarchy gives web apps (on the reference laptop: class `brave-127.0.0.1__-Default`, title `P11 Studio`; `hyprctl clients` shows yours while P11 is open).
 

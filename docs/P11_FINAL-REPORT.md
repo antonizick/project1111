@@ -1,6 +1,6 @@
-# P11: Final Report (v1.0.0)
+# P11: Final Report (v1.0.1)
 
-Project_1111 (P11) is a fully local image-generation system for Omarchy Linux on an 8 GB RTX 2070 Mobile laptop. **P11 Studio** (Vite + React + TypeScript, FastAPI, Typer, SQLite, Python 3.12 via uv) drives a pinned headless ComfyUI on 127.0.0.1. This report covers phases 00–16 as shipped in v1.0.0. The repository is private (spec H13, ADR-0016).
+Project_1111 (P11) is a fully local image-generation system for Omarchy Linux on an 8 GB RTX 2070 Mobile laptop. **P11 Studio** (Vite + React + TypeScript, FastAPI, Typer, SQLite, Python 3.12 via uv) drives a pinned headless ComfyUI on 127.0.0.1. This report covers phases 00–16 as shipped in v1.0.0 and phases 17a–17c in v1.0.1. The repository is public (Nick's own change per owner question 21, 2026-11-04 07:57 CST); Phase 17d did not change its visibility (ADR-0040).
 
 ## What was built against the spec
 | Spec goal (§1, §10) | Result | Phase |
@@ -15,6 +15,28 @@ Project_1111 (P11) is a fully local image-generation system for Omarchy Linux on
 | Installer and Omarchy integration | `install.sh`, `uninstall.sh`, `p11 update`, desktop entry, container install test | 15 |
 | Security baseline S1–S10, threat model, QA | `docs/P11_THREAT-MODEL.md`, scanners, fuzz corpus, axe on every view | 16 |
 | Unfiltered generation (A5); face-swap NSFW guard (S5) | Plain generation has no filter; the guard cannot be configured off (ADR-0005, ADR-0029, ADR-0034, ADR-0037) | 12, 13, 16 |
+
+## v1.0.1 (2026-11-04 11:36 CST)
+The first feedback round after v1.0.0. The version is **1.0.1** by Nick's choice although photo edit is a feature (SemVer would say 1.1.0).
+
+### Editor and layout fixes (17a)
+- Inpaint and Refine-mask brush strokes stay on the canvas while drawing: each pointer move now restores its dirty box instead of the whole canvas (`render.ts:composite`).
+- The Background mask overlay is aligned with the image at both window sizes and in both orientations.
+- Face & Pose, Video and Models scroll inside their pane; picked pictures are ≤ 160 px thumbnails; the Video face boxes and the Text & logo drag area sit on the picture.
+- Measured in Chromium (Playwright, 2560×1440): 241 pointer moves, average canvas draw 0.61 ms (max 16.7 ms), median frame 16.7 ms; overlay and image boxes within 1 px; a 3000×2000 upload gives a ≤ 160 px thumbnail.
+
+### Photo edit (17b)
+- **Start from a photo** on Generate (ADR-0038): SDXL image-to-image at the model's nearest native bucket, strength presets **Light touch 0.45 / Change 0.70 / Reimagine 0.85** (Advanced slider 0.10–0.95); the `generate` step gains `image_slot`, `denoise`, `denoise_preset` (additive, schema v1 unchanged; text-to-image goldens byte-identical); Save as Template makes a **Start photo** input.
+- S5: an edit of an uploaded photo that shows a face passes the likeness check on every output, and is refused before queueing without the `face` safety models.
+- Fixed the engine-cache output-name bug that made an identical repeat job 404 (ADR-0042).
+- Measured on the laptop, 50 photo-edit runs: 50/50 finished, no OOM, peak 7.74 GB VRAM, GPU 77 °C; engine time median 18.8 s at the 16:9 photo size and 13.4 s at 1024×1024; face detection median 98.5 ms on a 1920×1080 upload.
+
+### P11 in the Omarchy Control Center (17c)
+- A `transient` `id = "p11"` block in `~/.config/occ/services.toml` puts P11 Studio on the OCC dashboard (`Super + Alt + T`): Start/Stop/Restart, a Busy badge with a Stop confirmation while a job runs, logs from `~/.cache/p11/logs/studio.log`, and External detection. The token-free `/healthz` gains `busy` and `queue` counts (counts only).
+- Verified: `occ check` 0 errors / 0 warnings, cold start 898 ms, Busy observed during a real generation, and Stop ends the whole cgroup including the engine child. Open awaits OCC phase 10a (`open_exec`); `Super + Alt + I` / `p11 open` work meanwhile.
+
+### Release
+Annotated tag `v1.0.1` and a GitHub release with the changelog notes (no binaries or weights), on `antonizick/project1111`. Visibility is unchanged by this release: public, as Nick made it before this phase (owner question 21; ADR-0040, ADR-0041), recorded before and after in the Phase Log.
 
 ## Measured results against targets
 Full tables: `docs/P11_BENCHMARKS.md` → "Success criteria (Phase 16 …)".
@@ -32,7 +54,7 @@ Full tables: `docs/P11_BENCHMARKS.md` → "Success criteria (Phase 16 …)".
 | Video face-swap, 30 s 1080p Fast | usable file with audio, resume works | 2.75 s/frame, killed and resumed to completion |
 
 ## Decisions
-37 ADRs are indexed in `docs/P11_DECISIONS.md`. The ones that shape the product:
+42 ADRs are indexed in `docs/P11_DECISIONS.md`. The ones that shape the product:
 - **ADR-0002, 0013:** a form UI over headless ComfyUI, with a local-only security posture.
 - **ADR-0003, 0016:** MIT for P11's own code, no weights in git, a private v1.0.0 release.
 - **ADR-0005, 0029, 0034, 0037:** unfiltered generation; the S5 guard on face-swap targets and results, video frames and every picture that carries a person's likeness.
@@ -41,6 +63,8 @@ Full tables: `docs/P11_BENCHMARKS.md` → "Success criteria (Phase 16 …)".
 - **ADR-0018:** the default model set (RealVisXL V5.0 Lightning, Juggernaut XL v9, fp16-fix VAE, NomosWebPhoto RealPLKSR; about 14.6 GB).
 - **ADR-0028, 0031:** the face pipeline runs on the CPU in P11; the IP-Adapter node pack is P11's own code.
 - **ADR-0036:** the installer is an editable `uv tool` install from the checkout, with tag-based updates.
+- **ADR-0038, 0042:** photo edit is SDXL image-to-image on the default model, edits of uploaded photos showing a face go through the S5 guard, and engine output names carry a per-run token so ComfyUI's cache can never name a file P11 deleted.
+- **ADR-0039, 0040, 0041:** P11 joins OCC as a transient service with a token-free busy flag; v1.0.1 is released without an in-session go; visibility is left to Nick.
 
 ## Deviations
 Recorded per phase in the Phase Log of `P11_IMPLEMENTATION_PLAN.md`. The notable ones: no Forge-family engine was measured because ComfyUI passed every hard requirement (Phase 03); face detection, swap and restore run in P11 instead of a ReActor node (ADR-0028); the gitleaks hook is a local system hook (ADR-0017); logo starters were mark-only until Phase 14 (ADR-0024).
