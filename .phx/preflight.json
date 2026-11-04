@@ -1,28 +1,15 @@
 {
   "version": 1,
-  "recorded": "2026-11-02 15:00 CST",
+  "recorded": "2026-11-04 07:54 CST",
   "phx": "0.1.0",
   "plan_file": "P11_IMPLEMENTATION_PLAN.md",
-  "plan_hash": "3a7c642c9d42524c8305444980b1925ffff261fcb3928ba75ded5d922861f1f0",
-  "base_commit": "89813f9",
+  "plan_hash": "c260b0cc9c16463750d78a35f9952109c936ecf890615af7176c575b3c2e27f7",
+  "base_commit": "19ebe39",
   "covered": [
-    "01",
-    "02",
-    "03",
-    "04",
-    "05",
-    "06",
-    "07",
-    "08",
-    "09",
-    "10",
-    "11",
-    "12",
-    "13",
-    "14",
-    "15",
-    "16",
-    "17"
+    "17a",
+    "17b",
+    "17c",
+    "17d"
   ],
   "phases": {
     "00": "dcce3df0a8c5258c",
@@ -42,7 +29,11 @@
     "14": "49b5d2638d66f407",
     "15": "4a3975dcb150e769",
     "16": "9bf4cf342fd6535b",
-    "17": "b17f537a69993574"
+    "17": "b17f537a69993574",
+    "17a": "f28db7a955be343d",
+    "17b": "7adc89e1e767051e",
+    "17c": "1b7cf863ffcbcaac",
+    "17d": "fb4d9f469befbbbd"
   },
   "questions": [
     "1",
@@ -60,9 +51,20 @@
     "13",
     "14",
     "15",
-    "16"
+    "16",
+    "17",
+    "18",
+    "19",
+    "20",
+    "21",
+    "22"
   ],
-  "open_questions": [],
-  "unresolved": [],
-  "session_id": null
+  "open_questions": [
+    "21"
+  ],
+  "unresolved": [
+    "after 17d: owner question 21, make the repo public (Nick confirms by hand)",
+    "phase 17c: OCC 10a not run yet; Open on the card depends on Nick running it"
+  ],
+  "session_id": "dd28e788-32a0-4c3b-891f-951b5a31f454"
 }
