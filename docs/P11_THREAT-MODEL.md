@@ -1,6 +1,6 @@
 # P11 Threat Model
 
-**Last updated:** @@TS@@ (Phase 16). Scope: P11 Studio, its engine, the installer and updater, and the model downloads on one single-user Omarchy laptop. Companion documents: [`SECURITY.md`](../SECURITY.md) (policy and user-facing controls), spec §11.3 (S1–S10), ADR-0013, ADR-0022, ADR-0029, ADR-0034, ADR-0037.
+**Last updated:** 2026-11-03 20:29 CST (Phase 16). Scope: P11 Studio, its engine, the installer and updater, and the model downloads on one single-user Omarchy laptop. Companion documents: [`SECURITY.md`](../SECURITY.md) (policy and user-facing controls), spec §11.3 (S1–S10), ADR-0013, ADR-0022, ADR-0029, ADR-0034, ADR-0037.
 
 ## 1. Assets
 | Asset | Where | Why it matters |
@@ -47,8 +47,8 @@
 | T16 | **Installer abuse** (pipe-to-bash of `main`, sudo beyond pacman, driver changes) | Pinned tag only for the one-liner, printed pacman list + confirmation, no driver installs, ShellCheck-clean, `--dry-run` (S7, ADR-0036) | `tests/install/run.sh` in a clean Arch container; ShellCheck in `make lint` | the user can still run an untrusted fork's script |
 
 ## 4. Live verification on the laptop (Phase 16)
-- **Listeners** (`ss -ltnpu`, @@SSTS@@, during the GPU runs): the engine on `127.0.0.1:8188` only; the Studio (`p11 serve`) on `127.0.0.1:8111` only (Phase 07 test plus the Phase 15 install). An unrelated `python3 -m http.server` on `127.0.0.1:18213` belongs to another tool, not P11.
-- **Egress**: @@EGRESS@@
+- **Listeners** (`ss -ltnpu`, 2026-11-03 19:00 CST, during the GPU runs): the engine on `127.0.0.1:8188` only; the Studio (`p11 serve`) on `127.0.0.1:8111` only (Phase 07 test plus the Phase 15 install). An unrelated `python3 -m http.server` on `127.0.0.1:18213` belongs to another tool, not P11.
+- **Egress**: a watcher (`ss -tunp` once a second, `~/.cache/p11/bench/qa/netwatch*.log`) recorded every socket of the benchmark Studio from 19:00 CST and of the engine process as well from 19:34 CST, with a non-loopback peer, until 20:15 CST, across the 50-run soaks, the thermal loop and the 30-minute mixed session (generate, inpaint, background, face swap, upscale, model switch): **none**. The presets stage (18:52–19:01) ran before the watcher started; Phase 03 watched the engine for 2.5 h with the same result. A 1 Hz sample can miss a sub-second connection; the engine runs `--offline` with `HF_HUB_OFFLINE`/`TRANSFORMERS_OFFLINE`, and the Playwright network guard checks every UI request.
 - **Host/Origin/token against the running service**: see `docs/P11_BENCHMARKS.md` → Phase 16 security checks (curl against a real `p11 serve`).
 - **CSP**: every response, static files included, carries `default-src 'self'; … object-src 'none'; base-uri 'none'; frame-ancestors 'none'` (`test_api_security.py::test_security_headers_on_every_response`, `test_static_files_get_the_csp`, and the live curl).
 - **Engine pin**: `git -C ~/.local/share/p11/engine/ComfyUI rev-parse HEAD` = `426f5eea52a7ece1dd599fff4cb6cd1f352ddd24` = `engine.lock.toml`; tracked tree clean; `custom_nodes/p11_ipadapter/__init__.py` SHA-256 `fd45ca11…b416` = lock; torch `2.14.1+cu130` = lock.

@@ -154,17 +154,37 @@ gantt
 ```
 
 ### Definition of done (checked in the final phase)
-- [ ] `./install.sh` on a clean Omarchy/Arch environment completes, runs `p11 doctor` green and opens the UI (spec R15; tested in a container and on the laptop).
-- [ ] Time-to-first-image ≤ 5 min after the default-set download (R4), measured on the laptop.
-- [ ] Every wallpaper preset (1920×1080, 2560×1440) generates without OOM 50 times in a row with the default model; per-preset times recorded in `docs/P11_BENCHMARKS.md`.
-- [ ] Daily workflow ≤ 5 actions, Save as Template ≤ 3, re-run template 1 (Appendix B), measured by Playwright walkthroughs.
-- [ ] Inpaint, background replace with photo, face-swap, pose and reference flows work end-to-end from Simple mode without docs.
-- [ ] Video face-swap of a 30 s 1080p clip produces a usable file with original audio; resume after a killed process works.
-- [ ] Generation has no content filter (A5); the face-swap NSFW guard (S5) blocks sexual targets in UI, API, templates and video, with tests.
-- [ ] Security baseline S1–S10 verified in Phase 16 (localhost only, no telemetry egress observed, pinned engine/nodes, safetensors policy, secrets scan clean).
-- [ ] THIRD_PARTY_NOTICES lists every engine component, node and model with licence flags; licence audit recorded.
-- [ ] All docs current (README, user guide, ARCHITECTURE, SECURITY, CHANGELOG, OSMods entry); the timeline block generated.
+- [x] `./install.sh` on a clean Omarchy/Arch environment completes, runs `p11 doctor` green and opens the UI (spec R15; tested in a container and on the laptop).
+- [x] Time-to-first-image ≤ 5 min after the default-set download (R4), measured on the laptop.
+- [x] Every wallpaper preset (1920×1080, 2560×1440) generates without OOM 50 times in a row with the default model; per-preset times recorded in `docs/P11_BENCHMARKS.md`.
+- [x] Daily workflow ≤ 5 actions, Save as Template ≤ 3, re-run template 1 (Appendix B), measured by Playwright walkthroughs.
+- [x] Inpaint, background replace with photo, face-swap, pose and reference flows work end-to-end from Simple mode without docs.
+- [x] Video face-swap of a 30 s 1080p clip produces a usable file with original audio; resume after a killed process works.
+- [x] Generation has no content filter (A5); the face-swap NSFW guard (S5) blocks sexual targets in UI, API, templates and video, with tests.
+- [x] Security baseline S1–S10 verified in Phase 16 (localhost only, no telemetry egress observed, pinned engine/nodes, safetensors policy, secrets scan clean).
+- [x] THIRD_PARTY_NOTICES lists every engine component, node and model with licence flags; licence audit recorded.
+- [x] All docs current (README, user guide, ARCHITECTURE, SECURITY, CHANGELOG, OSMods entry); the timeline block generated.
 - [ ] v1.0.0 GitHub release published on the private repo **only if** Nick confirmed it in-session; repo visibility unchanged (H13, ADR-0016).
+
+Checked by Phase 16 (2026-11-03): evidence in `docs/P11_BENCHMARKS.md` → Success criteria, `docs/P11_THREAT-MODEL.md` and `docs/P11_PUBLICATION-READINESS.md`. The last item is Phase 17's.
+
+### Deferred follow-ups (Phase 16, H12)
+Non-security items that were not closed in Phase 16, each with its reason; listed for Nick's review at the Phase 17 pause. No security item is deferred.
+
+| From | Item | Why deferred |
+|---|---|---|
+| 03 | Try `--fp16-vae` with the fp16-fix VAE for faster decodes | tuning; current decodes fit the budget (no OOM in 100 + 105 runs) |
+| 03, 14 | A quantized larger model; the by-eye `latent` vs `both` comparison | quality judgement needs the owner's eye; `latent` kept on time and memory (ADR-0010) |
+| 06 | Parallel downloads in `p11 models install` | the serial path works; a speed nicety |
+| 08 | Trash restore button; gallery "reindex"; keyset paging for very large galleries | new features (out of Phase 16's scope); paging is fine at hundreds of images |
+| 09 | Pick an earlier gallery image for a slot; Edit writes back to its template; Undo-delete keeps the slug; a Templates screenshot in the guide | new features / doc images |
+| 10 | Colour matching in inpaint `stitch` for face seams; outpainting | quality features |
+| 11 | Matte-aware feather for thin structures; foreground-colour estimation for hair wisps; engine `RemoveBackground` if the 8–12 s CPU mask feels slow | quality features |
+| 12 | "Preload the control model" setting (first pose run 61 s vs 13 s warm); click-the-face overlay in the Face view | features |
+| 13 | CUDA onnxruntime for faster Good-quality video (~7 s/frame on the CPU; needs a dependency and licence check); videos in the gallery; motion-compensated smoothing; the full 4 h Good row | features; the Good row is projected from measured frames |
+| 14 | 3D-avatar prompt/negative/LoRA tuning and consistency across seeds; the 10-prompt defaults review; exact-text check with a real-engine logo generation | need the owner's eye on images (the text path is unit- and FakeEngine-tested) |
+| 15 | Omarchy shell status indicator (H11 c allows skipping); the one-liner URL and `p11 update` against a real tag (Phase 17 makes the tag); first-ever torch download time; AUR package | Phase 17 / features |
+| 16 | Vitest specs with Testing Library's 1 s `findBy` timeout fail under heavy CPU load (seen while the GPU soak ran; 94/94 when idle) | test robustness; raise the timeout if CI shows it |
 
 ## Owner questions
 All answered in the hands-off preflight on 2026-11-02 14:57 CST (spec §11.5, §11.6 H1–H15; ADR-0015, ADR-0016). Phase prompts follow §11.6 instead of asking.

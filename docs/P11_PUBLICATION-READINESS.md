@@ -1,6 +1,6 @@
 # P11 Publication Readiness (for Phase 17)
 
-**Last updated:** @@TS@@ (Phase 16 licence audit). Target: v1.0.0 as an annotated tag plus a GitHub release **on the private repo** (H13, ADR-0016). Making the repo public is out of scope for v1.0.0.
+**Last updated:** 2026-11-03 20:29 CST (Phase 16 licence audit). Target: v1.0.0 as an annotated tag plus a GitHub release **on the private repo** (H13, ADR-0016). Making the repo public is out of scope for v1.0.0.
 
 ## Verdict
 **No blocker for the private v1.0.0 release.** Nothing third-party is vendored that would stop P11's own code being MIT, no weights are in git, and every licence restriction is flagged where the owner sees it. Phase 17 still asks Nick "go?" before tagging (the planned stop).

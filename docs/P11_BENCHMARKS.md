@@ -369,7 +369,7 @@ Measured 2026-11-03 18:52–20:20 CST on the reference laptop, on AC power, powe
 | Stable on 8 GB without VRAM tuning (§1) | no crash, no leak | 30-min mixed soak below: 105 jobs, 0 OOM, 0 crashes, RSS flat | ✅ |
 | Daily workflow ≤ 5 actions (§1, App. B) | ≤ 5 | Generate (1) + background path 4 = **5**; generate → download **2**; inpaint path **4** | ✅ |
 | Save as template ≤ 3, re-run 1 (§1, App. B) | ≤ 3 / 1 | **2** / **1**; a one-slot template run **3**; logo template with its text slot **3**; Models page install (licence accepted) **4** | ✅ |
-| Inpaint, background, face, pose, reference work from Simple mode without docs (§1, §10) | end-to-end | Playwright walkthroughs on the FakeEngine (@@E2E@@) plus the mixed soak on the real engine; axe clean on every view | ✅ |
+| Inpaint, background, face, pose, reference work from Simple mode without docs (§1, §10) | end-to-end | Playwright walkthroughs on the FakeEngine (26 passed, 2 real-engine specs skipped, twice in a row) plus the mixed soak on the real engine; axe clean on every view | ✅ |
 | Short video face-swap usable, resume after kill (§10, DoD) | usable MP4 with audio | Phase 13 measurements (below, "Video face-swap"): 30 s 1080p Fast 2.75 s/frame, killed and resumed to completion; Good ~6.9 s/frame (projected, the 4 h run was not repeated) | ✅ (Good row projected, H12) |
 | No content filter on generation (A5); S5 guard on face paths | | `tests/unit/test_likeness_guard.py::test_a_style_reference_stays_unfiltered`; S5 coverage in `docs/P11_THREAT-MODEL.md` §5 | ✅ |
 
@@ -417,7 +417,7 @@ No thermal slowdown bit was set in any sample; the plateau is 80–81 °C, under
 
 **Security checks against a running Studio** (`p11 serve --fake` on 127.0.0.1:18311, curl, 2026-11-03 19:48 CST): `/healthz` 200; `/api/system` without a token 401, with it 200; `Host: evil.example` 421; a POST with `Origin: http://evil.example` 403; `Sec-Fetch-Site: cross-site` read 403; a POST carrying only the cookie 401; a non-ASCII token 401 (was a 500 before the Phase 16 fix); a websocket upgrade 403; `/` carries the full CSP, `nosniff`, `no-referrer` and `X-Frame-Options: DENY`.
 
-**Clean install in a container** (`tests/install/run.sh`): @@CONTAINER@@
+**Clean install in a container** (`tests/install/run.sh`): stock Arch image, `--gpus all`, `install.sh --yes --models none`, `p11 doctor`, a second run says "Nothing to do", `p11 start --fake`/`status`/`stop`, desktop entry present, `uninstall.sh` removes the engine: **`CLEAN-INSTALL-OK`** in 233 s (2026-11-03 20:25 CST).
 
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
