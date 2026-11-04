@@ -235,8 +235,18 @@ def create_app(
     _install_handlers(app)
 
     @app.get("/healthz", include_in_schema=False)
-    def healthz() -> dict[str, str]:
-        return {"status": "ok", "version": __version__}
+    def healthz() -> dict[str, object]:
+        # Token-free and loopback-only, like the rest of the Studio (S1/S2). The busy signal
+        # is what OCC reads; it carries counts only, never a job id, prompt or file name (S6).
+        # The queue is opened with the lifespan; before that, nothing can be running.
+        queue = getattr(studio, "queue", None)
+        running, waiting = (queue.running, queue.waiting) if queue is not None else (0, 0)
+        return {
+            "status": "ok",
+            "version": __version__,
+            "busy": "busy" if running or waiting else "idle",
+            "queue": {"running": running, "waiting": waiting},
+        }
 
     for router in ROUTERS:
         app.include_router(router)

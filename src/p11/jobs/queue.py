@@ -214,6 +214,11 @@ class JobQueue:
         return [self._jobs.get(j.id, j) for j in stored]
 
     @property
+    def running(self) -> int:
+        """1 while the worker executes a job (including a thermal pause), else 0."""
+        return 0 if self.current is None else 1
+
+    @property
     def waiting(self) -> int:
         return len(self._pending)
 
