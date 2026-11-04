@@ -192,7 +192,8 @@ gantt
 - [x] Security baseline S1–S10 verified in Phase 16 (localhost only, no telemetry egress observed, pinned engine/nodes, safetensors policy, secrets scan clean).
 - [x] THIRD_PARTY_NOTICES lists every engine component, node and model with licence flags; licence audit recorded.
 - [x] All docs current (README, user guide, ARCHITECTURE, SECURITY, CHANGELOG, OSMods entry); the timeline block generated.
-- [x] v1.0.0 GitHub release published on the private repo after Nick's "Go" (owner question 17, 2026-11-04 06:38 CST); repo visibility unchanged (still PRIVATE, see Phase 17 log 2026-11-04 06:39 CST).
+- [x] v1.0.0 GitHub release published on the private repo after Nick's "Go" (owner question 17, 2026-11-04 06:38 CST); repo visibility unchanged at that time (PRIVATE, see Phase 17 log 2026-11-04 06:39 CST).
+- [x] v1.0.1 tagged and published without an in-session go (ADR-0040, owner question 18); the repo is public by Nick's own change (owner question 21), and the release did not change visibility (Phase 17d log).
 
 Checked by Phase 16 (2026-11-03): evidence in `docs/P11_BENCHMARKS.md` → Success criteria, `docs/P11_THREAT-MODEL.md` and `docs/P11_PUBLICATION-READINESS.md`. The last item is Phase 17's.
 

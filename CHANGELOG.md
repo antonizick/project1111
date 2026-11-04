@@ -2,14 +2,14 @@
 
 All notable changes are recorded here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [Semantic Versioning](https://semver.org/). Release headings carry a timestamp (`YYYY-MM-DD HH:MM TZ`).
 
-## [Unreleased]
+## [1.0.1] - 2026-11-04 11:36 CST
+
+Feedback release after v1.0.0: editor and layout fixes (17a), photo edit (17b) and P11 Studio in the Omarchy Control Center (17c). The version is **1.0.1** by the owner's choice, although photo edit is a feature and SemVer would say 1.1.0.
 
 ### Added
 - Phase 17c: **P11 Studio in the Omarchy Control Center** (ADR-0039). `/healthz` (token-free, loopback-only) now also returns `busy` (`idle`/`busy`) and `queue` (`{"running": 0|1, "waiting": n}`), so OCC can show a Busy badge and ask before stopping a running job without the session token; the payload carries counts only, never a job id, prompt or file name. A `transient` OCC service block (`~/.local/bin/p11 serve`, port 8111, health `/healthz`, journal/file logs, a hand-started `match`) lives in `~/.config/occ/services.toml`, documented in the user guide's new "Run P11 from OCC". The card's Open stays commented until OCC phase 10a adds `open_exec` (follow-up); `Super + Alt + I` / `p11 open` work meanwhile. Tests: `/healthz` API tests (`tests/unit/test_api.py`), `occ check` and a live `systemd-run` check recorded in the Phase Log.
 - Phase 17b: **Start from a photo** on the Generate tab (ADR-0038). Upload or drop a picture (or press **Use as starting photo** on a result or gallery image), describe the picture you want and pick a strength: **Light touch**, **Change** or **Reimagine** (Advanced: a 0.10–0.95 slider). P11 re-renders the photo with SDXL image-to-image on the installed default model (no new model, node or download): the photo is scaled to the model's nearest native bucket at its own aspect, VAE-encoded, sampled at the preset strength and upscaled toward its own size (at most 2560 × 1440). The Size chips are off while a photo is set. The `generate` step gains `image_slot`, `denoise` and `denoise_preset` (additive, schema v1 unchanged; text-to-image graphs are byte-identical). Save as Template turns the photo into a **Start photo** input. Tests: `tests/unit/test_photo_edit.py` (schema, buckets, sizes, goldens `tests/golden/compile/img2img__*.json`, template capture, runner and API), Vitest for the form and view, Playwright `e2e/photo-edit.spec.ts`, `tests/gpu/test_photo_edit_gpu.py`; tuning script `scripts/bench/photo_edit_tune.py`.
-
-### Security
-- Phase 17b (S5, ADR-0038): edits of **uploaded** photos showing a face are checked. When a photo edit, Inpaint or Background job edits an uploaded photo in which the face detector finds a face, every output passes the S5 image check and is flagged `likeness` in its sidecar (later edits inherit it). Without the `face` model set such an edit is refused before queueing: "Editing an uploaded photo needs the face safety models: run `p11 models install face`". Text to image and edits of P11's own pictures are unchanged (A5). This closes the Inpaint/Background gap noted in threat model T8.
+- Phase 17a: `frontend/e2e/ui-fixes.spec.ts`, Chromium regression checks for the three fixes above (stroke pixels during and after a drag, Undo/Redo leaves the mask unchanged, overlay and image boxes within 1 px at two window sizes and in both orientations, Face & Pose thumbnails and scrolling, Video/Models scrolling, Text & logo drag area; the Video face-picker box in `e2e/video.spec.ts`), and a Vitest unit for `composite`.
 
 ### Fixed
 - Phase 17b: a repeated job now really runs (ADR-0042). Re-running a recipe with the same inputs and seed — for example **Save as Template** on a photo edit and running that template again with the same photo — failed with an internal error (`404 /view?filename=step-00_00001_.png`): ComfyUI answers a byte-identical graph from its execution cache and reports the earlier run's file name without writing the file again, and P11 had already deleted that file after the previous fetch. Engine output names now carry a per-run token (`p11.engine.base.stamp_output_prefixes`), so every run writes and returns its own file while the expensive upstream nodes still come from the cache. The bug predates this release (any locked-seed repeat job could hit it); `tests/gpu/test_photo_edit_gpu.py` covers the case that found it.
@@ -17,8 +17,8 @@ All notable changes are recorded here. Format: [Keep a Changelog](https://keepac
 - Phase 17a: the Background view's mask overlay sits exactly on the subject. The overlay used to fill a stage that stretched to the pane width while the image was capped at 58 % of the window height, so the mask was shifted to the right and stretched; the stage now wraps the image.
 - Phase 17a: Face & Pose, Video and Models scroll inside their pane and have the same spacing as the other views. Picked pictures in Face & Pose are thumbnails (at most 160 px tall), the pose editor and results fit the pane, and nothing runs off the right or bottom edge. The Video view's clickable face boxes on the first frame are placed on the faces (their wrapper stretched to the pane, so the boxes drifted right on small clips). In the Text & logo dialog, the drag area now wraps the preview, so the crosshair and drag distances match the picture.
 
-### Added
-- Phase 17a: `frontend/e2e/ui-fixes.spec.ts`, Chromium regression checks for the three fixes above (stroke pixels during and after a drag, Undo/Redo leaves the mask unchanged, overlay and image boxes within 1 px at two window sizes and in both orientations, Face & Pose thumbnails and scrolling, Video/Models scrolling, Text & logo drag area; the Video face-picker box in `e2e/video.spec.ts`), and a Vitest unit for `composite`.
+### Security
+- Phase 17b (S5, ADR-0038): edits of **uploaded** photos showing a face are checked. When a photo edit, Inpaint or Background job edits an uploaded photo in which the face detector finds a face, every output passes the S5 image check and is flagged `likeness` in its sidecar (later edits inherit it). Without the `face` model set such an edit is refused before queueing: "Editing an uploaded photo needs the face safety models: run `p11 models install face`". Text to image and edits of P11's own pictures are unchanged (A5). This closes the Inpaint/Background gap noted in threat model T8.
 
 ## [1.0.0] - 2026-11-03 21:20 CST
 
@@ -66,5 +66,6 @@ First release: every phase 00–16 below ships in v1.0.0. The repository stays p
 - Phase 16: `test_gpulock.py` uses a spawn context (no fork-while-threaded warning).
 - Phase 12: `p11.models.state._atomic_write` now creates P11's own state directory with `0700` (it used a plain `mkdir`, so `~/.config/p11` came out `755` under the default umask and the licence acknowledgements inside were listable by other users). Found by `p11 doctor`'s permissions check during the Phase 12 acceptance run.
 
-[Unreleased]: https://github.com/antonizick/project1111/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/antonizick/project1111/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/antonizick/project1111/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/antonizick/project1111/releases/tag/v1.0.0
