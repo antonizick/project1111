@@ -419,6 +419,27 @@ No thermal slowdown bit was set in any sample; the plateau is 80–81 °C, under
 
 **Clean install in a container** (`tests/install/run.sh`): stock Arch image, `--gpus all`, `install.sh --yes --models none`, `p11 doctor`, a second run says "Nothing to do", `p11 start --fake`/`status`/`stop`, desktop entry present, `uninstall.sh` removes the engine: **`CLEAN-INSTALL-OK`** in 233 s (2026-11-03 20:25 CST).
 
+## Photo edit (Phase 17b, ADR-0038)
+Measured 2026-11-04 08:43–09:05 CST on the laptop (AC power; the sweep ran on `power-saver`, noted for honesty — the figures are not a `performance`-profile run like the Phase 10/11 ones). Script: `scripts/bench/photo_edit_tune.py` (`generate`, `edit`, `edit2`, `detect`), through the Studio API on the pinned engine with the default model (RealVisXL V5.0 Lightning, 5 steps at denoise 1, DPM++ SDE Karras, CFG 1.5, fp16-fix VAE). Six P11-generated source photos (fixed seeds 1700+, synthetic prompts, no real people, S6; contact sheets `~/.cache/p11/bench/photo-edit/grids/`): a man in a t-shirt, a white house, an empty living room (all 1920×1080), and a sneaker, a mug, an alpine valley (1024×1024). Each photo ran seven candidate strengths in round 1 (0.25 / 0.35 / 0.45 / 0.55 / 0.65 / 0.75 / 0.85; the 0.35/0.55/0.75 runs were the provisional `light`/`change`/`reimagine` defaults) and four photos ran a second round at 0.70/0.75. Seed 77 throughout. **50/50 runs finished, no OOM**; peak VRAM 7.74 GB (whole card, desktop included, dynamic VRAM), peak GPU temperature 77 °C.
+
+**Engine time per job (s)**:
+
+| Photo | 0.25 | 0.35 | 0.45 | 0.55 | 0.65 | 0.70 | 0.75 | 0.85 |
+|---|---|---|---|---|---|---|---|---|
+| person (1920×1080) | 23.5 | 16.2 | 16.6 | 18.7 | 19.0 | 26.5 | 18.6 | 18.8 |
+| house (1920×1080) | 18.7 | 16.4 | 16.2 | 18.2 | 18.6 | 20.5 | 19.2 | 18.3 |
+| room (1920×1080) | 17.8 | 16.4 | 22.7 | 35.6 | 20.7 | 20.5 | 19.1 | 19.3 |
+| sneaker (1024×1024) | 13.3 | 11.8 | 11.8 | 13.8 | 13.9 | 14.7 | 13.4 | 14.0 |
+| mug (1024×1024) | 13.4 | 11.9 | 12.1 | 14.4 | 14.4 | — | 14.4 | 14.2 |
+| landscape (1024×1024) | 13.1 | 11.5 | 11.5 | 13.4 | 13.4 | — | 14.0 | 13.6 |
+
+- **Output size** (computed by the compiler): the 16:9 photos land at 1904×1088 (bucket 1344×768 × 1.417 toward the photo's own 1920×1080, capped at 2560×1440) and the square photos at 1024×1024 (their own size equals the bucket, so no upscale chain: `native`). 16:9 runs: engine median **18.8 s** (16.2–35.6), wall median 19.6 s; square runs: engine median **13.4 s** (11.5–14.7), wall median 14.1 s. The strength costs little: at a fixed size the eight candidates span ~4 s (the tail of a `steps / denoise` schedule is a different sampler path; the 35.6 s room run at 0.55 and the 26.5 s person run at 0.70 are the two warm-up spikes, not a strength trend).
+- **Quality (by eye, contact grids).** 0.25 and 0.35 are nearly no-ops (texture only). 0.45 changes colour/detail and starts a requested outfit. **0.65** is the first strength that follows the prompt properly for *content* edits (the empty room gets a rug and one plant; the house tints green) while every shape stays; **0.70/0.75** furnishes the room (sofa, rug, plants, curtains) and dresses the man in a leather jacket and fedora in the same pose, and the sneaker turns red leather at 0.75. **0.85** rebuilds the scene (a different green house with a new driveway, a fully different room, red leather sneaker with a changed silhouette, winter replaces the valley) — that is "reimagine", and identity/layout drift is expected there.
+- **Picks** (`presets.IMG2IMG_PRESETS`, and the Vitest/Advanced slider defaults): Light touch **0.45**, Change **0.70**, Reimagine **0.85**. These are the values that satisfy the acceptance examples: empty room at Change → furnished in the same perspective; house at Change → recognisable, greener; person at Change → new outfit (leather jacket + fedora) with the same pose and framing. Sampler steps are raised to at least 5/6/6 (`IMG2IMG_MIN_STEPS`) so a few-step Lightning model still has room to move; a custom strength in Advanced runs at the model's 5 steps.
+- **Acceptance (real Studio, real engine)**: the three examples above each ran at Change on the laptop and produced the described result at the computed size (1904×1088 / 1024×1024); the person run's sidecar carries `likeness = true` because the guard ran on it (see below). `tests/gpu/test_photo_edit_gpu.py` re-checks this: per-preset run at the computed size, difference from the source rising with strength, template with a `start_photo` slot re-runs.
+
+**S5 rule for edits of uploaded photos (ADR-0038).** Face detection on an uploaded photo is CPU-only and cheap: YuNet on the 1920×1080 person photo (i7-9750H, six ONNX threads, warm) **median 98.5 ms, max 120.9 ms** (20 runs), so the check adds well under a second to a job. Of the six sources only the person photo was detected as showing a face: its seven runs were all checked by the S5 classifiers and flagged `likeness = true` in their sidecars; the house, room, product and landscape runs were not flagged and never called the guard. Cost of the check itself (two classifiers on one output) is the same as the face-swap path measured in Phase 12 (~0.6 s per image).
+
 ## Picks (ADR-0018, ADR-0010)
 - **Default photoreal and avatar model:** RealVisXL V5.0 Lightning, DPM++ SDE Karras, 5 steps, CFG 1.5, fp16-fix VAE. 13.7 s native, 18.3 s at 1920×1080, 18.7 s at 2560×1440.
 - **Quality model:** Juggernaut XL v9, DPM++ 2M Karras, 30 steps, CFG 4.5, baked VAE. 38.6 s native, ~41 s per wallpaper.

@@ -131,7 +131,7 @@ KEYS_2 = ("person", "house", "room", "sneaker")
 def edit(
     candidates: tuple[tuple[str, float | None], ...] = CANDIDATES,
     keys: tuple[str, ...] | None = None,
-    name: str = "results.json",
+    out_name: str = "results.json",
 ) -> None:
     c, auth = client(OUT / "edit-studio")
     results: list[dict[str, Any]] = []
@@ -171,8 +171,8 @@ def edit(
                     "file": name,
                 })  # fmt: skip
                 print(json.dumps(results[-1]), flush=True)
-    (OUT / name).write_text(json.dumps(results, indent=1))
-    if name != "results.json":
+    (OUT / out_name).write_text(json.dumps(results, indent=1))
+    if out_name != "results.json":
         results = json.loads((OUT / "results.json").read_text()) + results
     grids(results)
 
