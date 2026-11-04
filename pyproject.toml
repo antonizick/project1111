@@ -1,6 +1,6 @@
 [project]
 name = "p11"
-version = "0.1.0"
+version = "1.0.0"
 description = "Project_1111 (P11 Studio): fully local image generation over a headless ComfyUI engine"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"

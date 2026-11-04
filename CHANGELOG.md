@@ -4,6 +4,10 @@ All notable changes are recorded here. Format: [Keep a Changelog](https://keepac
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-03 21:20 CST
+
+First release: every phase 00–16 below ships in v1.0.0. The repository stays private (spec H13); the GitHub release is published only after the owner confirms.
+
 ### Added
 - Phase 16: hardening and QA. `docs/P11_THREAT-MODEL.md` (assets, trust boundaries, 16 threats with mitigations, live verification, S5 path-by-path review, scanner triage, residual risks) and `docs/P11_PUBLICATION-READINESS.md` for Phase 17. Regression tests: `tests/unit/test_hardening.py` (middleware edge cases, launch-code cap, doctor), `tests/unit/test_likeness_guard.py`, and an upload fuzz corpus (`tests/fixtures/fuzz/`, synthetic, rebuilt by `make_corpus.py`) with seeded mutations (`tests/unit/test_upload_fuzz.py`). Playwright: `e2e/a11y.spec.ts` (axe WCAG 2.1 A/AA on all eight views in both themes, reduced motion, keyboard-only daily path with a visible focus ring). `scripts/bench/qa.py` (presets, 50-run soak, mixed 30-minute soak with RSS/VRAM sampling, thermal loop through the Studio API). A CI job runs the Playwright suite on the FakeEngine. `p11 doctor` lists the optional `face`/`control` sets (informational).
 - Phase 15: installer and Omarchy integration. **`install.sh`** (ShellCheck-clean, `--dry-run`, `--yes`, `--models`, `--accept-licences`, `--prefix`, `--keybinding`, `--no-desktop`, `--skip-engine`): detects Arch/Omarchy and the NVIDIA driver (580+ for CUDA 13; explains and stops, never installs drivers), lists missing pacman packages and asks before `sudo pacman -S --needed`, installs uv from a pinned checksummed release when the distribution has none, creates `0700` XDG dirs, builds the UI, `uv tool install --editable` on Python 3.12, runs `scripts/engine_setup.sh`, downloads the chosen model sets (sizes shown; licences never auto-accepted), runs `p11 doctor`, installs the desktop entry and icon (`assets/desktop/`). Idempotent ("Nothing to do"); refuses a pipe without a release tag. **`uninstall.sh` / `p11 uninstall`** asks separately about models, settings/templates and images (default: keep). **`p11 update`** (`p11.updater`): fetch tags, CHANGELOG diff, check out the latest tag or `--to`, re-run the installer steps, refuses a modified checkout. ShellCheck 0.11.0 joins `make tools` (pinned SHA-256) and `make lint`. Tests: `tests/unit/test_install_scripts.py`, `tests/unit/test_updater.py`, and `tests/install/run.sh` (stock Arch container with `--gpus all`). ADR-0036.
@@ -45,3 +49,6 @@ All notable changes are recorded here. Format: [Keep a Changelog](https://keepac
 - Phase 16: comfy-aimdo's `RuntimeError: VRAM grow failed` counts as out-of-memory, so the low-memory retry applies (Phase 11 follow-up).
 - Phase 16: `test_gpulock.py` uses a spawn context (no fork-while-threaded warning).
 - Phase 12: `p11.models.state._atomic_write` now creates P11's own state directory with `0700` (it used a plain `mkdir`, so `~/.config/p11` came out `755` under the default umask and the licence acknowledgements inside were listable by other users). Found by `p11 doctor`'s permissions check during the Phase 12 acceptance run.
+
+[Unreleased]: https://github.com/antonizick/project1111/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/antonizick/project1111/releases/tag/v1.0.0
