@@ -4,6 +4,14 @@ All notable changes are recorded here. Format: [Keep a Changelog](https://keepac
 
 ## [Unreleased]
 
+### Fixed
+- Phase 17a: the inpaint and Refine-mask brush and eraser now leave their stroke on the canvas while you draw, at any opacity. Each pointer move restored its box with a `copy` draw, which in a real browser clears the whole canvas outside that box, so only the latest dab showed until Undo/Redo replayed the history (`render.ts:composite` now clears the box and draws with `source-over`).
+- Phase 17a: the Background view's mask overlay sits exactly on the subject. The overlay used to fill a stage that stretched to the pane width while the image was capped at 58 % of the window height, so the mask was shifted to the right and stretched; the stage now wraps the image.
+- Phase 17a: Face & Pose, Video and Models scroll inside their pane and have the same spacing as the other views. Picked pictures in Face & Pose are thumbnails (at most 160 px tall), the pose editor and results fit the pane, and nothing runs off the right or bottom edge. The Video view's clickable face boxes on the first frame are placed on the faces (their wrapper stretched to the pane, so the boxes drifted right on small clips). In the Text & logo dialog, the drag area now wraps the preview, so the crosshair and drag distances match the picture.
+
+### Added
+- Phase 17a: `frontend/e2e/ui-fixes.spec.ts`, Chromium regression checks for the three fixes above (stroke pixels during and after a drag, Undo/Redo leaves the mask unchanged, overlay and image boxes within 1 px at two window sizes and in both orientations, Face & Pose thumbnails and scrolling, Video/Models scrolling, Text & logo drag area; the Video face-picker box in `e2e/video.spec.ts`), and a Vitest unit for `composite`.
+
 ## [1.0.0] - 2026-11-03 21:20 CST
 
 First release: every phase 00–16 below ships in v1.0.0. The repository stays private (spec H13); the GitHub release is published only after the owner confirms.

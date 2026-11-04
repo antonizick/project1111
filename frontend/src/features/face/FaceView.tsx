@@ -490,7 +490,7 @@ export function FaceView({ active }: { active: boolean }) {
       )}
 
       <div className="form-row actions">
-        <button type="button" className="primary" onClick={apply} disabled={busy}>
+        <button type="button" className="btn btn-primary" onClick={apply} disabled={busy}>
           {tool === "swap" ? "Swap face" : tool === "restore" ? "Restore faces" : "Apply"}
         </button>
       </div>

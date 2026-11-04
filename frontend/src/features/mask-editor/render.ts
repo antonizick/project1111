@@ -53,6 +53,8 @@ export function union(a: Rect | null, b: Rect): Rect {
 /**
  * Within `rect`: mask = snapshot, then the stroke layer at the stroke's opacity, painted
  * (source-over) or erased (destination-out). Used live while drawing and for replay.
+ * The box is restored with clearRect + source-over, not "copy": a "copy" draw clears the whole
+ * canvas outside the drawn image, which wiped the stroke behind each live dab box (Phase 17a).
  */
 export function composite(
   mask: Ctx,
@@ -63,7 +65,8 @@ export function composite(
 ): void {
   const { x, y, w, h } = rect;
   mask.save();
-  mask.globalCompositeOperation = "copy";
+  mask.clearRect(x, y, w, h);
+  mask.globalCompositeOperation = "source-over";
   mask.drawImage(snapshot, x, y, w, h, x, y, w, h);
   mask.globalCompositeOperation = stroke.tool === "brush" ? "source-over" : "destination-out";
   mask.globalAlpha = stroke.opacity;

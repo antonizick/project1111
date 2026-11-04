@@ -160,16 +160,17 @@ export function PoseEditor({
             ))}
           </select>
         </label>
-        <button type="button" onClick={mirror}>
+        <button type="button" className="btn btn-small" onClick={mirror}>
           Mirror
         </button>
-        <button type="button" onClick={addPerson}>
+        <button type="button" className="btn btn-small" onClick={addPerson}>
           Add person
         </button>
         {data.people.map((_, i) => (
           <button
             key={i}
             type="button"
+            className="btn btn-small"
             onClick={() => removePerson(i)}
             disabled={data.people.length < 2}
           >
