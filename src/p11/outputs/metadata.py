@@ -68,6 +68,9 @@ class RunRecord(BaseModel):
     template: str | None = None
     #: Relative path of the image this one was made from (variation, edit), if any.
     parent: str | None = None
+    #: The run carried a person's likeness (a face swap or a face reference, or an input made by
+    #: one): later edits of these images are checked by the S5 guard too (ADR-0037).
+    likeness: bool = False
 
     def to_json(self) -> str:
         return self.model_dump_json(indent=2)

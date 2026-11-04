@@ -313,9 +313,14 @@ async def emit(callback: EventCallback | None, event: EngineEvent) -> None:
 
 
 def is_oom_message(exception_type: str, message: str) -> bool:
-    """ComfyUI's ``is_oom`` (comfy/model_management.py at the pin), seen from the outside."""
+    """ComfyUI's ``is_oom`` (comfy/model_management.py at the pin), seen from the outside.
+
+    comfy-aimdo's dynamic-VRAM allocator reports a failed growth as ``RuntimeError: VRAM grow
+    failed`` instead of a CUDA OOM (seen once in Phase 11); it is the same condition, so the
+    low-memory retry applies to it too.
+    """
     text = f"{exception_type} {message}".lower()
-    return "outofmemory" in text or "out of memory" in text
+    return "outofmemory" in text or "out of memory" in text or "vram grow failed" in text
 
 
 def upload_name(data: bytes, kind: UploadKind) -> tuple[str, str]:

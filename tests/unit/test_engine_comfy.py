@@ -124,6 +124,8 @@ def test_upload_name_is_content_addressed() -> None:
 
 
 def test_is_oom_message() -> None:
+    # comfy-aimdo (dynamic VRAM) reports a failed growth this way (Phase 11 follow-up).
+    assert is_oom_message("RuntimeError", "VRAM grow failed")
     assert is_oom_message("torch.OutOfMemoryError", "")
     assert is_oom_message("RuntimeError", "CUDA error: out of memory")
     assert not is_oom_message("RuntimeError", "mat1 and mat2 shapes")
