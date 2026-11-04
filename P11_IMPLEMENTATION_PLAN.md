@@ -1,7 +1,7 @@
 # P11: Project_1111 Implementation Plan
 
 **Spec:** [`docs/P11_SPECIFICATION.md`](docs/P11_SPECIFICATION.md). **Decisions:** [`docs/P11_DECISIONS.md`](docs/P11_DECISIONS.md). **Agent rules:** [`CLAUDE.md`](CLAUDE.md). **Shared phase instructions:** [`prompts/P11_shared-instructions.md`](prompts/P11_shared-instructions.md)
-**Last updated:** 2026-11-04 12:09 CST (Phase 17d complete)
+**Last updated:** 2026-11-04 13:31 CST (17c follow-up closed: OCC 10a shipped)
 
 > ⚠️ **Mandatory:** every agent that works on this project keeps this file accurate. **Before doing any other work, set your phase to `🔄 In progress` and commit that change to `main`** (claim protocol: `prompts/P11_shared-instructions.md` §1a). Other agents read this table from `main`. At the end, set it to `✅ Complete` or `⛔ Blocked` and add a Phase Log entry. See `CLAUDE.md`.
 
@@ -215,7 +215,7 @@ Non-security items that were not closed in Phase 16, each with its reason; liste
 | 15 | Omarchy shell status indicator (H11 c allows skipping); the one-liner URL and `p11 update` against a real tag (Phase 17 makes the tag); first-ever torch download time; AUR package | Phase 17 / features |
 | 17b | **Instruction-edit model** ("make him wear…", literal edit instructions; ADR-0038 follow-up). Candidates checked at Hugging Face 2026-11-04 08:44 CST: **FLUX.1 Kontext [dev]** (`black-forest-labs/FLUX.1-Kontext-dev`, 12B, FLUX.1 [dev] Non-Commercial licence, gated; bf16 needs ~24 GB, so 8 GB means a GGUF quant: `QuantStack/FLUX.1-Kontext-dev-GGUF` Q4_K_M 6.93 GB / Q3_K_M 5.37 GB plus T5/CLIP/VAE, needs the ComfyUI-GGUF custom node, S3 ADR); **Qwen-Image-Edit** (`Qwen/Qwen-Image-Edit`, 20B, Apache-2.0; too large for 8 GB without heavy quantization and offload); **CosXL Edit** (`stabilityai/cosxl`, SDXL-based, Stability Non-Commercial Research Community licence, gated; fits 8 GB; the pinned ComfyUI has the core `InstructPixToPixConditioning` node it needs) | needs a model choice, a licence acknowledgement, a download beyond the budget and possibly a custom node (owner decision); plain img2img covers the requested examples |
 | 16 | Vitest specs with Testing Library's 1 s `findBy` timeout fail under heavy CPU load (seen while the GPU soak ran; 94/94 when idle) | test robustness; raise the timeout if CI shows it |
-| 17c | **Open on the OCC P11 card** needs OCC phase 10a (`open_exec`), which was `⬜ Not started` when 17c ran (2026-11-04 11:21 CST). The P11 block carries the commented line `open_exec = ["~/.local/bin/p11", "open"]`; when OCC 10a is ✅ on OCC `main`, uncomment it and relaunch OCC. Until then use `Super + Alt + I` or `p11 open`. Recorded in ADR-0039 and OSMods `P11 in OCC` | OCC 10a is Nick's run; 17c must not block on it (owner question 20) |
+| 17c | ~~**Open on the OCC P11 card** needs OCC phase 10a (`open_exec`)~~ **Resolved 2026-11-04 13:31 CST:** OCC phase 10a merged to OCC `main` (`7743778`) and the installed build is `7d66de3`; the live `~/.config/occ/services.toml` line is `open_exec = ["~/.local/bin/p11", "open"]`, and Nick confirmed the card's Open opens the Studio. Recorded in OCC ADR-0039 and OSMods `P11 in OCC`. `Super + Alt + I` and `p11 open` still work | Closed |
 
 ## Owner questions
 All answered in the hands-off preflight on 2026-11-02 14:57 CST (spec §11.5, §11.6 H1–H15; ADR-0015, ADR-0016). Phase prompts follow §11.6 instead of asking.
@@ -524,4 +524,9 @@ Newest entries at the bottom. Format: `### YYYY-MM-DD HH:MM TZ: Phase NN: <title
 - **Visibility unchanged:** PUBLIC before (2026-11-04 12:10 CST) and PUBLIC after (2026-11-04 12:10 CST) from `gh repo view --json visibility`; no `gh repo edit` was run. The repo was already public at the start of the phase (Nick's own change, owner question 21), so ADR-0040's "private" premise was stale but the release did not change it.
 - Post-release (2026-11-04 12:10 CST): a fresh authenticated clone of `antonizick/project1111` at `v1.0.1` (`git describe --tags --exact-match` → `v1.0.1`) runs `./install.sh --dry-run --yes` with exit 0 ("Dry run finished: nothing was changed"); in a `v1.0.0` checkout of that clone, `p11 update --dry-run` prints `Update v1.0.0 -> v1.0.1`, the CHANGELOG diff, and exits 0.
 - Deviations: none in the build. No host OS change, so no OSMods entry.
-- Follow-ups: OCC phase 10a `open_exec` for the card's Open (17c follow-up, unchanged); Nick tests v1.0.1 from the app window.
+- Follow-ups: OCC phase 10a `open_exec` for the card's Open was **closed 2026-11-04 13:31 CST** (OCC phase 10a merged, live line enabled, Nick confirmed Open works — see the entry below); Nick tests v1.0.1 from the app window.
+
+### 2026-11-04 13:31 CST: 17c follow-up closed (OCC `open_exec`)
+- **What:** OCC phase 10a ("Open by command", OCC ADR-0039) merged to OCC `main` as `7743778`; `~/.local/bin/occ` is build `7d66de3`. The live P11 block now carries `open_exec = ["~/.local/bin/p11", "open"]` (backup `~/.config/occ/services.toml.bak-p11-open-exec-1793820662`), and `occ check` reports 0 errors / 0 warnings.
+- **Verified:** Nick pressed Open on the P11 Studio card at 13:31 CST; it opens the Studio. OCC runs the command through `internal/runner` with a 15 s timeout and redacts the one-time launch code from its log; a throwaway live check exercised the path first (one run, redacted output, 422 after Stop).
+- **Docs:** OSMods `P11 in OCC`, `OCC Omarchy Control Center` and their README updated. No P11 code change; no new host change beyond the OCC binary already documented.
