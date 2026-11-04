@@ -75,7 +75,7 @@ From `docs/P11_THREAT-MODEL.md` §3 and `docs/P11_PUBLICATION-READINESS.md`:
 - **T7, T8:** the S5 classifiers can miss. There are two models and either one refusing is enough. A re-uploaded picture of someone's likeness is only caught when its sidecar carries the `likeness` flag.
 - **Licences:** the InsightFace models (`arcface-w600k-r50`, `inswapper-128`) are non-commercial research only, so face-swap output is not cleared for commercial use. The CreativeML OpenRAIL-M checkpoints carry use-based restrictions. Both are flagged in `THIRD_PARTY_NOTICES.md`, the installer and the Models page.
 - **Hardware:** built and measured on one machine (RTX 2070 Max-Q, 31 GB RAM). Other GPUs are untested. Good-quality video runs at about 7 s/frame on the CPU.
-- **Not tested against a real tag:** the pinned-tag one-liner and `p11 update` need the public tag and a public repo.
+- **Tag one-liner and `p11 update`:** checked against the real `v1.0.1` tag on 2026-11-04 12:10 CST (fresh clone installs in dry-run; an update from `v1.0.0` sees and describes `v1.0.1`). The public repo makes the README one-liner usable as written.
 
 ## Deferred follow-ups
 The full list is the plan's "Deferred follow-ups (Phase 16, H12)" table. None is a security item. The ones that need the owner's eye: avatar/LoRA tuning, the 10-prompt defaults review, and the by-eye `latent` vs `both` comparison. AUR packaging and an Omarchy shell status indicator are candidates for `/phase-add`.
