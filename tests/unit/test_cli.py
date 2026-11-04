@@ -29,9 +29,10 @@ def test_paths(tmp_path):
     assert str(tmp_path / "config") in r.stdout
 
 
-def test_update_is_still_a_stub():
-    r = runner.invoke(app, ["update"])
-    assert r.exit_code == 0 and "Phase 15" in r.stdout
+def test_update_and_uninstall_are_commands():
+    r = runner.invoke(app, ["update", "--help"])
+    assert r.exit_code == 0 and "--dry-run" in r.stdout and "--to" in r.stdout
+    assert runner.invoke(app, ["uninstall", "--help"]).exit_code == 0
 
 
 def _free_port() -> int:
