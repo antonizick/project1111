@@ -6,6 +6,7 @@ Checks are independent and never raise: a broken part shows up as a problem, not
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import shutil
@@ -15,6 +16,7 @@ import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from p11 import paths
 from p11.config import Settings, load_settings
@@ -216,6 +218,7 @@ def check_ffmpeg(report: Report) -> None:
 
 def check_models(report: Report) -> None:
     from p11 import models
+    from p11.models.registry import ModelManager
 
     try:
         problems = models.check()
@@ -227,6 +230,33 @@ def check_models(report: Report) -> None:
     report.problems += problems
     if not any(p.severity == "error" for p in problems):
         report.checks.append(Check("models", "default set installed and verified by size"))
+    # Informational only; the problems above already cover broken model state.
+    with contextlib.suppress(Exception):
+        report.checks.append(Check("optional models", optional_sets(ModelManager.from_settings())))
+
+
+#: The optional sets and the tools that need them (Phase 12 follow-up: shown, never an error).
+OPTIONAL_SETS = {"face": "Face swap, Video, face reference", "control": "Pose, Reference"}
+
+
+def optional_sets(manager: Any) -> str:
+    """One line: which optional sets are installed (``face: installed; control: missing …``)."""
+    statuses = list(manager.statuses(include_unregistered=False))
+    parts = []
+    for name, tools in OPTIONAL_SETS.items():
+        members = [st for st in statuses if name in st.sets]
+        if not members:
+            continue
+        missing = sum(st.state == "missing" for st in members)
+        state = (
+            "installed"
+            if not missing
+            else f"not installed ({tools}; `p11 models install {name}`)"
+            if missing == len(members)
+            else f"{missing} of {len(members)} missing (`p11 models install {name}`)"
+        )
+        parts.append(f"{name}: {state}")
+    return "; ".join(parts) or "none in the manifest"
 
 
 def check_ports(report: Report, settings: Settings) -> None:

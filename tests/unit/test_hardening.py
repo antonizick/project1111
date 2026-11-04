@@ -61,3 +61,23 @@ def test_outstanding_launch_codes_are_capped():
     assert len(s._codes) <= MAX_LAUNCH_CODES
     assert s.redeem(codes[-1], now=float(len(codes)))  # the newest still works
     assert not s.redeem(codes[0], now=float(len(codes)))  # the oldest were dropped
+
+
+def test_doctor_names_the_optional_sets_without_failing():
+    from types import SimpleNamespace as NS
+
+    from p11.doctor import optional_sets
+
+    class Manager:
+        def statuses(self, include_unregistered=False):
+            return [
+                NS(sets=("face",), state="missing"),
+                NS(sets=("face",), state="missing"),
+                NS(sets=("control",), state="installed"),
+                NS(sets=("control",), state="missing"),
+                NS(sets=("default",), state="installed"),
+            ]
+
+    line = optional_sets(Manager())
+    assert "face: not installed" in line and "p11 models install face" in line
+    assert "control: 1 of 2 missing" in line
