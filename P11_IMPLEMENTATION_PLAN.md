@@ -210,7 +210,7 @@ All answered in the hands-off preflight on 2026-11-02 14:57 CST (spec §11.5, §
 | 14 | Phase 16 missed targets / open follow-ups | Decided 2026-11-02 14:57 CST: fix or record + defer non-security items; high/critical security must be fixed or block (H12) (phx preflight) | Phase 16 |
 | 15 | v1.0.0 publication | Decided 2026-11-02 14:57 CST: private GitHub release after an in-session "go?"; repo stays private (H13, ADR-0016) (phx preflight) | Phase 17 |
 | 16 | Starter template content | Decided 2026-11-02 14:57 CST: generic placeholders, no personal brand names (H14) (phx preflight) | Phase 09 |
-| 17 | Release go? for v1.0.0 | Open (asked 2026-11-03 22:01 CST, Phase 17, auto mode). Proposed default: **no** (publish nothing); tag `v1.0.0` on the merged release commit and keep the repo private. If yes: `gh release create v1.0.0` on the private repo, visibility unchanged (H13) | Phase 17 |
+| 17 | Release go? for v1.0.0 | Answered 2026-11-04 06:38 CST: Go. Publish to GitHub public Repo | Phase 17 |
 
 ## Phase Log
 Newest entries at the bottom. Format: `### YYYY-MM-DD HH:MM TZ: Phase NN: <title> (<status>)` (timestamp from `date '+%Y-%m-%d %H:%M %Z'`, never a bare date). **The first bullet is always the Timeline:** `- **Timeline:** started <TS> (claim commit <hash>) · finished <TS> · merged <TS | not merged yet>` (add ` · blocked <TS> to <TS>` per `⛔` interval; *started* is the claim commit's time). Then bullets: built, deviations, follow-ups, tests.
