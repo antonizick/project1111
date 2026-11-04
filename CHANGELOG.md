@@ -10,6 +10,7 @@ All notable changes are recorded here. Format: [Keep a Changelog](https://keepac
 - Phase 17e: `frontend/e2e` covers 1918×2130 and 3840×2160 windows and photos larger than the pane, and `P11_E2E_BROWSER=/usr/bin/brave npx playwright test` runs the specs in Brave.
 
 ### Changed
+- Phase 17e: the user guide explains clothing swaps in Inpaint: turn **Only masked area** off and describe the whole picture.
 - Phase 17e: `index.html` is served `Cache-Control: no-cache`, so an open app window picks up a rebuilt interface on reload; the hashed `/assets` stay cacheable. Node is required whenever the checkout has `frontend/src`, not only for a first build.
 
 ### Fixed
