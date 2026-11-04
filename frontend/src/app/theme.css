@@ -976,7 +976,8 @@ input:disabled {
 }
 .frame-picker {
   position: relative;
-  display: inline-block;
+  align-self: flex-start;
+  width: fit-content;
   max-width: 100%;
 }
 .frame-picker img {

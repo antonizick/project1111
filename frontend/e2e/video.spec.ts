@@ -85,6 +85,14 @@ test("the target face is picked on the first frame", async ({ page }) => {
   await expect(form.getByText("Largest face in every frame (P11 follows it).")).toBeVisible();
   await picker.getByRole("button", { name: "Face 1" }).click();
   await expect(form.getByText("Following face 1 across the clip.")).toBeVisible();
+  // The face boxes are placed in % of the picker, so it must be exactly the frame's box (17a).
+  const frame = (await picker.getByRole("img", { name: "First frame of the clip" }).boundingBox())!;
+  const box = (await picker.boundingBox())!;
+  for (const k of ["x", "y", "width", "height"] as const)
+    expect(
+      Math.abs(frame[k] - box[k]),
+      `${k}: frame ${frame[k]} vs picker ${box[k]}`,
+    ).toBeLessThanOrEqual(1);
 });
 
 test("a short clip needs no confirmation, and the frames are kept only on request", async ({
