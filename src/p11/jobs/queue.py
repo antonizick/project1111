@@ -165,6 +165,12 @@ class JobQueue:
         log.info("job queued", extra={"job": job.id, "count": count})
         return job
 
+    def check_video_face(self, spec: VideoSpec) -> None:
+        """The face photo still resolves (event-loop thread: a gallery ref reads the index)."""
+        if self.video is None:
+            raise VideoError("Video face-swap is not available in this session.")
+        self.video.resolve_face(spec)
+
     def check_video(self, spec: VideoSpec) -> None:
         """Submit-time checks (ffmpeg probe, limits, first-frame guard): blocking; run this in a
         worker thread, never on the event-loop thread (it must not touch the SQLite stores)."""

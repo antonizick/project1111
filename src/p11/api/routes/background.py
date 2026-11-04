@@ -17,6 +17,8 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from p11.media.composite import CompositeParams, run_replace_background
+from p11.media.imageio import open_rgb
+from p11.media.nsfw import check_likeness
 from p11.recipe.model import FileRef
 
 from .deps import StudioDep
@@ -72,10 +74,15 @@ async def mask(body: MaskRequest, studio: StudioDep) -> Response:
 
 @router.post("/preview")
 async def preview(body: PreviewRequest, studio: StudioDep) -> Response:
-    """The composited image (what Apply will save, without the harmonize pass)."""
+    """The composited image (what Apply will save, without the harmonize pass).
+
+    S5 (ADR-0047): a gallery picture from a likeness run passes the guard here as it does on Apply.
+    """
     runner = studio.queue.runner
     subject = runner.resolve_file(FileRef(ref=body.image.ref))
     background = runner.resolve_file(FileRef(ref=body.background.ref)) if body.background else None
+    pictures = [FileRef(ref=r.ref) for r in (body.image, body.background) if r is not None]
+    likeness = runner.refs_carry_likeness(pictures)  # gallery: this thread
     mask_bytes = runner.resolve_file(FileRef(ref=body.mask.ref)) if body.mask else None
     params = CompositeParams(
         colour_match=body.colour_match,
@@ -98,6 +105,8 @@ async def preview(body: PreviewRequest, studio: StudioDep) -> Response:
         if mask_bytes is not None:
             inputs["mask"] = mask_bytes
         out = run_replace_background(asdict(params), inputs, studio.segmenters)
+        if likeness:
+            check_likeness(runner.faces.guard(), open_rgb(out["image"]))
         return out["image"]
 
     return _png(await asyncio.to_thread(work))

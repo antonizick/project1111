@@ -146,6 +146,7 @@ def _detail(studio: Studio, job_id: str) -> dict[str, Any] | None:
 async def submit(body: VideoRequest, studio: StudioDep) -> dict[str, Any]:
     """Queue a video face-swap (validated and guard-checked before it is accepted)."""
     spec = body.to_spec()
+    studio.queue.check_video_face(spec)
     await asyncio.to_thread(studio.queue.check_video, spec)
     job = studio.queue.submit_video(spec)
     detail = _detail(studio, job.id)
@@ -174,6 +175,7 @@ async def get(job_id: str, studio: StudioDep) -> dict[str, Any]:
 async def resume(job_id: str, studio: StudioDep) -> dict[str, Any]:
     """Continue an interrupted run from its last finished frame (same settings)."""
     spec = studio.queue.resume_video(job_id)
+    studio.queue.check_video_face(spec)
     await asyncio.to_thread(studio.queue.check_video, spec)
     job = studio.queue.submit_video(spec)
     detail = _detail(studio, job.id)

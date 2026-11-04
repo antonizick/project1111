@@ -8,10 +8,13 @@ gallery image. Uses a scripted guard (no real photos, S6).
 
 from __future__ import annotations
 
+import subprocess
+
 import pytest
 from PIL import Image
 from tests.helpers import recipe
-from tests.studio import png_bytes
+from tests.studio import generate_recipe, png_bytes, studio_client
+from tests.unit.test_jobs_video import make_clip, needs_ffmpeg
 from tests.unit.test_steps_face_pose import REG, runner_with
 
 from p11.jobs.runner import JobControl, Runner, gallery_ref
@@ -20,11 +23,15 @@ from p11.outputs import metadata
 from p11.recipe.compile import EngineGraph, compile
 from p11.recipe.likeness import carries_likeness, recipe_carries_likeness
 from p11.recipe.model import (
+    FaceRestore,
     FaceSwap,
     FileRef,
     Generate,
+    Inpaint,
     ModelRef,
+    Pose,
     Reference,
+    ReplaceBackground,
     Slot,
     Upscale,
 )
@@ -189,3 +196,248 @@ async def test_a_face_reference_fails_closed_without_the_guard_models(tmp_path) 
     with pytest.raises(GuardUnavailable):
         runner.validate(reference("face"), {"ref": FileRef(ref=ref.id)})
     runner.validate(reference("style"), {"ref": FileRef(ref=ref.id)})  # style needs no guard
+
+
+# ---------------------------------------------------------------------------------------------
+# The gallery picker (Phase 17g, ADR-0046): every image input takes a `gallery/<id>` reference, so
+# a picture from a likeness run stays guarded whichever control it is picked in.
+
+
+def mask_ref(runner: Runner) -> FileRef:
+    return FileRef(ref=runner.inputs.add_image(png_bytes((64, 64), "white"), "mask").id)
+
+
+def plain_ref(runner: Runner) -> FileRef:
+    return FileRef(ref=runner.inputs.add_image(png_bytes((64, 64)), "image").id)
+
+
+def generate_photo(picked: FileRef, runner: Runner):
+    return recipe(
+        Generate(prompt="a portrait", aspect="1:1-1024", denoise=0.7),
+        source_image=picked,
+        id="pick",
+    ), {}
+
+
+def inpaint_source(picked: FileRef, runner: Runner):
+    r = recipe(
+        Inpaint(mask_slot="mask", prompt="a scarf"),
+        slots=(Slot(name="mask", kind="mask"),),
+        source_image=picked,
+        id="pick",
+    )
+    return r, {"mask": mask_ref(runner)}
+
+
+def background_subject(picked: FileRef, runner: Runner):
+    return recipe(
+        ReplaceBackground(background_colour="#336699"), source_image=picked, id="pick"
+    ), {}
+
+
+def background_photo(picked: FileRef, runner: Runner):
+    r = recipe(
+        ReplaceBackground(background_slot="bg"),
+        slots=(Slot(name="bg", kind="background_image"),),
+        source_image=plain_ref(runner),
+        id="pick",
+    )
+    return r, {"bg": picked}
+
+
+def face_picture(picked: FileRef, runner: Runner):
+    r = recipe(
+        FaceSwap(face_slot="face"),
+        slots=(Slot(name="face", kind="face_image"),),
+        source_image=picked,
+        id="pick",
+    )
+    return r, {"face": plain_ref(runner)}
+
+
+def face_photo(picked: FileRef, runner: Runner):
+    r = recipe(
+        FaceSwap(face_slot="face"),
+        slots=(Slot(name="face", kind="face_image"),),
+        source_image=plain_ref(runner),
+        id="pick",
+    )
+    return r, {"face": picked}
+
+
+def restore_picture(picked: FileRef, runner: Runner):
+    return recipe(FaceRestore(), source_image=picked, id="pick"), {}
+
+
+def pose_photo(picked: FileRef, runner: Runner):
+    r = recipe(
+        Generate(prompt="a portrait", aspect="1:1-1024"),
+        Pose(pose_slot="pose"),
+        slots=(Slot(name="pose", kind="image"),),
+        id="pick",
+    )
+    return r, {"pose": picked}
+
+
+def reference_image(picked: FileRef, runner: Runner):
+    r = recipe(
+        Generate(prompt="a portrait", aspect="1:1-1024"),
+        Reference(image_slot="ref", mode="style"),
+        slots=REF_SLOT,
+        id="pick",
+    )
+    return r, {"ref": picked}
+
+
+def template_slot(picked: FileRef, runner: Runner):
+    r = recipe(
+        Upscale(image_slot="photo", scale=2.0),
+        slots=(Slot(name="photo", kind="image"),),
+        id="pick",
+    )
+    return r, {"photo": picked}
+
+
+CONTROLS = [
+    generate_photo,
+    inpaint_source,
+    background_subject,
+    background_photo,
+    face_picture,
+    face_photo,
+    restore_picture,
+    pose_photo,
+    reference_image,
+    template_slot,
+]
+
+
+@pytest.mark.parametrize("control", CONTROLS, ids=lambda c: c.__name__)
+async def test_a_likeness_picture_stays_guarded_when_picked(tmp_path, control) -> None:
+    guard = ScriptedGuard()
+    runner = await guarded(tmp_path, guard)
+    ref = plain_ref(runner)
+    [made] = await run(runner, reference("character"), {"ref": ref})
+    r, bindings = control(FileRef(ref=gallery_ref(made)), runner)
+    assert runner.inputs_carry_likeness(r, bindings)
+    runner.validate(r, bindings)  # the reference resolves through the control's own path
+    guard.unsafe = True
+    with pytest.raises(GuardRefused):
+        await run(runner, r, bindings)
+    assert len(list(runner.outputs_root.rglob("*.png"))) == 1  # only the picture it started from
+
+
+async def test_a_restored_upload_showing_a_face_stays_guarded(tmp_path) -> None:
+    """ADR-0038 for Restore faces: otherwise its gallery result is a clean copy of the upload."""
+    guard = ScriptedGuard()
+    runner = await guarded(tmp_path, guard)
+    r = recipe(FaceRestore(), source_image=plain_ref(runner), id="restore")
+    assert Runner.edited_uploads(r, {}) == [r.source_image]
+    [made] = await run(runner, r)
+    record = metadata.read_sidecar(
+        metadata.sidecar_path(runner.outputs_root / _path(runner, made))
+    )
+    assert record.likeness
+    assert guard.seen
+
+
+def composite_body(picture: str, background: str | None) -> dict:
+    return {
+        "image": {"ref": picture},
+        "background": {"ref": background} if background else None,
+        "feather_px": 0,
+    }
+
+
+def test_the_background_preview_guards_a_likeness_picture(tmp_path) -> None:
+    """The preview shows the composite Apply would save, so it passes the same guard."""
+    with studio_client(tmp_path) as client:
+        runner = client.studio.queue.runner
+        guard = ScriptedGuard(unsafe=True)
+        runner.faces.guard = lambda: guard  # type: ignore[method-assign]
+        plain = client.post(
+            "/api/uploads?kind=image", content=png_bytes((32, 24)), headers=client.auth
+        ).json()["id"]
+        ok = client.post(
+            "/api/background/preview", json=composite_body(plain, plain), headers=client.auth
+        )
+        assert ok.status_code == 200 and guard.seen == []  # A5: no likeness, no check
+
+        image_id = _likeness_image(client)
+        for body in (
+            composite_body(f"gallery/{image_id}", plain),
+            composite_body(plain, f"gallery/{image_id}"),
+        ):
+            refused = client.post("/api/background/preview", json=body, headers=client.auth)
+            assert refused.status_code == 422, refused.text
+            assert "nude or sexual" in refused.json()["message"]
+
+
+def _likeness_image(client) -> int:
+    """A gallery image whose run record says it carries a likeness."""
+    done = client.post(
+        "/api/jobs",
+        json={"recipe": generate_recipe(id="like")},
+        headers=client.auth,
+    ).json()
+    image_id = client.wait_job(done["id"])["images"][0]
+    path = client.get(f"/api/images/{image_id}/info", headers=client.auth).json()["path"]
+    sidecar = metadata.sidecar_path(client.studio.queue.runner.outputs_root / path)
+    record = metadata.read_sidecar(sidecar)
+    sidecar.write_text(record.model_copy(update={"likeness": True}).to_json())
+    return image_id
+
+
+@needs_ffmpeg
+def test_a_gallery_face_on_a_video_keeps_the_frame_guard(tmp_path) -> None:
+    clip = tmp_path / "pink.mp4"
+    subprocess.run(
+        ["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "color=magenta:s=160x120:d=1:r=10",
+         "-pix_fmt", "yuv420p", str(clip)],
+        check=True,
+    )  # fmt: skip
+    with studio_client(tmp_path) as client:
+        guard = ScriptedGuard(unsafe=True)
+        client.studio.queue.runner.faces.guard = lambda: guard  # type: ignore[method-assign]
+        image_id = _likeness_image(client)
+        vid = client.post(
+            "/api/uploads?kind=video", content=clip.read_bytes(), headers=client.auth
+        ).json()["id"]
+        refused = client.post(
+            "/api/video/jobs",
+            json={"video": vid, "face": f"gallery/{image_id}", "quality": "fast"},
+            headers=client.auth,
+        )
+        assert refused.status_code == 422, refused.text
+        assert "nude or sexual" in refused.json()["message"]
+
+
+@needs_ffmpeg
+def test_a_gallery_face_swaps_into_a_clip_and_a_deleted_one_says_so(tmp_path) -> None:
+    """Regression: a gallery face used to crash here, its index read in a worker thread."""
+    clip = make_clip(tmp_path / "clip.mp4")
+    with studio_client(tmp_path) as client:
+        image_id = _likeness_image(client)
+        vid = client.post(
+            "/api/uploads?kind=video", content=clip.read_bytes(), headers=client.auth
+        ).json()["id"]
+        body = {"video": vid, "face": f"gallery/{image_id}", "quality": "fast"}
+        job = client.post("/api/video/jobs", json=body, headers=client.auth)
+        assert job.status_code == 201, job.text
+        assert client.wait_job(job.json()["id"])["state"] == "done"
+
+        client.delete(f"/api/images/{image_id}", headers=client.auth)
+        gone = client.post("/api/video/jobs", json=body, headers=client.auth)
+        assert "face photo is gone" in gone.json()["message"]
+
+
+def test_a_picked_image_deleted_before_the_job_runs_gets_the_plain_message(tmp_path) -> None:
+    with studio_client(tmp_path) as client:
+        image_id = _likeness_image(client)
+        client.delete(f"/api/images/{image_id}", headers=client.auth)
+        r = recipe(Upscale(scale=2.0), source_image=FileRef(ref=f"gallery/{image_id}"), id="gone")
+        job = client.post(
+            "/api/jobs", json={"recipe": r.model_dump(mode="json")}, headers=client.auth
+        )
+        assert job.status_code >= 400
+        assert "does not exist any more" in job.json()["message"]

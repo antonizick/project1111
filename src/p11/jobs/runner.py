@@ -51,7 +51,7 @@ from p11.outputs.layout import output_path
 from p11.recipe.compile import EngineGraph, GraphInput, LocalStep, PlanItem, compile, resolve_seed
 from p11.recipe.likeness import recipe_carries_likeness
 from p11.recipe.migrate import migrate
-from p11.recipe.model import FileRef, Generate, Inpaint, Recipe, ReplaceBackground
+from p11.recipe.model import FaceRestore, FileRef, Generate, Inpaint, Recipe, ReplaceBackground
 from p11.recipe.registry import ModelRegistry
 
 log = logging.getLogger("p11.jobs")
@@ -179,6 +179,10 @@ class Runner:
         refs = [b for b in bindings.values() if isinstance(b, FileRef)]
         if recipe.source_image is not None:
             refs.append(recipe.source_image)
+        return self.refs_carry_likeness(refs, parent)
+
+    def refs_carry_likeness(self, refs: list[FileRef], parent: str | None = None) -> bool:
+        """One of these references (or the parent image) is such a gallery image (ADR-0046)."""
         rels = [parent] if parent else []
         for ref in refs:
             tail = ref.ref.removeprefix(GALLERY_PREFIX)
@@ -190,8 +194,9 @@ class Runner:
 
     @staticmethod
     def edited_uploads(recipe: Recipe, bindings: Bindings) -> list[FileRef]:
-        """Uploaded photos (not gallery images) that a photo-edit ``generate``, an ``inpaint`` or a
-        ``replace_background`` step of this recipe edits or composites (ADR-0038)."""
+        """Uploaded photos (not gallery images) that a photo-edit ``generate``, an ``inpaint``, a
+        ``replace_background`` or a ``face_restore`` step of this recipe edits or composites
+        (ADR-0038; a restore's result otherwise reaches the gallery as a clean copy, ADR-0047)."""
         found: list[FileRef] = []
         for i, step in enumerate(recipe.steps):
             if isinstance(step, Generate):
@@ -199,7 +204,7 @@ class Runner:
                     continue
                 # A photo edit never starts from the previous step: its slot, else the source.
                 fallback = recipe.source_image if step.image_slot is None else None
-            elif isinstance(step, (Inpaint, ReplaceBackground)):
+            elif isinstance(step, (Inpaint, ReplaceBackground, FaceRestore)):
                 # Without a slot these take the previous step's output; only the first takes the
                 # recipe's source photo.
                 first = not any(not s.is_modifier for s in recipe.steps[:i])

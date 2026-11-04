@@ -415,11 +415,11 @@ class VideoJobs:
             tmp.unlink(missing_ok=True)
 
     def submit_check(self, spec: VideoSpec) -> ffmpeg.ClipInfo:
-        """At submit time: the clip is readable and within limits, the face photo resolves, and
-        the clip's first frame passes the S5 guard (the full sampled pre-pass runs in the job)."""
+        """At submit time: the clip is readable and within limits, and its first frame passes the
+        S5 guard (the full sampled pre-pass runs in the job). The face photo is checked first, on
+        the event-loop thread, because a gallery reference reads the SQLite index (Phase 17g)."""
         clip = ffmpeg.probe(self._video_path(spec))
         self.check_limits(spec, clip)
-        self.resolve_face(spec)
         if spec.trim_start < 0 or (spec.trim_end is not None and spec.trim_end <= spec.trim_start):
             raise VideoError("The trim is empty. Pick a start before the end.")
         if spec.trim_start >= clip.seconds:
