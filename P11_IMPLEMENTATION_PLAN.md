@@ -1,7 +1,7 @@
 # P11: Project_1111 Implementation Plan
 
 **Spec:** [`docs/P11_SPECIFICATION.md`](docs/P11_SPECIFICATION.md). **Decisions:** [`docs/P11_DECISIONS.md`](docs/P11_DECISIONS.md). **Agent rules:** [`CLAUDE.md`](CLAUDE.md). **Shared phase instructions:** [`prompts/P11_shared-instructions.md`](prompts/P11_shared-instructions.md)
-**Last updated:** 2026-11-04 18:35 CST (phase 17g closed: Nick confirmed all three items)
+**Last updated:** 2026-11-04 18:50 CST (phase 17h code merged, waiting for Nick's check)
 
 > ⚠️ **Mandatory:** every agent that works on this project keeps this file accurate. **Before doing any other work, set your phase to `🔄 In progress` and commit that change to `main`** (claim protocol: `prompts/P11_shared-instructions.md` §1a). Other agents read this table from `main`. At the end, set it to `✅ Complete` or `⛔ Blocked` and add a Phase Log entry. See `CLAUDE.md`.
 
@@ -619,3 +619,14 @@ Newest entries at the bottom. Format: `### YYYY-MM-DD HH:MM TZ: Phase NN: <title
 - Placement: after 17g, which also changes the Studio frontend; runs before 17f, which now depends on it, so this ships in v1.0.2. **17g is still 🔄 waiting for Nick's check**, so 17h cannot be claimed until it is ✅. Gate `review`: Nick checks it in his own window (17e rule).
 - Model: Opus 5.5, because the change crosses the state of all eight views and its failure modes are subtle, not because it is large.
 - Other files: `prompts/P11_phase-17h-reset-button.md`, `prompts/P11_phase-17f-release-1-0-2.md` (depends on 17h), `docs/P11_DECISIONS.md`, Deferred follow-ups (disk cleanup), the vault note.
+
+### 2026-11-04 18:50 CST: Phase 17h: Reset button (🔄 In progress: code merged, waiting for Nick's check)
+- **Timeline:** started 2026-11-04 18:36 CST (claim commit 17d45c3) · finished (pending walk-through) · merged 2026-11-04 18:49 CST (code `fd8e7e2`, merged so the real Studio could serve it for the walk-through, as in 17e and 17g)
+- **Model:** ran as claude-opus-5-5 (plan lists Opus 5.5)
+- Built: **Reset** as the last top-bar control with `app/ResetDialog.tsx`; a `reset` reducer action; `resetKey` and `reset()` in `NavProvider`, clearing `editing` in the same update; a keyed `Fragment` around the eight views; `clear()` on toasts. Cancel takes first focus. The hold follows ADR-0048 and enables itself live.
+- **Task 7 found a real defect, fixed at the root:** `hello` is sent only without `Last-Event-ID`, so a resumed stream, a service restart or a full event buffer could leave a finished job "running" for good, in the status bar too, and it would have held Reset forever. `StudioProvider` now re-reads each unfinished job after every reconnect (`client.job`). The new `refreshed` action applies only while the job is still unfinished here, so a late answer cannot undo the stream; `gone` forgets a job on a 404. Other errors keep the hold, and the next reconnect tries again. No backend change.
+- Deviations: Reset also stays disabled while `connected` is null (first connection), not only `false`. The dialog's buttons use the `.row` layout of the Empty trash dialog. `make tools` was needed in the new worktree for ShellCheck (`.tools/`, git-ignored, no host change).
+- Tests: `make check` exit 0: 857 passed / 1 skipped, 91 % coverage, 129 Vitest, pip-audit and npm audit 0, gitleaks clean. `make e2e` 60 passed, 2 skipped (real engine and screenshots, both opt-in). `frontend/e2e/reset.spec.ts` 4/4 in Chromium and in Brave. Mutation check: removing the `editing` clear, the `refreshed` guard, the reconnect trigger or the job hold each failed a test. Screenshots refreshed with `P11_SCREENSHOTS=1`. `make gpu-test` not run: no engine-facing code.
+- **Bundle id:** `b263f148`. `p11 doctor` reports current. Live Studio was stopped at the start of this step and was started for the walk-through, pid 2049908; the engine stays stopped until a job runs.
+- **Real Studio at 1918×2130 in Brave (2026-11-04 18:50 CST):** Reset sits 16 px (the bar's padding) from the right edge; a typed prompt cleared; 0 writing requests; the 49,380-file listing of `~/.local/share/p11` was unchanged in path, size and mtime. `~/Pictures/P11` was not listed; the zero writing requests cover it. The hold was checked on the fake engine only, because no real job was run here.
+- **Waiting for:** Nick's confirmation in his own window (task 9).
