@@ -1,4 +1,4 @@
-# P11: Final Report (v1.0.1)
+# P11: Final Report (v1.0.2)
 
 Project_1111 (P11) is a fully local image-generation system for Omarchy Linux on an 8 GB RTX 2070 Mobile laptop. **P11 Studio** (Vite + React + TypeScript, FastAPI, Typer, SQLite, Python 3.12 via uv) drives a pinned headless ComfyUI on 127.0.0.1. This report covers phases 00–16 as shipped in v1.0.0 and phases 17a–17c in v1.0.1. The repository is public at the start of Phase 17d (owner question 21: Nick makes the visibility change himself); Phase 17d did not change its visibility (ADR-0040).
 
@@ -15,6 +15,9 @@ Project_1111 (P11) is a fully local image-generation system for Omarchy Linux on
 | Installer and Omarchy integration | `install.sh`, `uninstall.sh`, `p11 update`, desktop entry, container install test | 15 |
 | Security baseline S1–S10, threat model, QA | `docs/P11_THREAT-MODEL.md`, scanners, fuzz corpus, axe on every view | 16 |
 | Unfiltered generation (A5); face-swap NSFW guard (S5) | Plain generation has no filter; the guard cannot be configured off (ADR-0005, ADR-0029, ADR-0034, ADR-0037) | 12, 13, 16 |
+
+## v1.0.2 (2026-11-05 02:50 CST)
+**Root cause of the "fixes not visible" reports:** `./install.sh` and `p11 update` kept the first frontend build (`src/p11/web/`, built 2026-11-03 18:41 CST), so v1.0.1's interface changes never reached anyone updating. **Fix (17e, ADR-0043):** a source hash is stamped into `build-info.json`; install/update rebuild when it differs, `p11 doctor`/`status` and the status bar show the build id, and `index.html` is served no-cache. Nick confirmed the four items in his own Studio window (owner question 23, 2026-11-04 17:21 CST). Also shipped: 17g (Inpaint default, gallery sizes, From gallery, S5 fixes, ADR-0045/0046/0047) and 17h (Reset button, ADR-0048). Pre-flight: `make check` (857 pytest, 129 vitest), `make e2e` (60 passed, 2 skipped), `make gpu-test` (27 passed), `tests/install/run.sh` (CLEAN-INSTALL-OK), gitleaks clean.
 
 ## v1.0.1 (2026-11-04 11:36 CST)
 The first feedback round after v1.0.0. The version is **1.0.1** by Nick's choice although photo edit is a feature (SemVer would say 1.1.0).

@@ -4,6 +4,10 @@ All notable changes are recorded here. Format: [Keep a Changelog](https://keepac
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-05 02:50 CST
+
+Updating from v1.0.0 or v1.0.1 with `p11 update` (or `./install.sh`) now rebuilds the Studio interface, so the 17a fixes and photo edit finally reach you after an update (17e, ADR-0043). Also in this release: Inpaint defaults to Only masked area off, Small/Medium gallery thumbnails and From gallery on every image input (17g), and the top-bar Reset button (17h). Reload the app window after updating.
+
 ### Added
 - Phase 17h: a **Reset** button at the right of the top bar clears the forms, picked photos, masks and results in every tab after a short confirmation (ADR-0048). Nothing on disk changes, and it waits for running jobs. Theme, thumbnail size and remembered template inputs stay.
 - Phase 17g: **From gallery** on every image input (ADR-0046): Start from a photo, Inpaint, Background (photo and new background), Face & Pose (picture, face photo, pose photo, reference), the Video face photo and template image inputs. It passes a reference to the gallery image and uploads nothing, so edit chains and the S5 likeness rule work as they do from a result.
@@ -88,6 +92,7 @@ First release: every phase 00–16 below ships in v1.0.0. The repository stays p
 - Phase 16: `test_gpulock.py` uses a spawn context (no fork-while-threaded warning).
 - Phase 12: `p11.models.state._atomic_write` now creates P11's own state directory with `0700` (it used a plain `mkdir`, so `~/.config/p11` came out `755` under the default umask and the licence acknowledgements inside were listable by other users). Found by `p11 doctor`'s permissions check during the Phase 12 acceptance run.
 
-[Unreleased]: https://github.com/antonizick/project1111/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/antonizick/project1111/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/antonizick/project1111/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/antonizick/project1111/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/antonizick/project1111/releases/tag/v1.0.0
