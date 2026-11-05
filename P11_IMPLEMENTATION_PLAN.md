@@ -1,7 +1,7 @@
 # P11: Project_1111 Implementation Plan
 
 **Spec:** [`docs/P11_SPECIFICATION.md`](docs/P11_SPECIFICATION.md). **Decisions:** [`docs/P11_DECISIONS.md`](docs/P11_DECISIONS.md). **Agent rules:** [`CLAUDE.md`](CLAUDE.md). **Shared phase instructions:** [`prompts/P11_shared-instructions.md`](prompts/P11_shared-instructions.md)
-**Last updated:** 2026-11-04 18:34 CST (phase 17h inserted: top-bar Reset button)
+**Last updated:** 2026-11-04 18:35 CST (phase 17g closed: Nick confirmed all three items)
 
 > ⚠️ **Mandatory:** every agent that works on this project keeps this file accurate. **Before doing any other work, set your phase to `🔄 In progress` and commit that change to `main`** (claim protocol: `prompts/P11_shared-instructions.md` §1a). Other agents read this table from `main`. At the end, set it to `✅ Complete` or `⛔ Blocked` and add a Phase Log entry. See `CLAUDE.md`.
 
@@ -59,7 +59,7 @@ Each phase is claimed by a `chore(plan): start phase NN` commit on `main` and ru
 | 17d | Release v1.0.1 | Pre-flight, version 1.0.1, changelog, tag and GitHub release without an in-session go (ADR-0040), visibility unchanged, post-release check, hand-off for Nick's test | Sonnet 5.5 (`claude-sonnet-5-5`) | 17a, 17b, 17c | ✅ Complete | [`prompts/P11_phase-17d-release-1-0-1.md`](prompts/P11_phase-17d-release-1-0-1.md) | auto |
 | 17e | Ship the fixes to the running Studio | The four v1.0.1 items never reached Nick's Studio (stale `src/p11/web` bundle since 2026-11-03 18:41): build stamp, rebuild on install/update when stale, doctor/status/Studio build id, `index.html` no-cache, rebuild-and-restart close-out rule, checks at Nick's 1918×2130 Brave window, walk-through with Nick (ADR-0043) | Opus 5.5 (`claude-opus-5-5`) | 17d | ✅ Complete | [`prompts/P11_phase-17e-ship-fixes.md`](prompts/P11_phase-17e-ship-fixes.md) | review |
 | 17f | Release v1.0.2 | After Nick confirms the four items (owner question 23): pre-flight, version 1.0.2, tag and GitHub release, `p11 update` from v1.0.1 rebuilds the frontend (ADR-0044) | Sonnet 5.5 (`claude-sonnet-5-5`) | 17e, 17g, 17h | ⬜ Not started | [`prompts/P11_phase-17f-release-1-0-2.md`](prompts/P11_phase-17f-release-1-0-2.md) | review |
-| 17g | Inpaint default, gallery sizes and picker | Inpaint form defaults to Only masked area off (ADR-0045), gallery Small/Medium thumbnails, From gallery on all ten image inputs with `gallery/<id>` references only so the S5 flag travels (ADR-0046); walk-through with Nick | Opus 5.5 (`claude-opus-5-5`) | 17e | 🔄 In progress | [`prompts/P11_phase-17g-inpaint-gallery-picker.md`](prompts/P11_phase-17g-inpaint-gallery-picker.md) | review |
+| 17g | Inpaint default, gallery sizes and picker | Inpaint form defaults to Only masked area off (ADR-0045), gallery Small/Medium thumbnails, From gallery on all ten image inputs with `gallery/<id>` references only so the S5 flag travels (ADR-0046); walk-through with Nick | Opus 5.5 (`claude-opus-5-5`) | 17e | ✅ Complete | [`prompts/P11_phase-17g-inpaint-gallery-picker.md`](prompts/P11_phase-17g-inpaint-gallery-picker.md) | review |
 | 17h | Reset button | Top-bar Reset with a short confirmation clears the on-screen state in all tabs; nothing on disk changes; held while jobs are unfinished; theme, thumbnail size and remembered template inputs stay (ADR-0048); walk-through with Nick | Opus 5.5 (`claude-opus-5-5`) | 17g | ⬜ Not started | [`prompts/P11_phase-17h-reset-button.md`](prompts/P11_phase-17h-reset-button.md) | review |
 
 ## Timeline
@@ -597,8 +597,8 @@ Newest entries at the bottom. Format: `### YYYY-MM-DD HH:MM TZ: Phase NN: <title
 - Grounding found one thing to check in the phase: `inputs_carry_likeness` covers the source, bound slots and parent, so pose, reference and background inputs must be confirmed to reach it (task 5).
 - Other files: `prompts/P11_phase-17f-release-1-0-2.md` (depends on 17g, changelog note), `docs/P11_DECISIONS.md`, the vault note.
 
-### 2026-11-04 18:12 CST: Phase 17g: Inpaint default, gallery sizes and picker (🔄 In progress: code merged, waiting for Nick's check)
-- **Timeline:** started 2026-11-04 17:36 CST (claim commit a7c86b6) · finished (pending walk-through) · merged 2026-11-04 18:11 CST (code `1c5c324`, merged so the real Studio could serve it for the walk-through, as in 17e)
+### 2026-11-04 18:12 CST: Phase 17g: Inpaint default, gallery sizes and picker (✅ Complete)
+- **Timeline:** started 2026-11-04 17:36 CST (claim commit a7c86b6) · finished 2026-11-04 18:35 CST · merged 2026-11-04 18:11 CST (code `1c5c324`, merged so the real Studio could serve it for the walk-through, as in 17e)
 - **Model:** ran as claude-opus-5-5 (plan lists Opus 5.5)
 - Built: Inpaint form crop off with a help line (ADR-0045); Small (120 px) and Medium (200 px) gallery thumbnails with a pure layout, `tileSize.ts` storage in try/catch, and the top image kept in view when switching; `components/GalleryPicker.tsx` (search, paging by **Show more**, empty message, portal to `document.body`) wired to all ten image controls through their existing hand-offs. `RunDialog` offers it on image slots only. `Dialog` gained `data-autofocus` and its header became a `div`, because a portalled `<header>` is a second banner landmark (axe).
 - **Guard check (task 5):** all ten controls already reached `inputs_carry_likeness`; one parametrized case each in `tests/unit/test_likeness_guard.py`. Reading the routes found two holes, closed with failing tests first (ADR-0047): Restore faces on an upload left an unflagged gallery copy; the Background preview showed a likeness composite without the guard. Residuals are in Deferred follow-ups.
@@ -608,7 +608,7 @@ Newest entries at the bottom. Format: `### YYYY-MM-DD HH:MM TZ: Phase NN: <title
 - Tests: `make check` exit 0: 857 passed / 1 skipped, 91 % coverage, 120 Vitest, pip-audit and npm audit 0, gitleaks clean. `make e2e` 56 passed, 2 skipped, including From gallery jobs finishing on Generate, Inpaint, Background and Face with no `POST /api/uploads` for the picks, and axe on the picker. `frontend/e2e/gallery-picker.spec.ts` 4/4 in Brave. `make gpu-test` not run: no engine-facing code changed.
 - **Bundle id:** `e14d7d14` (`index-nW1BcTX7.js`). `p11 doctor` reports current, `p11 status` and `/healthz` show the same id. Live Studio restarted while idle, pid 2008512.
 - **Real Studio, read-only at 1918×2130 (2026-11-04 18:13 CST):** a fresh Inpaint form has Only masked area unchecked; tiles 200 px and 120 px with no horizontal overflow; the picker lists the real gallery; no POST was sent. **Not checked on the real engine:** a picked image running a job (fake engine only so far) and a gallery face on Video; both are in Nick's walk-through. No job was run here, to leave his gallery alone.
-- **Waiting for:** Nick's confirmation of all three items in his own window (task 8).
+- **Nick's confirmation (task 8):** all three items work in his own window, 2026-11-04 18:35 CST: "17g items confirmed working".
 
 ### 2026-11-04 18:34 CST: Planning: phase 17h inserted (Planned)
 - **Timeline:** started 2026-11-04 18:32 CST · finished 2026-11-04 18:34 CST
