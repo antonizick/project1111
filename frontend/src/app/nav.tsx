@@ -43,6 +43,10 @@ type Ctx = {
   editing: { view: View; image: ImageEntry; at: number } | null;
   /** Open `image` in an editing view. */
   edit: (view: View, image: ImageEntry) => void;
+  /** Bumped by `reset`; the shell keys the views on it, so they remount fresh (ADR-0048). */
+  resetKey: number;
+  /** Clear every view and drop the last hand-off; the current view stays open. */
+  reset: () => void;
 };
 
 const NavContext = createContext<Ctx | null>(null);
@@ -57,6 +61,12 @@ export function NavProvider({
   const [view, setView] = useState<View>(initial);
   const listener = useRef<RecipeListener | null>(null);
   const [editing, setEditing] = useState<Ctx["editing"]>(null);
+  const [resetKey, setResetKey] = useState(0);
+  // A remounted view has forgotten what it saw, so a hand-off left here would load again.
+  const reset = useCallback(() => {
+    setEditing(null);
+    setResetKey((k) => k + 1);
+  }, []);
   const edit = useCallback((target: View, image: ImageEntry) => {
     setEditing({ view: target, image, at: Date.now() });
     setView(target);
@@ -69,8 +79,8 @@ export function NavProvider({
     listener.current = l;
   }, []);
   const value = useMemo(
-    () => ({ view, go: setView, openRecipe, onRecipe, editing, edit }),
-    [view, openRecipe, onRecipe, editing, edit],
+    () => ({ view, go: setView, openRecipe, onRecipe, editing, edit, resetKey, reset }),
+    [view, openRecipe, onRecipe, editing, edit, resetKey, reset],
   );
   return <NavContext.Provider value={value}>{children}</NavContext.Provider>;
 }

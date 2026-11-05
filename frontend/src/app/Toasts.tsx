@@ -21,7 +21,11 @@ export type Toast = {
 };
 
 type Push = (t: Omit<Toast, "id">) => void;
-type Ctx = { push: Push; problem: (p: Problem, action?: Toast["action"]) => void };
+type Ctx = {
+  push: Push;
+  problem: (p: Problem, action?: Toast["action"]) => void;
+  clear: () => void;
+};
 
 const ToastContext = createContext<Ctx | null>(null);
 
@@ -50,7 +54,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [push],
   );
 
-  const value = useMemo(() => ({ push, problem }), [push, problem]);
+  const clear = useCallback(() => setToasts([]), []);
+
+  const value = useMemo(() => ({ push, problem, clear }), [push, problem, clear]);
   const errors = toasts.filter((t) => t.kind === "error");
   const infos = toasts.filter((t) => t.kind === "info");
   return (

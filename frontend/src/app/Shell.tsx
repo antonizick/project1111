@@ -1,8 +1,8 @@
 // The app shell: left nav, top bar, the views and the status bar. Built views stay mounted
-// (hidden when inactive) so the form and gallery keep their state; later phases replace the
-// placeholders.
+// (hidden when inactive) so the form and gallery keep their state until Reset remounts them;
+// later phases replace the placeholders.
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { GalleryView } from "../features/gallery/GalleryView";
 import { GenerateView } from "../features/generate/GenerateView";
 import { BackgroundView } from "../features/background/BackgroundView";
@@ -13,6 +13,7 @@ import { TemplatesView } from "../features/templates/TemplatesView";
 import { VideoView } from "../features/video/VideoView";
 import { Dialog } from "../components/Dialog";
 import { useNav, VIEWS, type View } from "./nav";
+import { ResetDialog } from "./ResetDialog";
 import { SHORTCUTS, useShortcuts } from "./shortcuts";
 import { StatusBar } from "./StatusBar";
 import { useStudio } from "./studio";
@@ -56,10 +57,11 @@ function Placeholder({ view }: { view: View }) {
 }
 
 export function Shell({ version, fake }: { version: string; fake: boolean }) {
-  const { view, go } = useNav();
-  const { state } = useStudio();
+  const { view, go, resetKey, reset } = useNav();
+  const { state, dispatch } = useStudio();
   const toasts = useToasts();
   const [help, setHelp] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const main = useRef<HTMLElement>(null);
 
@@ -85,6 +87,14 @@ export function Shell({ version, fake }: { version: string; fake: boolean }) {
   const navigate = (v: View) => {
     go(v);
     main.current?.focus();
+  };
+
+  const resetStudio = () => {
+    setResetting(false);
+    dispatch({ type: "reset" });
+    reset();
+    toasts.clear();
+    toasts.push({ kind: "info", message: "Studio reset. Nothing on disk changed." });
   };
 
   return (
@@ -115,6 +125,14 @@ export function Shell({ version, fake }: { version: string; fake: boolean }) {
         >
           ?
         </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setResetting(true)}
+          aria-label="Reset Studio: clear all tabs"
+        >
+          Reset
+        </button>
       </header>
       <nav className="sidenav" aria-label="Views">
         <ul>
@@ -134,17 +152,20 @@ export function Shell({ version, fake }: { version: string; fake: boolean }) {
         </ul>
       </nav>
       <main id="main" ref={main} tabIndex={-1} className="main">
-        <GenerateView active={view === "generate"} />
-        <GalleryView active={view === "gallery"} />
-        <TemplatesView active={view === "templates"} />
-        <InpaintView active={view === "inpaint"} />
-        <BackgroundView active={view === "background"} />
-        <FaceView active={view === "face"} />
-        <VideoView active={view === "video"} />
-        <ModelsView active={view === "models"} />
+        <Fragment key={resetKey}>
+          <GenerateView active={view === "generate"} />
+          <GalleryView active={view === "gallery"} />
+          <TemplatesView active={view === "templates"} />
+          <InpaintView active={view === "inpaint"} />
+          <BackgroundView active={view === "background"} />
+          <FaceView active={view === "face"} />
+          <VideoView active={view === "video"} />
+          <ModelsView active={view === "models"} />
+        </Fragment>
         {!BUILT.has(view) && <Placeholder view={view} />}
       </main>
       <StatusBar />
+      {resetting && <ResetDialog onClose={() => setResetting(false)} onReset={resetStudio} />}
       {help && (
         <Dialog title="Keyboard shortcuts" onClose={() => setHelp(false)}>
           <table className="shortcuts">

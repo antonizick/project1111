@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { EventStream } from "../api/events";
 import { FakeSource, image, job } from "../test/fakes";
-import { initialState, reduce, type StudioState } from "./studio";
+import { initialState, reduce, unfinishedJobs, type StudioState } from "./studio";
 
 const ev = (s: StudioState, type: string, data: unknown) =>
   reduce(s, { type: "event", event: { type: type as never, data } });
@@ -108,4 +108,38 @@ it("a late POST response does not undo the state the stream already delivered", 
   // Later stream events still apply.
   s = ev(s, "job", job({ state: "done" }));
   expect(s.jobs.job1?.state).toBe("done");
+});
+
+it("re-reads a job only while it is unfinished here, so a late answer undoes nothing", () => {
+  let s = ev(initialState, "job", job({ state: "running" }));
+  s = reduce(s, { type: "refreshed", job: job({ state: "done", images: [3] }) });
+  expect(s.jobs.job1?.state).toBe("done");
+  const late = reduce(s, { type: "refreshed", job: job({ state: "running" }) });
+  expect(late.jobs.job1?.state).toBe("done");
+  const unknown = reduce(s, { type: "refreshed", job: job({ id: "other", state: "running" }) });
+  expect(unknown.jobs.other).toBeUndefined();
+});
+
+it("forgets a job the service no longer knows", () => {
+  let s = ev(initialState, "job", job({ state: "running" }));
+  s = ev(s, "preview", { job: "job1", mime: "image/jpeg", data: "QUJD" });
+  s = reduce(s, { type: "gone", id: "job1" });
+  expect(unfinishedJobs(s)).toEqual([]);
+  expect(s.previews.job1).toBeUndefined();
+});
+
+it("reset forgets finished work and the model but keeps unfinished jobs and the rest", () => {
+  let s = ev(initialState, "hello", { jobs: [job({ id: "a", state: "done" }), job({ id: "b" })] });
+  s = ev(s, "job", job({ id: "b", state: "running" }));
+  s = ev(s, "preview", { job: "b", mime: "image/jpeg", data: "QUJD" });
+  s = ev(s, "image", { job: "a", image: image(3) });
+  s = reduce(s, { type: "submitted", jobs: [], model: "m" });
+  const rev = s.galleryRev;
+  s = reduce(s, { type: "reset" });
+  expect(Object.keys(s.jobs)).toEqual(["b"]);
+  expect(s.previews.b).toBeDefined();
+  expect(s.currentModel).toBeNull();
+  expect(s.images[3]?.id).toBe(3);
+  expect(s.galleryRev).toBe(rev);
+  expect(s.connected).toBe(true);
 });

@@ -2,9 +2,19 @@
 // Fed by the SSE stream (api/events.ts) and a slow /api/system poll; views read it with
 // useStudio(). The reducer is pure so it is tested without a browser.
 
-import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  type ReactNode,
+} from "react";
 import { client } from "../api/client";
 import { EventStream, type EventSourceLike, type StudioEvent } from "../api/events";
+import { ApiError } from "../api/session";
+import { FINISHED } from "../api/types";
 import type {
   GpuSample,
   ImageEntry,
@@ -60,10 +70,27 @@ export type Action =
   | { type: "presets"; presets: Presets }
   | { type: "models"; models: ModelInfo[] }
   | { type: "submitted"; jobs: Job[]; model?: string | null }
+  /** A job re-read after the stream dropped; never overrides a finish the stream delivered. */
+  | { type: "refreshed"; job: Job }
+  /** A job the service no longer knows. */
+  | { type: "gone"; id: string }
+  /** The Reset button (ADR-0048): forget finished work, keep whatever is still unfinished. */
+  | { type: "reset" }
   | { type: "image"; image: ImageEntry }
   /** Images loaded by a view (gallery page): cached without counting as a gallery change. */
   | { type: "cache"; images: ImageEntry[] }
   | { type: "deleted"; id: number };
+
+/** Jobs that are queued, running or paused. */
+export function unfinishedJobs(state: StudioState): Job[] {
+  return Object.values(state.jobs).filter((j) => !FINISHED.has(j.state));
+}
+
+function forgetJob<T>(record: Record<string, T>, id: string): Record<string, T> {
+  const next = { ...record };
+  delete next[id];
+  return next;
+}
 
 function putJob(state: StudioState, job: Job): StudioState {
   return { ...state, jobs: { ...state.jobs, [job.id]: { ...state.jobs[job.id], ...job } } };
@@ -100,6 +127,30 @@ export function reduce(state: StudioState, action: Action): StudioState {
       let next = state;
       for (const job of action.jobs) if (!next.jobs[job.id]) next = putJob(next, job);
       return action.model !== undefined ? { ...next, currentModel: action.model } : next;
+    }
+    case "refreshed": {
+      const known = state.jobs[action.job.id];
+      if (!known || FINISHED.has(known.state)) return state;
+      return reduceEvent(state, { type: "job", data: action.job });
+    }
+    case "gone":
+      return {
+        ...state,
+        jobs: forgetJob(state.jobs, action.id),
+        progress: forgetJob(state.progress, action.id),
+        previews: forgetJob(state.previews, action.id),
+      };
+    case "reset": {
+      const jobs = Object.fromEntries(unfinishedJobs(state).map((j) => [j.id, j]));
+      const keep = <T,>(record: Record<string, T>) =>
+        Object.fromEntries(Object.entries(record).filter(([id]) => jobs[id]));
+      return {
+        ...state,
+        jobs,
+        progress: keep(state.progress),
+        previews: keep(state.previews),
+        currentModel: null,
+      };
     }
     case "image":
       return withImage(state, action.image);
@@ -223,6 +274,26 @@ export function StudioProvider({
       clearInterval(timer);
     };
   }, []);
+
+  // Events missed while the stream was down are not replayed after a service restart or a full
+  // buffer, so a job could stay "running" here for good: ask the service about each one.
+  const unfinished = useRef<Job[]>([]);
+  useEffect(() => {
+    unfinished.current = unfinishedJobs(state);
+  });
+  const dropped = useRef(false);
+  useEffect(() => {
+    if (state.connected === false) dropped.current = true;
+    if (!state.connected || !dropped.current) return;
+    dropped.current = false;
+    for (const { id } of unfinished.current)
+      client
+        .job(id)
+        .then((job) => dispatch({ type: "refreshed", job }))
+        .catch((e: unknown) => {
+          if (e instanceof ApiError && e.status === 404) dispatch({ type: "gone", id });
+        });
+  }, [state.connected]);
 
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
