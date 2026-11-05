@@ -11,7 +11,7 @@ test("screenshots", async ({ page }) => {
   await generateButton(page).click();
   await expect(page.getByRole("region", { name: "Result" })).toBeVisible();
   await page.screenshot({ path: "../docs/images/p11-generate.png" });
-  await page.getByRole("button", { name: "Gallery" }).click();
+  await page.getByRole("button", { name: "Gallery", exact: true }).click();
   await expect(
     page.getByRole("group", { name: "Images" }).getByRole("listitem").first(),
   ).toBeVisible();

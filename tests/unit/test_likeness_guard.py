@@ -334,9 +334,7 @@ async def test_a_restored_upload_showing_a_face_stays_guarded(tmp_path) -> None:
     r = recipe(FaceRestore(), source_image=plain_ref(runner), id="restore")
     assert Runner.edited_uploads(r, {}) == [r.source_image]
     [made] = await run(runner, r)
-    record = metadata.read_sidecar(
-        metadata.sidecar_path(runner.outputs_root / _path(runner, made))
-    )
+    record = metadata.read_sidecar(metadata.sidecar_path(runner.outputs_root / _path(runner, made)))
     assert record.likeness
     assert guard.seen
 

@@ -30,6 +30,38 @@ async function pick(page: Page, label: string, alt: string) {
   await expect(dialog).toBeHidden();
 }
 
+/** The job a press of `go` submits, followed until it finishes; returns its request body. */
+async function runJob(page: Page, go: () => Promise<void>) {
+  const sent = page.waitForResponse(
+    (r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/jobs",
+  );
+  await go();
+  const response = await sent;
+  const { id } = (await response.json()) as { id: string };
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async (jobId) => {
+          const r = await fetch(`/api/jobs/${jobId}`, {
+            headers: { authorization: `Bearer ${sessionStorage.getItem("p11.token")}` },
+          });
+          return ((await r.json()) as { state: string }).state;
+        }, id),
+      { timeout: 20_000 },
+    )
+    .toBe("done");
+  return response.request().postDataJSON();
+}
+
+async function stroke(page: Page) {
+  const box = (await page.getByTestId("mask-stage").boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width * 0.4, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, y + 20, { steps: 12 });
+  await page.mouse.up();
+}
+
 const view = (page: Page, name: string) =>
   page.getByRole("navigation", { name: "Views" }).getByText(name, { exact: true });
 
@@ -68,13 +100,15 @@ for (const [vw, vh] of [
     await page.getByRole("group", { name: "Thumbnail size" }).getByText("Medium").click();
   });
 
-test("From gallery: Generate, Inpaint and Face send references, never an upload", async ({
+test("From gallery: picked images run jobs on Generate, Inpaint, Background and Face, by reference", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 1280, height: 900 });
   const foreign = await openStudio(page);
   await makeImage(page, "a picker fox");
   const seen = countUploads(page);
+  const gallery = /^gallery\/\d+$/;
 
   // Generate: the picked image becomes the starting photo.
   const form = page.getByRole("form", { name: "Generate" });
@@ -87,13 +121,10 @@ test("From gallery: Generate, Inpaint and Face send references, never an upload"
   await expect(dialog).toBeHidden();
   await pick(page, "Start from a photo", "a picker fox");
   await expect(form.getByAltText("Starting photo")).toBeVisible();
-  const sent = page.waitForRequest(
-    (r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/jobs",
-  );
-  await generateButton(page).click();
-  const body = (await sent).postDataJSON();
-  expect(body.recipe.source_image.ref).toMatch(/^gallery\/\d+$/);
+  const body = await runJob(page, () => generateButton(page).click());
+  expect(body.recipe.source_image.ref).toMatch(gallery);
   expect(body.parent).toEqual(expect.any(Number));
+  expect(seen.uploads, "Generate uploads nothing").toBe(0);
 
   // Inpaint: fresh form has the crop off; the picked image opens in the editor.
   await view(page, "Inpaint").click();
@@ -101,18 +132,34 @@ test("From gallery: Generate, Inpaint and Face send references, never an upload"
   await pick(page, "Upload photo", "a picker fox");
   await expect(page.getByRole("button", { name: "Apply" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Fix or change part/ })).toBeHidden();
+  expect(seen.uploads, "picking uploads nothing").toBe(0);
+  await stroke(page);
+  const inpaint = await runJob(page, () => page.getByRole("button", { name: "Apply" }).click());
+  expect(inpaint.recipe.source_image.ref).toMatch(gallery);
+  expect(inpaint.recipe.steps[0].crop).toBe(false);
+  seen.uploads = 0; // the painted mask is the one upload Apply makes
+
+  // Background: subject and background photo both from the gallery (the auto-mask uploads).
+  await view(page, "Background").click();
+  await pick(page, "Upload photo", "a picker fox");
+  await pick(page, "Background photo", "a picker fox");
+  await expect(page.getByAltText("Background", { exact: true })).toBeVisible();
+  const replace = page.getByRole("button", { name: "Replace Background" });
+  await expect(replace).toBeEnabled();
+  const background = await runJob(page, () => replace.click());
+  expect(background.recipe.source_image.ref).toMatch(gallery);
+  expect(background.bindings.background.ref).toMatch(gallery);
+  seen.uploads = 0;
 
   // Face: Picture and Face photo from the gallery run a swap.
   await page.getByRole("navigation", { name: "Views" }).getByText(/^Face/).click();
   await pick(page, "Picture", "a picker fox");
   await pick(page, "Face photo", "a picker fox");
-  const swap = page.waitForRequest(
-    (r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/jobs",
+  const swapped = await runJob(page, () =>
+    page.getByRole("button", { name: "Swap face" }).last().click(),
   );
-  await page.getByRole("button", { name: "Swap face" }).last().click();
-  const swapped = (await swap).postDataJSON();
-  expect(swapped.recipe.source_image.ref).toMatch(/^gallery\/\d+$/);
-  expect(swapped.bindings.face.ref).toMatch(/^gallery\/\d+$/);
+  expect(swapped.recipe.source_image.ref).toMatch(gallery);
+  expect(swapped.bindings.face.ref).toMatch(gallery);
 
   expect(seen.uploads, "picking uploads nothing").toBe(0);
   expect(foreign).toEqual([]);

@@ -96,7 +96,7 @@ test("Generate and Gallery pass axe accessibility checks", async ({ page }) => {
   await openStudio(page);
   const generate = await new AxeBuilder({ page }).analyze();
   expect(generate.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-  await page.getByRole("button", { name: "Gallery" }).click();
+  await page.getByRole("button", { name: "Gallery", exact: true }).click();
   await expect(page.getByRole("group", { name: "Images" })).toBeVisible();
   const gallery = await new AxeBuilder({ page }).analyze();
   expect(gallery.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);

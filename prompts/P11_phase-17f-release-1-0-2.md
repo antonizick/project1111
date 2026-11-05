@@ -18,7 +18,7 @@ Answer to "Should this phase cut v1.0.2 … once you have confirmed the fixes?":
 
 ## What exists (verified 2026-11-04 15:10 CST; re-check before relying on it)
 - Version `1.0.1` in `pyproject.toml`, `uv.lock`, `src/p11/__init__.py`, `frontend/package.json` and its lock. Release `v1.0.1`: https://github.com/antonizick/project1111/releases/tag/v1.0.1.
-- 17e and 17g fill `CHANGELOG.md` `[Unreleased]`. The release also carries 17g (Inpaint default, gallery sizes, gallery picker): name it in the notes after the first line.
+- 17e and 17g fill `CHANGELOG.md` `[Unreleased]`. The release also carries 17g (Inpaint default, gallery sizes, gallery picker, and the S5 and Video fixes of ADR-0047): name it in the notes after the first line.
 
 ## Tasks
 1. **Check owner question 23** (must be `Answered`, with Nick confirming). Otherwise stop.

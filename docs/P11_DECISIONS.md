@@ -50,6 +50,7 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0044 | 2026-11-04 15:12 CST | Photo edit stays SDXL img2img until Nick has tried it; v1.0.2 released after Nick confirms the four items in his own window | Accepted | planning, 17e, 17f |
 | ADR-0045 | 2026-11-04 17:34 CST | Inpaint form defaults to Only masked area off; the schema default stays | Accepted | planning, 17g |
 | ADR-0046 | 2026-11-04 17:34 CST | The gallery picker passes `gallery/<id>` references, never a re-upload | Accepted | planning, 17g |
+| ADR-0047 | 2026-11-04 17:49 CST | Guard check for the picker: Restore faces counts as an edit of an upload; the Background preview guards likeness pictures | Accepted | 17g |
 
 ---
 
@@ -541,3 +542,11 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 **Options considered.** (a) Pass `gallery/<id>` through the existing hand-offs. (b) Fetch the bytes and upload them, which needs no change in the views but makes a new, unflagged input.
 **Decision.** (a). The picker returns the gallery entry; no control turns it into bytes. Each control is tested with a picture from a likeness run, and a gap found there is closed at the root or blocks that control.
 **Consequences.** Edit chains (`parent`) work as they do from a result. The picker offers images only: the Video clip input, JSON template import and `mask` slots keep their file input.
+
+## ADR-0047: Restore faces counts as an edit of an upload; the Background preview guards likeness pictures
+**Recorded.** 2026-11-04 17:49 CST (Phase 17g)
+**Status.** Accepted
+**Context.** ADR-0046 required a check of every image input with a picture from a likeness run. All ten pass through `inputs_carry_likeness`, because each reaches a job as `source_image` or a bound slot. Reading the routes around them found two holes the picker makes easier to reach. (1) `edited_uploads` left out `face_restore`, so an uploaded photo showing a face came out of Restore faces as an unflagged gallery image, and picking that image anywhere skipped the guard: a clean copy of the upload, the laundering ADR-0046 exists to prevent. (2) `POST /api/background/preview` composites without the guard, so a likeness picture could be seen over any background without the check Apply makes.
+**Options considered.** Restore: (a) treat it as an edit of an upload; (b) flag every restore output without detecting a face; (c) leave it, as out of the phase's scope. Preview: (a) guard the composite when an input is a likeness picture; (b) guard every preview; (c) leave it because nothing is saved.
+**Decision.** (a) for both. Restore needs the `face` set anyway, so the refusal rule of ADR-0041 costs nothing, and detection keeps pictures without a face unflagged. The preview check runs only for likeness pictures, so generation stays unfiltered (A5) and ordinary previews stay fast; a refused preview leaves the stage as it was, and Apply gives the plain message.
+**Consequences.** A nude or sexual upload showing a face is now refused by Restore faces. A likeness picture's preview costs one guard pass (about 1.4 s on the CPU). Two gaps stay as recorded follow-ups: previews of uploads showing a face are unchecked, because guarding them would break Background without the `face` set and nothing is saved; `upscale` and `text_overlay` on an upload in a template or API recipe are not edits under this rule. The same check found that a `gallery/<id>` face crashed in Video, fixed in 17g (`queue.check_video_face`).

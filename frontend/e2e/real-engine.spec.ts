@@ -27,6 +27,6 @@ test("1920×1080 photoreal from Simple mode with Ctrl+Enter on the real engine",
     `[real-engine] status: ${await page.getByRole("contentinfo", { name: "Status" }).innerText()}`,
   );
   await page.screenshot({ path: "test-results/real-engine-result.png" });
-  await page.getByRole("button", { name: "Gallery" }).click();
+  await page.getByRole("button", { name: "Gallery", exact: true }).click();
   await expect(page.getByRole("button", { name: /^Open: a lighthouse/ })).toBeVisible();
 });

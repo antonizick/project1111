@@ -27,7 +27,7 @@ test("the page loads under the strict CSP without violations", async ({ page }) 
   });
   await page.goto(launchUrl());
   await expect(page.getByText(/Connected · v/)).toBeVisible();
-  await page.getByRole("button", { name: "Gallery" }).click();
+  await page.getByRole("button", { name: "Gallery", exact: true }).click();
   await expect(page.getByRole("group", { name: "Images" })).toBeVisible();
   expect(violations).toEqual([]);
 });
