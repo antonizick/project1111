@@ -92,6 +92,8 @@ Tick the box on two or more images to **Compare** them side by side (zoom and pa
 
 **Keyboard shortcuts** (press <kbd>?</kbd> in the app): <kbd>Ctrl</kbd>+<kbd>Enter</kbd> generate · <kbd>Esc</kbd> cancel the job or close a dialog · <kbd>V</kbd> variations · <kbd>T</kbd> save as template · <kbd>Ctrl</kbd>+<kbd>K</kbd> find and run a template · <kbd>G</kbd> gallery · <kbd>?</kbd> shortcuts. Letter keys do nothing while you are typing in a field. The theme button in the top bar switches light and dark.
 
+**Start over.** **Reset** at the right of the top bar clears the forms, picked photos, masks and results in every tab, after a short confirmation, and you stay on the tab you are on. Nothing on disk changes: your images, uploads, models and templates stay. The gallery keeps its images and only loses its filters and selection. Your theme, thumbnail size and any template inputs you chose to remember also stay. If a job is running, Reset waits until it finishes or you cancel it; the same applies while the Studio is reconnecting.
+
 **Use a gallery image anywhere a photo is asked for.** Every photo input in the Studio has a **From gallery** button next to choosing a file: Start from a photo, Inpaint, Background (the photo and the new background), Face & Pose (picture, face photo, pose photo and reference), the face photo in Video, and a template's photo inputs. Search, press an image and it is in place, with nothing uploaded or copied. The safety checks that apply to a picture follow it wherever you pick it. Video clips and template mask inputs still take a file, because the gallery holds pictures.
 
 ## 4. Templates (written in Phase 09)

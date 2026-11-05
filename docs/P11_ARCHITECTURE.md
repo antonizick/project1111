@@ -208,6 +208,8 @@ Generate builds a one-step `generate` recipe; Advanced fields stay `null` (manif
 
 **Layout rule (Phase 17a).** The shell is fixed-height and `.main` clips, so every view is its own scroll container (`overflow: auto; min-height: 0`): the Generate/Inpaint/Background grid columns, and the single-column Face & Pose, Video and Models views. An overlay on a picture (the Background mask, the Video face boxes, the Text & logo crosshair) sits in a wrapper that shrink-wraps the picture (`width: fit-content`, `align-self: flex-start` inside a flex column), never in a box that stretches to the pane. `e2e/ui-fixes.spec.ts` checks both rules in Chromium.
 
+**Reset (Phase 17h, ADR-0048).** The top bar's Reset is client-only and sends no writing request. `Shell` keys the views on `NavProvider.resetKey`, so they remount with their initial state; `nav.reset()` clears `editing` in the same update, because each view compares `editing.at` during render and a remounted view would load the old hand-off again. The `reset` reducer action drops finished jobs and `currentModel`. `ResetDialog` disables the action while `unfinishedJobs` is not empty or the stream is not connected, because a job's Cancel lives in the view that started it. After every reconnect `StudioProvider` re-reads each unfinished job with `GET /api/jobs/<id>`: a missed finish is not replayed after a service restart or a full event buffer. A `refreshed` answer applies only while the job is still unfinished here, so a late response cannot undo the stream, and a 404 forgets the job.
+
 ## Templates (Phase 09, ADR-0024)
 ```
 result / gallery image ─► Save as Template dialog ─► POST /api/templates/from-image
