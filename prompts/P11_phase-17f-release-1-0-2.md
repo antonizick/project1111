@@ -1,6 +1,6 @@
 # P11 Phase 17f: Release v1.0.2
 
-**Model:** Sonnet 5.5 (`/model claude-sonnet-5-5`) · **Depends on:** 17e, 17g · **Branch:** `phase-17f-release-1-0-2` · **Worktree:** `../project1111-phase-17f` · **Gate:** review
+**Model:** Sonnet 5.5 (`/model claude-sonnet-5-5`) · **Depends on:** 17e, 17g, 17h · **Branch:** `phase-17f-release-1-0-2` · **Worktree:** `../project1111-phase-17f` · **Gate:** review
 
 v1.0.1 carried 17a's interface fixes and 17b's photo edit, but `./install.sh` and `p11 update` kept the first frontend build, so anyone updating from v1.0.0 never saw them (17e). This release ships 17e's fix so that `p11 update` delivers the current interface. Nick pre-authorized it **on one condition**: he has confirmed the four items in his own Studio window (ADR-0044, owner question 23).
 
@@ -18,7 +18,7 @@ Answer to "Should this phase cut v1.0.2 … once you have confirmed the fixes?":
 
 ## What exists (verified 2026-11-04 15:10 CST; re-check before relying on it)
 - Version `1.0.1` in `pyproject.toml`, `uv.lock`, `src/p11/__init__.py`, `frontend/package.json` and its lock. Release `v1.0.1`: https://github.com/antonizick/project1111/releases/tag/v1.0.1.
-- 17e and 17g fill `CHANGELOG.md` `[Unreleased]`. The release also carries 17g (Inpaint default, gallery sizes, gallery picker, and the S5 and Video fixes of ADR-0047): name it in the notes after the first line.
+- 17e, 17g and 17h fill `CHANGELOG.md` `[Unreleased]`. The release also carries 17g (Inpaint default, gallery sizes, gallery picker, and the S5 and Video fixes of ADR-0047) and 17h (the top-bar Reset button, ADR-0048): name them in the notes after the first line.
 
 ## Tasks
 1. **Check owner question 23** (must be `Answered`, with Nick confirming). Otherwise stop.

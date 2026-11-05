@@ -51,6 +51,7 @@ Lightweight ADRs. Append new decisions at the bottom, and never rewrite history:
 | ADR-0045 | 2026-11-04 17:34 CST | Inpaint form defaults to Only masked area off; the schema default stays | Accepted | planning, 17g |
 | ADR-0046 | 2026-11-04 17:34 CST | The gallery picker passes `gallery/<id>` references, never a re-upload | Accepted | planning, 17g |
 | ADR-0047 | 2026-11-04 17:49 CST | Guard check for the picker: Restore faces counts as an edit of an upload; the Background preview guards likeness pictures | Accepted | 17g |
+| ADR-0048 | 2026-11-04 18:34 CST | The Reset button clears on-screen state only, waits for unfinished jobs, and keeps saved settings and remembered template inputs | Accepted | planning, 17h |
 
 ---
 
@@ -550,3 +551,11 @@ Rejected and deleted from disk at the end of Phase 03: RealVisXL V5.0 (slower th
 **Options considered.** Restore: (a) treat it as an edit of an upload; (b) flag every restore output without detecting a face; (c) leave it, as out of the phase's scope. Preview: (a) guard the composite when an input is a likeness picture; (b) guard every preview; (c) leave it because nothing is saved.
 **Decision.** (a) for both. Restore needs the `face` set anyway, so the refusal rule of ADR-0041 costs nothing, and detection keeps pictures without a face unflagged. The preview check runs only for likeness pictures, so generation stays unfiltered (A5) and ordinary previews stay fast; a refused preview leaves the stage as it was, and Apply gives the plain message.
 **Consequences.** A nude or sexual upload showing a face is now refused by Restore faces. A likeness picture's preview costs one guard pass (about 1.4 s on the CPU). Two gaps stay as recorded follow-ups: previews of uploads showing a face are unchecked, because guarding them would break Background without the `face` set and nothing is saved; `upscale` and `text_overlay` on an upload in a template or API recipe are not edits under this rule. The same check found that a `gallery/<id>` face crashed in Video, fixed in 17g (`queue.check_video_face`).
+
+## ADR-0048: Reset clears the screen only, and waits for running jobs
+**Recorded.** 2026-11-04 18:34 CST (planning, Phase 17h)
+**Status.** Accepted
+**Context.** Nick asked for a top-bar Reset that clears the on-screen state in all tabs after a short confirmation and leaves disk files alone. Views stay mounted and keep local state, so remounting them is the clean way to clear it. But each view holds the only Cancel for the job it started (Video's history list is the exception), so clearing it while a job runs would leave that job running with no way to stop it. Remembered template inputs live in `localStorage` and can show earlier photos again.
+**Options considered.** Running jobs: (a) hold Reset until idle; (b) offer to cancel them; (c) let them run on. Remembered inputs: (a) keep them; (b) clear them too. Disk: (a) nothing; (b) a cleanup option now.
+**Decision.** Running jobs (a), remembered inputs (a), both chosen by Nick; disk (a), as he asked. Reset sends no writing request. Theme, thumbnail size, remembered inputs, recent templates and the session stay. The dialog is disabled while a job is unfinished or the event stream is down, because job states are stale then.
+**Consequences.** Reset can never lose or orphan work, at the cost of waiting for or cancelling a job first. A remembered photo can reappear when its template runs, which the dialog states. The gallery still shows its images, since they come from disk; only its filters and selection reset. `blob:` URLs of cleared views stay until the window closes. Disk cleanup stays a deferred follow-up and would need its own decision.

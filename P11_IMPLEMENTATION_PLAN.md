@@ -1,7 +1,7 @@
 # P11: Project_1111 Implementation Plan
 
 **Spec:** [`docs/P11_SPECIFICATION.md`](docs/P11_SPECIFICATION.md). **Decisions:** [`docs/P11_DECISIONS.md`](docs/P11_DECISIONS.md). **Agent rules:** [`CLAUDE.md`](CLAUDE.md). **Shared phase instructions:** [`prompts/P11_shared-instructions.md`](prompts/P11_shared-instructions.md)
-**Last updated:** 2026-11-04 17:34 CST (phase 17g inserted: Inpaint default, gallery thumbnail sizes, gallery picker)
+**Last updated:** 2026-11-04 18:34 CST (phase 17h inserted: top-bar Reset button)
 
 > ⚠️ **Mandatory:** every agent that works on this project keeps this file accurate. **Before doing any other work, set your phase to `🔄 In progress` and commit that change to `main`** (claim protocol: `prompts/P11_shared-instructions.md` §1a). Other agents read this table from `main`. At the end, set it to `✅ Complete` or `⛔ Blocked` and add a Phase Log entry. See `CLAUDE.md`.
 
@@ -25,7 +25,7 @@ Each phase is claimed by a `chore(plan): start phase NN` commit on `main` and ru
 - After **08**, **09** (templates UI), **10** (inpainting) and **12** (face/pose) can run in parallel; then **11** after 10, **13** after 12, **14** after 09. All of them add views under `frontend/src/features/` and routes under `src/p11/api/routes/`; they share `frontend/src/App.tsx` and the router, so merge one first and `git merge main` in the others.
 - GPU work in parallel phases is serialized by the advisory GPU lock (spec R24, ADR-0014); expect GPU tests to wait.
 - After **17** (v1.0.0 feedback round), **17a** (editor and layout fixes), **17b** (photo edit) and **17c** (P11 in OCC) can run in parallel; merge 17a first (17a and 17b both touch `frontend/src/app/theme.css` and the Generate/Inpaint/Background views), then `git merge main` in the others. **17d** (release v1.0.1) waits for all three. 17c's Open button depends on OCC phase 10a (`~/Work/OCC_OmarchyControlCenter`), which is not a P11 dependency.
-- **17e** (ship the fixes to the running Studio), **17g** (Inpaint default, gallery sizes, picker) and **17f** (release v1.0.2) run in that order after 17d; nothing runs in parallel with them. The letter only names 17g: it runs **before** 17f, which depends on it.
+- **17e** (ship the fixes to the running Studio), **17g** (Inpaint default, gallery sizes, picker), **17h** (Reset button) and **17f** (release v1.0.2) run in that order after 17d; nothing runs in parallel with them. The letters only name 17g and 17h: both run **before** 17f, which depends on them.
 
 **Gate column** (read only by PhaseHypervisor; manual `/phase` ignores it): `auto` = may run unattended; `review` = pause for Nick after it; `owner` = Nick starts it. Empty means `auto`.
 
@@ -58,8 +58,9 @@ Each phase is claimed by a `chore(plan): start phase NN` commit on `main` and ru
 | 17c | P11 in OCC | P11 Studio card in the Omarchy Control Center (transient `p11 serve`, health, busy flag on `/healthz`, logs, External match), Open via OCC `open_exec` once OCC 10a lands (ADR-0039), OSMods | Sonnet 5.5 (`claude-sonnet-5-5`) | 17 | ✅ Complete | [`prompts/P11_phase-17c-occ-service.md`](prompts/P11_phase-17c-occ-service.md) | auto |
 | 17d | Release v1.0.1 | Pre-flight, version 1.0.1, changelog, tag and GitHub release without an in-session go (ADR-0040), visibility unchanged, post-release check, hand-off for Nick's test | Sonnet 5.5 (`claude-sonnet-5-5`) | 17a, 17b, 17c | ✅ Complete | [`prompts/P11_phase-17d-release-1-0-1.md`](prompts/P11_phase-17d-release-1-0-1.md) | auto |
 | 17e | Ship the fixes to the running Studio | The four v1.0.1 items never reached Nick's Studio (stale `src/p11/web` bundle since 2026-11-03 18:41): build stamp, rebuild on install/update when stale, doctor/status/Studio build id, `index.html` no-cache, rebuild-and-restart close-out rule, checks at Nick's 1918×2130 Brave window, walk-through with Nick (ADR-0043) | Opus 5.5 (`claude-opus-5-5`) | 17d | ✅ Complete | [`prompts/P11_phase-17e-ship-fixes.md`](prompts/P11_phase-17e-ship-fixes.md) | review |
-| 17f | Release v1.0.2 | After Nick confirms the four items (owner question 23): pre-flight, version 1.0.2, tag and GitHub release, `p11 update` from v1.0.1 rebuilds the frontend (ADR-0044) | Sonnet 5.5 (`claude-sonnet-5-5`) | 17e, 17g | ⬜ Not started | [`prompts/P11_phase-17f-release-1-0-2.md`](prompts/P11_phase-17f-release-1-0-2.md) | review |
+| 17f | Release v1.0.2 | After Nick confirms the four items (owner question 23): pre-flight, version 1.0.2, tag and GitHub release, `p11 update` from v1.0.1 rebuilds the frontend (ADR-0044) | Sonnet 5.5 (`claude-sonnet-5-5`) | 17e, 17g, 17h | ⬜ Not started | [`prompts/P11_phase-17f-release-1-0-2.md`](prompts/P11_phase-17f-release-1-0-2.md) | review |
 | 17g | Inpaint default, gallery sizes and picker | Inpaint form defaults to Only masked area off (ADR-0045), gallery Small/Medium thumbnails, From gallery on all ten image inputs with `gallery/<id>` references only so the S5 flag travels (ADR-0046); walk-through with Nick | Opus 5.5 (`claude-opus-5-5`) | 17e | 🔄 In progress | [`prompts/P11_phase-17g-inpaint-gallery-picker.md`](prompts/P11_phase-17g-inpaint-gallery-picker.md) | review |
+| 17h | Reset button | Top-bar Reset with a short confirmation clears the on-screen state in all tabs; nothing on disk changes; held while jobs are unfinished; theme, thumbnail size and remembered template inputs stay (ADR-0048); walk-through with Nick | Opus 5.5 (`claude-opus-5-5`) | 17g | ⬜ Not started | [`prompts/P11_phase-17h-reset-button.md`](prompts/P11_phase-17h-reset-button.md) | review |
 
 ## Timeline
 Generated by `scripts/phase_timeline.py` from the Phase Log and git; refreshed on `main` at every close-out, block, resume and `/phase-add`. Do not edit between the markers.
@@ -67,7 +68,7 @@ Generated by `scripts/phase_timeline.py` from the Phase Log and git; refreshed o
 <!-- phase-timeline:start (generated by scripts/phase_timeline.py; do not edit) -->
 ![P11 timeline](docs/P11_TIMELINE.svg)
 
-*Generated from the Phase Log Timeline bullets and git, as of 2026-11-04 17:34 CST. ≈ marks a time inferred from git or a heading. Idle gaps over 60 min start a new chart below and are collapsed in the image. Regenerate with `python3 scripts/phase_timeline.py --write`; do not edit by hand.*
+*Generated from the Phase Log Timeline bullets and git, as of 2026-11-04 18:34 CST. ≈ marks a time inferred from git or a heading. Idle gaps over 60 min start a new chart below and are collapsed in the image. Regenerate with `python3 scripts/phase_timeline.py --write`; do not edit by hand.*
 
 ```mermaid
 gantt
@@ -117,14 +118,16 @@ gantt
 
 ```mermaid
 gantt
-    title P11 session 3, 2026-11-04 15:05 to 17:34 CST
+    title P11 session 3, 2026-11-04 15:05 to 18:34 CST
     dateFormat YYYY-MM-DD HH:mm
     axisFormat %H:%M
     section Planning
     +17e, 17f Phases 17e, 17f inserted :done, plan5, 2026-11-04 15:05, 2026-11-04 15:13
     +17g Phase 17g inserted :done, plan6, 2026-11-04 17:31, 2026-11-04 17:34
+    +17h Phase 17h inserted :done, plan7, 2026-11-04 18:32, 2026-11-04 18:34
     section Phases
     17e Ship the fixes to the running Studio :done, p17es3, 2026-11-04 15:15, 2026-11-04 17:21
+    17g Inpaint default, gallery sizes and picker :active, p17gs3, 2026-11-04 17:36, 2026-11-04 18:34
 ```
 
 | Phase | Name | Started | Finished | Merged | Active | Blocked | Claim |
@@ -138,6 +141,7 @@ gantt
 | plan | phx preflight | 2026-11-04 07:54 CST |  |  |  |  | n/a |
 | +17e, 17f | Phases 17e, 17f inserted | 2026-11-04 15:05 CST | 15:13 |  | 8 m |  | n/a |
 | +17g | Phase 17g inserted | 2026-11-04 17:31 CST | 17:34 |  | 3 m |  | n/a |
+| +17h | Phase 17h inserted | 2026-11-04 18:32 CST | 18:34 |  | 2 m |  | n/a |
 | 01 | Repository foundation & governance | 2026-11-02 15:05 CST | 15:08 | 15:08 | 3 m |  | `9f87dd5` |
 | 02 | Python + React scaffold, toolchain & CI | 2026-11-02 15:09 CST | 15:18 | 15:18 | 9 m |  | `d55b209` |
 | 03 | Hardware bake-off & engine baseline | 2026-11-02 15:19 CST | 18:10 | 18:10 | 2 h 51 m |  | `54750e3` |
@@ -160,10 +164,11 @@ gantt
 | 17c | P11 in OCC | 2026-11-04 11:21 CST | 11:30 | 11:31 | 9 m |  | `432f7f9` |
 | 17d | Release v1.0.1 | 2026-11-04 11:35 CST | 12:09 | 12:09 | 34 m |  | `ee59047` |
 | 17e | Ship the fixes to the running Studio | 2026-11-04 15:15 CST | 17:21 | 17:21 | 2 h 6 m |  | `f2e07a6` |
+| 17g | Inpaint default, gallery sizes and picker | 2026-11-04 17:36 CST | (in progress) | 18:11 | 58 m so far |  | `a7c86b6` |
 
-**Totals:** elapsed 2 d 8 h (first recorded start to 2026-11-04 17:34 CST) · active phase time 1 d 11 h (sum over phases) · blocked or paused 8 h 37 m · idle 4 h 12 m in 2 gap(s) over 60 min.
+**Totals:** elapsed 2 d 9 h (first recorded start to 2026-11-04 18:34 CST) · active phase time 1 d 12 h (sum over phases) · blocked or paused 8 h 37 m · idle 4 h 12 m in 2 gap(s) over 60 min.
 
-**Not started:** 17f, 17g.
+**Not started:** 17f, 17h.
 <!-- phase-timeline:end -->
 
 ### Model rationale
@@ -202,7 +207,7 @@ gantt
                                                                     17d (release v1.0.1)
                                                                              │
                                                                              ▼
-                                                                    17e (ship fixes to the running Studio) ─► 17g (Inpaint default, gallery sizes, picker) ─► 17f (release v1.0.2)
+                                                                    17e (ship fixes to the running Studio) ─► 17g (Inpaint default, gallery sizes, picker) ─► 17h (Reset button) ─► 17f (release v1.0.2)
 ```
 
 ### Definition of done (checked in the final phase)
@@ -243,6 +248,7 @@ Non-security items that were not closed in Phase 16, each with its reason; liste
 | 16 | ~~Vitest specs with Testing Library's 1 s `findBy` timeout fail under heavy CPU load~~ **Resolved in 17g:** `asyncUtilTimeout` is 5 s in `src/setupTests.ts` (seen again while Nick's Studio was busy) | done |
 | 17g | **S5 residuals of ADR-0047:** Background previews of *uploads* showing a face are unchecked (guarding them would break Background without the `face` set; nothing is saved, Apply is guarded). `upscale` and `text_overlay` on an upload in a template or API recipe are not edits under the upload face rule | need a decision on the `face` set requirement; no UI path from an upload today except templates built by hand |
 | 17g | `made_with_likeness` treats an unreadable sidecar as no likeness (fail open), so a gallery image whose sidecar was removed by hand loses its flag | small hardening; decide whether such images should count as likeness |
+| 17h | **Disk cleanup option:** a separate, clearly labelled control to delete files P11 made (uploads, scratch; never gallery images or models by default). Left out of 17h on purpose (ADR-0048) | Nick said "if you want it"; needs its own decision on what may be deleted, under the Risk rule |
 | 17c | ~~**Open on the OCC P11 card** needs OCC phase 10a (`open_exec`)~~ **Resolved 2026-11-04 13:31 CST:** OCC phase 10a merged to OCC `main` (`7743778`) and the installed build is `7d66de3`; the live `~/.config/occ/services.toml` line is `open_exec = ["~/.local/bin/p11", "open"]`, and Nick confirmed the card's Open opens the Studio. Recorded in OCC ADR-0039 and OSMods `P11 in OCC`. `Super + Alt + I` and `p11 open` still work | Closed |
 
 ## Owner questions
@@ -603,3 +609,13 @@ Newest entries at the bottom. Format: `### YYYY-MM-DD HH:MM TZ: Phase NN: <title
 - **Bundle id:** `e14d7d14` (`index-nW1BcTX7.js`). `p11 doctor` reports current, `p11 status` and `/healthz` show the same id. Live Studio restarted while idle, pid 2008512.
 - **Real Studio, read-only at 1918×2130 (2026-11-04 18:13 CST):** a fresh Inpaint form has Only masked area unchecked; tiles 200 px and 120 px with no horizontal overflow; the picker lists the real gallery; no POST was sent. **Not checked on the real engine:** a picked image running a job (fake engine only so far) and a gallery face on Video; both are in Nick's walk-through. No job was run here, to leave his gallery alone.
 - **Waiting for:** Nick's confirmation of all three items in his own window (task 8).
+
+### 2026-11-04 18:34 CST: Planning: phase 17h inserted (Planned)
+- **Timeline:** started 2026-11-04 18:32 CST · finished 2026-11-04 18:34 CST
+- Request (Nick): a Reset button at the right of the top bar that clears the on-screen state in all tabs after a short confirmation, leaving disk files alone at first; disk cleanup could be a separate, clearly labelled option.
+- Scope: reducer `reset`, `resetKey` and cleared `editing` in `NavProvider`, keyed remount of the eight views, `clear()` on toasts, the button and dialog, the hold while jobs are unfinished or the stream is down. No backend change expected; no disk cleanup.
+- Found while grounding: a remount alone would bring back the last hand-off, because views compare `editing.at` during render, and it would orphan a running job, because each view holds its job's only Cancel (Video's history list is the exception).
+- Decisions (ADR-0048, Nick answered in this session): hold Reset until idle rather than cancel or orphan jobs; keep remembered template inputs and recent templates.
+- Placement: after 17g, which also changes the Studio frontend; runs before 17f, which now depends on it, so this ships in v1.0.2. **17g is still 🔄 waiting for Nick's check**, so 17h cannot be claimed until it is ✅. Gate `review`: Nick checks it in his own window (17e rule).
+- Model: Opus 5.5, because the change crosses the state of all eight views and its failure modes are subtle, not because it is large.
+- Other files: `prompts/P11_phase-17h-reset-button.md`, `prompts/P11_phase-17f-release-1-0-2.md` (depends on 17h), `docs/P11_DECISIONS.md`, Deferred follow-ups (disk cleanup), the vault note.
