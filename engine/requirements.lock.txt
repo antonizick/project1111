@@ -1266,10 +1266,11 @@ numpy==2.5.4 \
     #   torchsde
     #   torchvision
     #   transformers
-nvidia-cublas==13.1.1.3 \
-    --hash=sha256:37936a16db8fe4ac1f065c2139360608a543a09275cb1a1af612e08cfa065436 \
-    --hash=sha256:b6cdce694e47ff6aadf0a69df1cab6628d696f5ff56e8d16af50309d855fa20f \
-    --hash=sha256:b7a210458267ac818974c53038fbec2e969d5c99f305ab15c72522fa9f001dd5
+nvidia-cublas==13.10.0.20 \
+    --hash=sha256:05929d6a64af9edce1951ff82a514d630fc1a2369bcfe1ab195f5e85266dbfed \
+    --hash=sha256:c310b749eea855b88fafb906de08d6819b87216c6711640771764fea5dcd8546 \
+    --hash=sha256:c5f3418c0a845232a8cabc58f6fa52cfae7d8bd3680d94c3907aca710fd48d70 \
+    --hash=sha256:dcc6d63884c53d07e267ce7e6feac17b2538cebaafec5db865736c3e28e4dc84
     # via
     #   cuda-toolkit
     #   nvidia-cudnn-cu13
